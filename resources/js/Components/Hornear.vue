@@ -122,6 +122,7 @@
 import { ref, computed } from 'vue';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { usePage } from '@inertiajs/vue3';
+import Swal from 'sweetalert2';
 
 const timerStore = useTimerStore();
 const { props } = usePage();
@@ -196,17 +197,34 @@ const crearPaste = () => {
   const masa = masasActualizadas.value.find(m => m.nombre === masaCorrespondiente);
   const relleno = rellenosActualizados.value.find(r => r.nombre === nuevoPaste.value.relleno);
 
+  // Validación para evitar crear si no hay masa disponible
+  if (!masa || masa.cantidad <= 0) {
+    const Toast = Swal.mixin({
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.onmouseenter = Swal.stopTimer;
+            toast.onmouseleave = Swal.resumeTimer;
+        }
+        });
+        Toast.fire({
+        icon: "error",
+        title: "No hay masa suficiente"
+        });
+    return;
+  }
+
   if (masa && relleno && nuevoPaste.value.cantidad <= maxCantidadDisponible.value) {
     masa.cantidad -= nuevoPaste.value.cantidad;
     relleno.cantidad -= nuevoPaste.value.cantidad;
 
-    // Verifica si ya existe un grupo de pastes con el mismo relleno
     const grupoExistente = timerStore.pastesPorHornear.find(p => p.nombre === relleno.nombre);
     if (grupoExistente) {
-      // Si existe, suma la cantidad al grupo existente
       grupoExistente.cantidad += nuevoPaste.value.cantidad;
     } else {
-      // Si no, crea un nuevo grupo
       timerStore.agregarPaste({
         id: Date.now(),
         masa: masa.nombre,
@@ -215,7 +233,6 @@ const crearPaste = () => {
       });
     }
 
-    // Reiniciar el formulario
     nuevoPaste.value = { masa: '', relleno: '', cantidad: 1 };
   }
 };

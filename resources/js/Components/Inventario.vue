@@ -23,6 +23,7 @@
                                 <option value="empanadas saladas">Empanadas saladas</option>
                                 <option value="empanadas dulces">Empanadas dulces</option>
                                 <option value="bebida">Bebidas</option>
+                                <option value="masa">Masa</option>
                                 <option value="extras">Extras</option>
                             </select>
                         </div>
