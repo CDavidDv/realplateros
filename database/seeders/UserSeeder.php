@@ -28,6 +28,14 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password'),
         ]);
         $sucursal->assignRole('sucursal');
+
+        $sucursal = User::create([
+            'name' => 'Sucursal 2',
+            'sucursal_id' => '2',
+            'email' => 'sucursal2',
+            'password' => Hash::make('password'),
+        ]);
+        $sucursal->assignRole('sucursal');
     
     }
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\CheckInCheckOutController;
 use App\Http\Controllers\CorteCajaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\PrintController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\UsuarioController;
@@ -49,5 +50,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/corte-caja/guardar-final', [CorteCajaController::class, 'guardarFinal'])->name('corte-caja.guardar-final');
     Route::post('/corte-caja/filtro', [CorteCajaController::class, 'filtro'])->name('corte-caja.filtro');
 
+    Route::post('/print-ticket', [PrintController::class, 'printTicket']);
     
 });

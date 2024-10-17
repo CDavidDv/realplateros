@@ -182,4 +182,31 @@ const completeSale = () => {
     }
   });
 };
+
+const printTicket = () => {
+  fetch('/print-ticket', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      productos: ticket.value,
+      total: totalAmount.value,
+      metodo_pago: metodoPago.value
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast('success', 'Ticket impreso correctamente');
+    } else {
+      showToast('error', 'Error al imprimir el ticket');
+    }
+  })
+  .catch(error => {
+    console.error('Error en la impresión del ticket:', error);
+    showToast('error', 'Error al imprimir el ticket');
+  });
+};
+
 </script>
