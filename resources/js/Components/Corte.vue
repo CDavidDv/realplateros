@@ -134,6 +134,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
+import { route } from '../../../vendor/tightenco/ziggy/src/js'
+
 
 const { props } = usePage()
 const selectedFilter = ref('day')
@@ -236,7 +238,7 @@ const handleSaveInitialCash = () => {
   };
 
 
-  router.post('/corte-caja/guardar-inicial', data, {
+  router.post(route('corte-caja.guardar-inicial'), data, {
     preserveScroll: true,
     onSuccess(e) {
       if(e.props.flash.error){

@@ -2,33 +2,48 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
-import Swal from 'sweetalert2'
+import Swal from 'sweetalert2';
 
 export const useTimerStore = defineStore('timerStore', () => {
   const horneando = ref(false);
-  const pastesHorneando = ref([]); // Almacena el grupo de pastes que están horneándose
-  const tiempoTotal = ref(5000); // 30 segundos
+  const pastesHorneando = ref([]);
+  const tiempoTotal = ref(0); // Se ajustará según el tipo de producto
   const tiempoTranscurrido = ref(0);
-  const pastesPorHornear = ref([]); // Grupos de pastes por hornear
+  const pastesPorHornear = ref([]);
   const tiempoInicio = ref(null);
+
   const tiempoRestante = computed(() => {
     return tiempoTotal.value - tiempoTranscurrido.value;
   });
 
-  const agregarPaste = (paste) => {
-    pastesPorHornear.value.push(paste); // Agrega el paste a la lista de pastes por hornear
+  const agregarPaste = (producto) => {
+    // Agregar el producto a la lista de pendientes
+    pastesPorHornear.value.push(producto);
+  };
+
+  const definirTiempoHorneado = (producto) => {
+    // Asigna el tiempo en milisegundos dependiendo del tipo
+    if (producto.masa === 'bola') {
+      return 1800000; // 30 minutos en milisegundos
+    } else if (producto.masa === 'salada' || producto.masa === 'dulce') {
+      return 2400000; // 40 minutos en milisegundos
+    }
+    return 1800000; // Tiempo por defecto, 30 minutos
   };
 
   const iniciarHorneado = () => {
     if (pastesPorHornear.value.length === 0 || horneando.value) return;
-    horneando.value = true;
-    
 
-    // Hornear todo el grupo de pastes juntos
+    horneando.value = true;
     pastesHorneando.value = [...pastesPorHornear.value];
-    pastesPorHornear.value = []; // Limpiamos la lista de pendientes para reflejar que están en el horno
+    pastesPorHornear.value = [];
+
+    // Aquí definimos el tiempo de horneado para el primer producto.
+    // Si quieres manejar varios productos con diferentes tiempos, deberías ajustar la lógica.
+    tiempoTotal.value = definirTiempoHorneado(pastesHorneando.value[0]);
+
     tiempoInicio.value = Date.now();
-    
+
     const timer = setInterval(() => {
       tiempoTranscurrido.value = Date.now() - tiempoInicio.value;
       if (tiempoTranscurrido.value >= tiempoTotal.value) {
@@ -38,66 +53,57 @@ export const useTimerStore = defineStore('timerStore', () => {
   };
 
   const finalizarHorneado = (timer) => {
-    // Terminar el temporizador
     clearInterval(timer);
-  
-    // Obtener los pastes horneados
+
     const pastesFinalizados = [...pastesHorneando.value];
-  
-    // Restablecer estado del horno
+
     horneando.value = false;
     pastesHorneando.value = [];
     tiempoTranscurrido.value = 0;
-  
-    // Reproducir sonido de finalización
+
     reproducirSonido();
-  
-    // Enviar los pastes horneados al backend
-    router.post('/hornear', { pastes: pastesFinalizados } , {
-      onSuccess: (a) => {
-        
+
+    router.post('/hornear', { pastes: pastesFinalizados }, {
+      onSuccess: () => {
         const Toast = Swal.mixin({
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
-        didOpen: (toast) => {
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 1500,
+          timerProgressBar: true,
+          didOpen: (toast) => {
             toast.onmouseenter = Swal.stopTimer;
             toast.onmouseleave = Swal.resumeTimer;
-        }
+          }
         });
         Toast.fire({
-        icon: "success",
-        title: "Registrado correctamente"
+          icon: "success",
+          title: "Registrado correctamente"
         });
-
-        
-        
       },
       onError: (errors) => {
-        console.error('Error al registrar el horneadp:', errors);
+        console.error('Error al registrar el horneado:', errors);
         const Toast = Swal.mixin({
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
-        didOpen: (toast) => {
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 1500,
+          timerProgressBar: true,
+          didOpen: (toast) => {
             toast.onmouseenter = Swal.stopTimer;
             toast.onmouseleave = Swal.resumeTimer;
-        }
+          }
         });
         Toast.fire({
-        icon: "error",
-        title: "Error al registrar"
+          icon: "error",
+          title: "Error al registrar"
         });
-      }})
+      }
+    });
   };
 
-  // Función para reproducir sonido
   const reproducirSonido = () => {
-    const audio = new Audio('/sound/videoplayback.mp3'); // Asegúrate de que el archivo de sonido esté en esta ruta
+    const audio = new Audio('/sound/videoplayback.mp3');
     audio.play().catch(error => console.log("Error al reproducir el sonido:", error));
   };
 

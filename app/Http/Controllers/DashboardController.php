@@ -44,35 +44,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function corte()
-    {   
-        // Obtener usuario autenticado
-        $user = Auth::user();
-        $sucursalId = $user->sucursal_id;
-
-        // Obtener todas las ventas de la sucursal
-        $ventas = Venta::where('sucursal_id', $sucursalId)->get();
-
-        // Obtener los productos vendidos de la sucursal, sumando las cantidades por producto
-        $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
-            ->whereHas('venta', function ($query) use ($sucursalId) {
-                $query->where('sucursal_id', $sucursalId);
-            })
-            ->groupBy('producto_id')
-            ->with('producto') // Cambiar el nombre del modelo relacionado si es necesario
-            ->get();
-
-        // Obtener inventario de la sucursal
-        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
-        $corte = CorteCaja::where('sucursal_id', $sucursalId)->get();
-        
-            return Inertia::render('Corte/index', [
-                'inventario' => $inventario,
-                'ventas' => $ventas,
-                'productosVendidos' => $productosVendidos,
-                'corte' => $corte
-            ]);
-    }
+    
 
 
 

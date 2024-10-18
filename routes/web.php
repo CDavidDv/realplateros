@@ -10,6 +10,7 @@ use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VentaController;
 use Illuminate\Support\Facades\Route;
+use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 
 // NO AUTH ROUTES 
 Route::get('/', [DashboardController::class, 'index']);
@@ -45,10 +46,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
     Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
     
-    Route::get('/corte-caja', [DashboardController::class, 'corte'])->name("corte-caja");
+    Route::get('/corte-caja/filtro', [CorteCajaController::class, 'corte'])->name('corte-caja');
+    Route::get('/corte-caja', [CorteCajaController::class, 'corte'])->name("corte-caja");
+    
     Route::post('/corte-caja/guardar-inicial', [CorteCajaController::class, 'guardarInicial'])->name('corte-caja.guardar-inicial');
     Route::post('/corte-caja/guardar-final', [CorteCajaController::class, 'guardarFinal'])->name('corte-caja.guardar-final');
+    
     Route::post('/corte-caja/filtro', [CorteCajaController::class, 'filtro'])->name('corte-caja.filtro');
+
 
     Route::post('/print-ticket', [PrintController::class, 'printTicket']);
     Route::post('/search-check-ins', [CheckInCheckOutController::class, 'search'])->name('search-check-ins');

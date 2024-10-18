@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CorteCaja;
+use App\Models\Inventario;
 use App\Models\Venta;
 use App\Models\VentaProducto;
 use Carbon\Carbon;
@@ -91,7 +92,8 @@ class CorteCajaController extends Controller
                 'dinero_inicio' => $request->dinero_inicio,
                 'usuario_id' => $usuario->id,
             ]);
-            return back()->with('success', 'Cantidad inicial guardada correctamente.');
+            return redirect()->route('corte-caja')->with('success', 'Cantidad inicial guardada correctamente.');
+            
         }
     }
 
@@ -196,4 +198,34 @@ class CorteCajaController extends Controller
         
     }
 
+
+    public function corte()
+    {   
+        // Obtener usuario autenticado
+        $user = Auth::user();
+        $sucursalId = $user->sucursal_id;
+
+        // Obtener todas las ventas de la sucursal
+        $ventas = Venta::where('sucursal_id', $sucursalId)->get();
+
+        // Obtener los productos vendidos de la sucursal, sumando las cantidades por producto
+        $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
+            ->whereHas('venta', function ($query) use ($sucursalId) {
+                $query->where('sucursal_id', $sucursalId);
+            })
+            ->groupBy('producto_id')
+            ->with('producto') // Cambiar el nombre del modelo relacionado si es necesario
+            ->get();
+
+        // Obtener inventario de la sucursal
+        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
+        $corte = CorteCaja::where('sucursal_id', $sucursalId)->get();
+        
+            return Inertia::render('Corte/index', [
+                'inventario' => $inventario,
+                'ventas' => $ventas,
+                'productosVendidos' => $productosVendidos,
+                'corte' => $corte
+            ]);
+    }
 }
