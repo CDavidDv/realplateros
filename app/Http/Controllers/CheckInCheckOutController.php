@@ -34,6 +34,28 @@ class CheckInCheckOutController extends Controller
         ]);
     }
 
+    public function search(Request $request)
+    {
+        $request->validate([
+            'startDate' => 'required|date',
+            'endDate' => 'required|date|after_or_equal:startDate',
+        ]);
+
+        $user = Auth::user();
+        $sucursalId = $user->sucursal_id;
+
+        $query = CheckInCheckOut::with('user')
+            ->whereHas('user', function ($query) use ($sucursalId) {
+                $query->where('sucursal_id', $sucursalId);
+            })
+            ->whereBetween('created_at', [$request->startDate, $request->endDate]);
+
+        $checkIns = $query->get();
+
+        return Inertia::render('Checador/index', [
+            'checkIns' => $checkIns, 
+        ]);
+    }
 
 public function checkInOut(Request $request) {
     // Validate the request

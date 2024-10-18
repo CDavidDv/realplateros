@@ -51,5 +51,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/corte-caja/filtro', [CorteCajaController::class, 'filtro'])->name('corte-caja.filtro');
 
     Route::post('/print-ticket', [PrintController::class, 'printTicket']);
+    Route::post('/search-check-ins', [CheckInCheckOutController::class, 'search'])->name('search-check-ins');
+
     
 });
