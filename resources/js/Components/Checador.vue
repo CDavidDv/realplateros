@@ -1,7 +1,7 @@
 <template>
     <div class="min-h-max h-[80vh] gap-5 m-auto md:flex-row flex flex-col items-center p-4 md:p-8 justify-center">
         <div class="flex flex-col w-full">
-            <div class="w-full flex gap-5 items-start">
+            <div class="w-full flex gap-5 flex-col md:flex-row items-start">
                 <div class="md:w-4/12 h-fit w-full border p-10 rounded-xl shadow-xl">
                     <div>
                         <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -46,18 +46,18 @@
                 <div class="md:w-8/12 w-full h-fit" v-if="$page.props.user.roles !== 'trabajador'">
                     <!-- Formulario de búsqueda -->
                     <form class="mb-4 p-4 border rounded-xl shadow-md" @submit.prevent="handleSearch">
-                        <div class="flex space-x-4">
-                            <div class="flex-1">
+                        <div class="flex md:space-x-4 flex-col md:flex-row">
+                            <div class="flex-1 p-2 md:p-0">
                                 <label for="startDate" class="block text-sm font-medium text-gray-700">Fecha de Inicio</label>
                                 <input id="startDate" type="date" v-model="searchForm.startDate"
                                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
                             </div>
-                            <div class="flex-1">
+                            <div class="flex-1 p-2 md:p-0">
                                 <label for="endDate" class="block text-sm font-medium text-gray-700">Fecha de Fin</label>
                                 <input id="endDate" type="date" v-model="searchForm.endDate"
                                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
                             </div>
-                            <div class="flex-1 flex items-end">
+                            <div class="flex-1 flex items-end p-2 md:p-0">
                                 <button type="submit"
                                     class="w-full py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
                                     Buscar
