@@ -69,7 +69,7 @@ const logout = () => {
                                     Checador
                                 </NavLink>
                             </div>
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="$page.props.user.roles == 'admin'">
                                 <NavLink :href="route('personal')" :active="route().current('personal')">
                                     Personal
                                 </NavLink>
@@ -237,8 +237,9 @@ const logout = () => {
                             Checador
                         </ResponsiveNavLink>
                     </div>
-                    <div class="pt-2 pb-3 space-y-1">
-                        <ResponsiveNavLink :href="route('personal')" :active="route().current('personal')">
+                    
+                    <div class="pt-2 pb-3 space-y-1" v-if="$page.props.user.roles == 'admin'">
+                        <ResponsiveNavLink :href="route('personal')" :active="route().current('personal')" >
                             Personal
                         </ResponsiveNavLink>
                     </div>
@@ -333,7 +334,7 @@ const logout = () => {
             </header>
 
             <!-- Page Content -->
-            <main>
+            <main>                    
                 <slot />
             </main>
         </div>

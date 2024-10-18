@@ -159,6 +159,7 @@ const showToast = (icon, title) => {
 };
 
 const completeSale = () => {
+  printTicket();
   if (ticket.value.length === 0) return;
   loading.value = true;
   router.post('/ventas', {
