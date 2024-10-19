@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Banner from '@/Components/Banner.vue';
 import Dropdown from '@/Components/Dropdown.vue';
@@ -25,6 +25,10 @@ const switchToTeam = (team) => {
 const logout = () => {
     router.post(route('logout'));
 };
+
+const { props } = usePage()
+console.log(props.user.roles[0])
+
 </script>
 
 <template>
@@ -70,7 +74,7 @@ const logout = () => {
                                 </NavLink>
                             </div>
                             
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="$page.props.user.roles[0] !== 'trabajador'">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="props.user.roles[0] !== 'trabajador'">
                                 <NavLink :href="route('personal')" :active="route().current('personal')">
                                     Personal
                                 </NavLink>
@@ -239,7 +243,7 @@ const logout = () => {
                         </ResponsiveNavLink>
                     </div>
                     
-                    <div class="pt-2 pb-3 space-y-1" v-if="$page.props.user.roles[0] !== 'trabajador'">
+                    <div class="pt-2 pb-3 space-y-1" v-if="props.user.roles[0] !== 'trabajador'">
                         
                         <ResponsiveNavLink :href="route('personal')" :active="route().current('personal')" >
                             Personal
