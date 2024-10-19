@@ -69,7 +69,9 @@ const logout = () => {
                                     Checador
                                 </NavLink>
                             </div>
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="$page.props.user.roles !== 'trabajador'">
+                            
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="$page.props.user.roles[0] !== 'trabajador'">
+                                {{$page.props.user.roles[0]  }}
                                 <NavLink :href="route('personal')" :active="route().current('personal')">
                                     Personal
                                 </NavLink>
@@ -238,7 +240,8 @@ const logout = () => {
                         </ResponsiveNavLink>
                     </div>
                     
-                    <div class="pt-2 pb-3 space-y-1" v-if="$page.props.user.roles !== 'trabajador'">
+                    <div class="pt-2 pb-3 space-y-1" v-if="$page.props.user.roles[0] !== 'trabajador'">
+                        
                         <ResponsiveNavLink :href="route('personal')" :active="route().current('personal')" >
                             Personal
                         </ResponsiveNavLink>
