@@ -185,7 +185,7 @@ const completeSale = () => {
 };
 
 const printTicket = () => {
-  fetch('/print-ticket', {
+  fetch('http://print.test/print-ticket', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
