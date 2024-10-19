@@ -71,7 +71,6 @@ const logout = () => {
                             </div>
                             
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="$page.props.user.roles[0] !== 'trabajador'">
-                                {{$page.props.user.roles[0]  }}
                                 <NavLink :href="route('personal')" :active="route().current('personal')">
                                     Personal
                                 </NavLink>
