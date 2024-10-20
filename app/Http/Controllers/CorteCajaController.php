@@ -206,7 +206,9 @@ class CorteCajaController extends Controller
         $sucursalId = $user->sucursal_id;
 
         // Obtener todas las ventas de la sucursal
-        $ventas = Venta::where('sucursal_id', $sucursalId)->get();
+        $ventas = Venta::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::today())
+            ->get();
 
         // Obtener los productos vendidos de la sucursal, sumando las cantidades por producto
         $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
@@ -214,12 +216,16 @@ class CorteCajaController extends Controller
                 $query->where('sucursal_id', $sucursalId);
             })
             ->groupBy('producto_id')
-            ->with('producto') // Cambiar el nombre del modelo relacionado si es necesario
+            ->with('producto')
+            ->whereDate('created_at', Carbon::today()) // Cambiar el nombre del modelo relacionado si es necesario
             ->get();
 
         // Obtener inventario de la sucursal
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
-        $corte = CorteCaja::where('sucursal_id', $sucursalId)->get();
+        $corte = CorteCaja::where('sucursal_id', $sucursalId)
+           ->whereDate('created_at', Carbon::today())
+           ->first();
+
         
             return Inertia::render('Corte/index', [
                 'inventario' => $inventario,

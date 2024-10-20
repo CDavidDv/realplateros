@@ -31,6 +31,7 @@
 
         <!-- Cantidad inicial -->
         <div class="mb-6" v-if="isToday">
+          <!-- Cantidad Inicial -->
           <label for="initialCash" class="block text-sm font-medium text-gray-700">Cantidad Inicial en Caja</label>
           <div class="flex space-x-2">
             <input
@@ -44,15 +45,17 @@
             />
             <button @click="handleSaveInitialCash" 
               :class="{
-                  'px-4 py-2 rounded-md text-white hover:bg-orange-600': Number(props?.corte[0]?.dinero_inicio || 0) <= 0,
-                  'bg-gray-500 px-4 py-2 rounded-md text-gray-300 cursor-not-allowed': Number(props?.corte[0]?.dinero_inicio || 0) > 0,
-                  'bg-orange-500': Number(props?.corte[0]?.dinero_inicio || 0) <= 0
+                'px-4 py-2 rounded-md text-white hover:bg-orange-600 bg-orange-500': props?.corte === null && props?.corte?.dinero_inicio === null,
+                'bg-gray-500 px-4 py-2 rounded-md text-gray-300 cursor-not-allowed': props?.corte !== null && props?.corte?.dinero_inicio !== null,
+                'px-4 py-2 rounded-md text-white hover:bg-orange-600 bg-orange-500': props?.corte === null
               }" 
-              :disabled="Number(props?.corte[0]?.dinero_inicio || 0) > 0">Guardar</button>
+              :disabled="props?.corte !== null || props?.corte?.dinero_inicio  === null">
+              Guardar
+            </button>
           </div>
         </div>
 
-        <!-- Cantidad final -->
+        <!-- Cantidad Final -->
         <div class="mb-6" v-if="isToday">
           <label for="finalCash" class="block text-sm font-medium text-gray-700">Cantidad Final en Caja</label>
           <div class="flex space-x-2">
@@ -67,23 +70,27 @@
             />
             <button @click="handleSaveFinalCash" 
               :class="{
-                  'px-4 py-2 rounded-md text-white hover:bg-orange-600': Number(props?.corte[0]?.dinero_final || 0 ) <= 0,
-                  'bg-gray-500 px-4 py-2 rounded-md text-gray-300 cursor-not-allowed': Number(props?.corte[0]?.dinero_final || 0 ) > 0,
-                  'bg-orange-500': Number(props?.corte[0]?.dinero_final || 0 ) <= 0
+                'px-4 py-2 rounded-md text-white hover:bg-orange-600 bg-orange-500': props?.corte !== null && props?.corte?.dinero_final === null,
+                'bg-gray-500 px-4 py-2 rounded-md text-gray-300 cursor-not-allowed': props?.corte !== null && props?.corte?.dinero_final !== null,
+                'bg-orange-500': props?.corte !== null && props?.corte?.dinero_final === null,
+                'px-4 py-2 rounded-md text-white hover:bg-orange-600 bg-orange-500': props?.corte === null
               }" 
-              :disabled="Number(props?.corte[0]?.dinero_final || 0 ) > 0">Guardar</button>
+              :disabled=" props?.corte !== null && props?.corte?.dinero_final !== null">
+              Guardar
+            </button>
           </div>
         </div>
+
 
         <!-- Resumen financiero -->
         <div class="bg-gray-50 p-4 rounded-lg mb-6">
           <h2 class="text-xl font-semibold mb-4">Resumen Financiero</h2>
           <div class="grid grid-cols-2 gap-4">
-            <div>
+            <div v-if="selectedFilter === 'day'">
               <p class="text-sm text-gray-600">Dinero inicial:</p>
               <p class="font-medium">${{ safeToFixed(initialCash) }}</p>
             </div>
-            <div>
+            <div v-if="selectedFilter === 'day'">
               <p class="text-sm text-gray-600">Dinero final:</p>
               <p class="font-medium">${{ safeToFixed(finalCash) }}</p>
             </div>
@@ -143,13 +150,15 @@ const today = new Date();
 const selectedDate = ref(today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'))
 const selectedWeek = ref(null)
 const selectedMonth = ref(null)
-const initialCash = ref(props?.corte[0]?.dinero_inicio || 0)
-const finalCash = ref(props?.corte[0]?.dinero_final || 0)
+const initialCash = ref(props?.corte?.dinero_inicio || 0)
+const finalCash = ref(props?.corte?.dinero_final || 0)
 const cashPayments = ref(0)
 const cardPayments = ref(0)
 const productsUsed = ref(props.productosVendidos || [])
 const isLoading = ref(false)
 const error = ref('')
+
+
 
 const isToday = computed(() => {
   const today = new Date();
@@ -157,6 +166,9 @@ const isToday = computed(() => {
   
   return selectedFilter.value === 'day' && selectedDate.value === formattedToday;
 });
+
+
+console.log(props.ventas)
 
 const fetchFilteredData = () => {
   isLoading.value = true
@@ -179,7 +191,6 @@ const fetchFilteredData = () => {
   }, {
     preserveScroll: true,
     onSuccess(response) {
-      console.log(response)
       cashPayments.value = response.props.cashPayments
       cardPayments.value = response.props.cardPayments
       productsUsed.value = response.props.productsUsed
@@ -268,7 +279,7 @@ const handleSaveFinalCash = () => {
       if(e.props.flash.error){
         showToast("error", e.props.flash.error || "Error al guardar la cantidad inicial");
       }else{
-        showToast("success", "Cantidad inicial guardada correctamente");
+        showToast("success", "Cantidad final guardada correctamente");
       }
     },
     onError(e) {
@@ -276,7 +287,6 @@ const handleSaveFinalCash = () => {
     }
   });
 };
-
 
 onMounted(() => {
   calculatePayments()
