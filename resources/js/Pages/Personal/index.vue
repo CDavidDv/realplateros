@@ -1,6 +1,8 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Personal from '@/Components/Personal.vue';
+import { usePage } from '@inertiajs/vue3';
+
 const { props } = usePage()
 console.log(props.user.roles[0])
 </script>
