@@ -1,7 +1,10 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SalesPanel from '@/Components/SalesPanel.vue';
+import { usePage } from '@inertiajs/vue3';
 
+const {props} = usePage()
+console.log(props)
 </script>
 
 

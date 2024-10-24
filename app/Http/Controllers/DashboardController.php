@@ -38,9 +38,12 @@ class DashboardController extends Controller
 
         // Filtra el inventario por sucursal_id
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
+        $ticketId = session('ticket_id');
+        
 
         return Inertia::render('Dashboard/index', [
-            'inventario' => $inventario
+            'inventario' => $inventario,
+            'ticket_id' => $ticketId
         ]);
     }
 

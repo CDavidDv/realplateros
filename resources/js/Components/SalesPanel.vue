@@ -159,7 +159,7 @@ const showToast = (icon, title) => {
 };
 
 const completeSale = () => {
-  printTicket();
+  
   if (ticket.value.length === 0) return;
   loading.value = true;
   router.post('/ventas', {
@@ -169,6 +169,8 @@ const completeSale = () => {
   }, {
     preserveScroll: true,
     onSuccess: (a) => {
+      printTicket(a.props.ticket_id)
+      printTicket(a.props.ticket_id)
       inventario.value = a.props.inventario;
       ticket.value = [];
       searchTerm.value = '';
@@ -184,13 +186,15 @@ const completeSale = () => {
   });
 };
 
-const printTicket = () => {
+const printTicket = (id) => {
+  console.log(id)
   fetch('https://print.test/print-ticket', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
+      ticket_id: id,
       productos: ticket.value,
       total: totalAmount.value,
       metodo_pago: metodoPago.value

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Inventario;
+use App\Models\Ticket;
 use App\Models\Venta;
 use App\Models\VentaProducto;
 use Illuminate\Http\Request;
@@ -101,8 +102,21 @@ class VentaController extends Controller
             }
         }
 
+        $ticket = Ticket::create([
+            'venta_id' => $venta->id,
+            'numero_ticket' => time(),
+            'total' => $venta->total,
+            'creado_por' => auth()->user()->id,
+            'sucursal_id' => auth()->user()->sucursal_id, 
+            'metodo_pago' => $request->metodo_pago,
+        ]);
+    
+        
         // Retornar una respuesta JSON
-        return redirect()->route('dashboard')->with('mensaje', 'Venta procesada correctamente');
+        return redirect()->route('dashboard')->with([
+            'mensaje' => 'Venta procesada correctamente',
+            'ticket_id' => $ticket->id,
+        ]);
     } catch (\Exception $e) {
         // Redirigir a la vista con un mensaje de error
         return redirect()->route('dashboard')->with('mensaje', 'Venta procesada incorrectamente');

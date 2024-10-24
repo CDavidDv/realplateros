@@ -1,6 +1,7 @@
 <script setup>
 import Inventario from '@/Components/Inventario.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+
 </script>
 
 <template>
