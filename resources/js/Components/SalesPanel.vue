@@ -187,17 +187,22 @@ const completeSale = () => {
 };
 
 const printTicket = (id) => {
-  console.log(id)
+  console.log(JSON.stringify({
+      ticket_id: id,
+      productos: ticket.value,
+      total: totalAmount.value,
+      metodo_pago: metodoPago.value
+    }))
   fetch('https://print.test/print-ticket', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      ticket_id: id,
       productos: ticket.value,
       total: totalAmount.value,
-      metodo_pago: metodoPago.value
+      metodo_pago: metodoPago.value,
+      ticket_id: id,
     })
   })
   .then(response => response.json())
