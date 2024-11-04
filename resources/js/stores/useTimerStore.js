@@ -24,11 +24,11 @@ export const useTimerStore = defineStore('timerStore', () => {
   const definirTiempoHorneado = (producto) => {
     // Asigna el tiempo en milisegundos dependiendo del tipo
     if (producto.masa === 'bola') {
-      return 1800000; // 30 minutos en milisegundos
+      return 900000; // 30 minutos en milisegundos
     } else if (producto.masa === 'salada' || producto.masa === 'dulce') {
-      return 2400000; // 40 minutos en milisegundos
+      return 900000; // 40 minutos en milisegundos
     }
-    return 1800000; // Tiempo por defecto, 30 minutos
+    return 900000; // Tiempo por defecto, 30 minutos
   };
 
   const iniciarHorneado = () => {
