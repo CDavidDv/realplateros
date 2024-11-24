@@ -168,7 +168,7 @@ const isToday = computed(() => {
 });
 
 
-console.log(props.ventas)
+
 
 const fetchFilteredData = () => {
   isLoading.value = true

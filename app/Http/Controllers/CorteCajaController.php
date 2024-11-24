@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CorteCaja;
+use App\Models\Estimaciones;
 use App\Models\Inventario;
 use App\Models\Venta;
 use App\Models\VentaProducto;
@@ -226,12 +227,21 @@ class CorteCajaController extends Controller
            ->whereDate('created_at', Carbon::today())
            ->first();
 
-        
+        $estimaciones = Estimaciones::where('sucursal_id', $sucursalId)
+           ->with('inventario') // Carga la relación Inventario
+           ->get();
+
+           
+        $ventaProductos = VentaProducto::with('producto') 
+            ->get();
+           
             return Inertia::render('Corte/index', [
                 'inventario' => $inventario,
                 'ventas' => $ventas,
                 'productosVendidos' => $productosVendidos,
-                'corte' => $corte
+                'corte' => $corte,
+                'estimaciones' => $estimaciones,
+                'ventasProductos' => $ventaProductos
             ]);
     }
 }

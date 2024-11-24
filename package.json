@@ -19,6 +19,8 @@
         "vue": "^3.2.31"
     },
     "dependencies": {
+        "@heroicons/vue": "^2.1.5",
+        "chart.js": "^4.4.6",
         "pinia": "^2.2.4",
         "sweetalert2": "^11.14.1"
     }

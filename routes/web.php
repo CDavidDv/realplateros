@@ -3,9 +3,11 @@
 use App\Http\Controllers\CheckInCheckOutController;
 use App\Http\Controllers\CorteCajaController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EstimacionesController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\PrintController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SobrantesController;
 use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VentaController;
@@ -25,6 +27,13 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
     Route::get('/inventario', [InventarioController::class, 'inventario'])->name("inventario");
     Route::post('/inventario', [InventarioController::class, 'store'])->name('inventario.store');
+
+    Route::post('/estimaciones', [EstimacionesController::class, 'store'])->name('estimaciones.store');
+
+    Route::post('/sobrantes', [SobrantesController::class, 'store'])->name('sobrantes.store');
+
+    Route::post('/gastos', [InventarioController::class, 'gastos'])->name('inventario.gastos');
+    Route::post('/registro', [InventarioController::class, 'registro'])->name('inventario.registro');
     Route::put('/inventario/{inventario}', [InventarioController::class, 'update'])->name('inventario.update');
     Route::delete('/inventario/{id}', [InventarioController::class, 'destroy'])->name('inventario.destroy');
 

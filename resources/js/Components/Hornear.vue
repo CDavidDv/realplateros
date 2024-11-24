@@ -1,258 +1,189 @@
 <template>
   <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-4">Sistema de Horneado</h1>
+    <div class="flex justify-between text-sm">
+      <h1 class="text-2xl font-bold mb-4">Sistema de Horneado</h1>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <!-- Sección de Masas y Rellenos -->
-      <div class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-4">Ingredientes Disponibles</h2>
-        
-        <div class="mb-6">
-          <h3 class="text-lg font-medium mb-2">Masas</h3>
-          <ul class="list-disc pl-5">
-            <li v-for="masa in masasActualizadas" :key="masa.id" class="flex justify-between">
-              <span>{{ masa.nombre }}</span>
-              <span class="font-semibold">{{ masa.cantidad }} unidades</span>
-            </li>
-          </ul>
-        </div>
-
-        <div>
-          <h3 class="text-lg font-medium mb-2">Rellenos</h3>
-          <ul class="list-disc pl-5">
-            <li v-for="relleno in rellenosActualizados" :key="relleno.id" class="flex justify-between">
-              <span>{{ relleno.nombre }}</span>
-              <span class="font-semibold">{{ relleno.cantidad }} unidades</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Sección de Creación de Pastes -->
-      <div class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-4">Crear Nuevo Paste/Empanada</h2>
-        <form @submit.prevent="crearPaste" class="space-y-4">
-          
-          <div>
-            <label for="relleno" class="block text-sm font-medium text-gray-700">Seleccionar Relleno</label>
-            <select v-model="nuevoPaste.relleno" id="relleno" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md">
-              <option value="">Seleccione un relleno</option>
-              <option v-for="relleno in rellenos" :key="relleno.id" :value="relleno.nombre">{{ relleno.nombre }}</option>
-            </select>
-          </div>
-          
-          <div>
-            <label for="cantidad" class="block text-sm font-medium text-gray-700">Cantidad</label>
-            <input 
-              v-model.number="nuevoPaste.cantidad" 
-              type="number" 
-              id="cantidad" 
-              required 
-              min="1" 
-              :max="maxCantidadDisponible"
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+      <div class="flex gap-3">
+        <!-- Notificaciones Faltantes -->
+        <div class="p-4 border rounded shadow bg-yellow-100 mb-4 size-fit cursor-pointer" @click="toggleFaltantes">
+          <h2
+            class="text-lg font-bold text-center text-yellow-800 "
+            
+          >
+            ⚠️ Faltantes <span class="animate-pulse">({{ notificacionesFaltantes.length }})</span> ⚠️
+          </h2>
+          <ul v-if="mostrarFaltantes" class="mt-2">
+            <li
+              v-for="notif in notificacionesFaltantes"
+              :key="notif.id"
+              class="mb-2"
             >
-          </div>
-          
-          <button 
-            type="submit" 
-            :disabled="!isFormValid"
-            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Asignar Unidades
-          </button>
-        </form>
-      </div>
-    </div>
-
-    <!-- Sección de Horneado -->
-    <div class="mt-8 bg-white shadow rounded-lg p-6">
-      <h2 class="text-xl font-semibold mb-4">Horno</h2>
-      <div v-if="timerStore.horneando">
-        <p class="text-lg mb-2">
-          Horneando grupo de pastes:
-        </p>
-        <ul>
-          <li v-for="paste in timerStore.pastesHorneando" :key="paste.nombre">
-            {{ paste.cantidad }} {{ paste.nombre }} - masa {{ paste.masa }}
-          </li>
-        </ul>
-        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-4">
-          <div 
-            class="bg-orange-600 h-2.5 rounded-full transition-all duration-100" 
-            :style="{ width: `${(timerStore.tiempoTranscurrido / timerStore.tiempoTotal) * 100}%` }"
-          ></div>
+              <span>
+                <span class="font-bold">{{ notif.nombre }}</span>: Faltan
+                {{ Math.abs(notif.diferencia) }} unidades para las
+                {{ notif.hora }}
+              </span>
+            </li>
+          </ul>
         </div>
-        <p>Tiempo restante: {{ formatearTiempo(timerStore.tiempoRestante) }}</p>
 
-      </div>
-      <div v-else>
-        <p class="text-lg mb-4">El horno está disponible</p>
-        <button 
-          @click="timerStore.iniciarHorneado" 
-          :disabled="!timerStore.pastesPorHornear.length" 
-          class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Iniciar Horneado de Grupo
-        </button>
+        <!-- Notificaciones Excedentes -->
+        <div class="p-4 border rounded shadow bg-blue-100 mb-4 size-fit cursor-pointer" @click="toggleExcedentes">
+          <h2
+            class="text-lg font-bold text-center text-blue-800 "
+            
+          >
+            ℹ️ Excedentes <span class="animate-pulse">({{ notificacionesExcedentes.length }})</span>  ℹ️
+          </h2>
+          <ul v-if="mostrarExcedentes" class="mt-2">
+            <li
+              v-for="notif in notificacionesExcedentes"
+              :key="notif.id"
+              class="mb-2"
+            >
+              <span>
+                <span class="font-bold">{{ notif.nombre }}</span>: Hay
+                {{ notif.diferencia }} unidades extra para las {{ notif.hora }}
+              </span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
 
-    <!-- Lista de Pastes por Hornear -->
-    <div class="mt-8 bg-white shadow rounded-lg p-6">
-      <h2 class="text-xl font-semibold mb-4">Grupos de Pastes por Hornear</h2>
-      <div v-if="timerStore.pastesPorHornear.length === 0" class="text-gray-500 text-center py-4">
-        No hay grupos de pastes en la cola de horneado
-      </div>
-      <ul v-else class="divide-y divide-gray-200">
-        <li v-for="paste in timerStore.pastesPorHornear" :key="paste.id" class="py-4 flex justify-between items-center">
-          <span>{{ paste.cantidad }} {{ paste.nombre }} - masa {{ paste.masa }}</span>
-          <button 
-            @click="timerStore.cancelarPaste(paste.id)" 
-            class="bg-red-600 text-white hover:bg-red-800 rounded-lg px-2 py-1 focus:outline-none focus:underline"
-          >
-            Cancelar
-          </button>
-        </li>
-      </ul>
+    <!-- Sección de Productos -->
+    <div class="mt-6">
+      <SistemaHorneado />
+      <PastesHorneados />
+      <EstimacionPastes />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { useTimerStore } from '@/stores/useTimerStore';
-import { usePage } from '@inertiajs/vue3';
-import Swal from 'sweetalert2';
+import { computed, onMounted, ref } from "vue";
+import { usePage } from "@inertiajs/vue3";
+import PastesHorneados from "./PastesHorneados.vue";
+import EstimacionPastes from "./EstimacionPastes.vue";
+import SistemaHorneado from "./SistemaHorneado.vue";
 
-const timerStore = useTimerStore();
-const { props } = usePage();
-const inventario = props.inventario;
+// Lógica de estado para mostrar/ocultar
+const mostrarFaltantes = ref(false);
+const mostrarExcedentes = ref(false);
 
+function toggleFaltantes() {
+  mostrarFaltantes.value = !mostrarFaltantes.value;
+}
 
-const masas = computed(() => inventario.filter(item => item.tipo === 'masa'));
-const rellenos = computed(() => inventario.filter(item => item.tipo === 'relleno'));
+function toggleExcedentes() {
+  mostrarExcedentes.value = !mostrarExcedentes.value;
+}
 
-const masasActualizadas = computed(() => {
-  return masas.value.map(masa => {
-    const cantidadHorneando = timerStore.pastesHorneando
-      .filter(paste => paste.masa === masa.nombre)
-      .reduce((acc, paste) => acc + paste.cantidad, 0);
-    
-    return {
-      ...masa,
-      cantidad: masa.cantidad - cantidadHorneando
-    };
-  });
-});
+// Restante código de lógica
+const page = usePage();
+const inventario = computed(() => page.props.inventario || []);
+const estimaciones = computed(() => page.props.estimaciones || []);
+const currentTime = ref(getCurrentDayAndTime());
 
-const rellenosActualizados = computed(() => {
-  return rellenos.value.map(relleno => {
-    const cantidadHorneando = timerStore.pastesHorneando
-      .filter(paste => paste.nombre === relleno.nombre)
-      .reduce((acc, paste) => acc + paste.cantidad, 0);
-
-    return {
-      ...relleno,
-      cantidad: relleno.cantidad - cantidadHorneando
-    };
-  });
-});
-
-
-const nuevoPaste = ref({
-  masa: '',
-  relleno: '',
-  cantidad: 1
-});
-
-
-const determinarMasaPorRelleno = (nombreRelleno) => {
-  const masaPorRelleno = {
-    'Papa con carne': 'bola', //paste
-    'Crema con pollo': 'bola',  //paste
-    'Frijol con chorizo': 'bola', //paste
-    'Mole rojo': 'salada', //empanada salada
-    'Mole verde': 'salada', //empanada salada
-    'Salchicha': 'salada', //empanada salada
-    'Tinga': 'salada', //empanada salada
-    'Minero': 'salada', //empanada salada
-    'Atún': 'salada', //empanada salada
-    'Choriqueso': 'salada', //empanada salada
-    'Rajas con champiñones': 'salada', //empanada salada
-    'Hawaiano': 'dulce', //empanada dulce
-    'Arroz con leche': 'dulce', //empanada dulce
-    'Piña': 'dulce', //empanada dulce
-    'Manzana': 'dulce', //empanada dulce
-    'Zarzamora': 'dulce', //empanada dulce
-    'Cajeta': 'dulce', //empanada dulce
-    'Fresa': 'dulce', //empanada dulce
-    'Budin': 'dulce', //empanada dulce
+function getCurrentDayAndTime() {
+  const now = new Date();
+  const daysOfWeek = [
+    "Domingo",
+    "Lunes",
+    "Martes",
+    "Miercoles",
+    "Jueves",
+    "Viernes",
+    "Sábado",
+  ];
+  return {
+    day: daysOfWeek[now.getDay()].toLowerCase(),
+    hour: now.getHours(),
+    minutes: now.getMinutes(),
   };
-  return masaPorRelleno[nombreRelleno] || '';
-};
+}
 
-// Agrupar pastes por tipo de relleno
-const crearPaste = () => {
-  const masaCorrespondiente = determinarMasaPorRelleno(nuevoPaste.value.relleno);
-  const masa = masasActualizadas.value.find(m => m.nombre === masaCorrespondiente);
-  const relleno = rellenosActualizados.value.find(r => r.nombre === nuevoPaste.value.relleno);
-
-  // Validación para evitar crear si no hay masa disponible
-  if (!masa || masa.cantidad <= 0) {
-    const Toast = Swal.mixin({
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
-        didOpen: (toast) => {
-            toast.onmouseenter = Swal.stopTimer;
-            toast.onmouseleave = Swal.resumeTimer;
-        }
-        });
-        Toast.fire({
-        icon: "error",
-        title: "No hay masa suficiente"
-        });
-    return;
-  }
-
-  if (masa && relleno && nuevoPaste.value.cantidad <= maxCantidadDisponible.value) {
-    masa.cantidad -= nuevoPaste.value.cantidad;
-    relleno.cantidad -= nuevoPaste.value.cantidad;
-
-    const grupoExistente = timerStore.pastesPorHornear.find(p => p.nombre === relleno.nombre);
-    if (grupoExistente) {
-      grupoExistente.cantidad += nuevoPaste.value.cantidad;
-    } else {
-      timerStore.agregarPaste({
-        id: Date.now(),
-        masa: masa.nombre,
-        nombre: relleno.nombre,
-        cantidad: nuevoPaste.value.cantidad
-      });
-    }
-
-    nuevoPaste.value = { masa: '', relleno: '', cantidad: 1 };
-  }
-};
-
-const maxCantidadDisponible = computed(() => {
-  const rellenoSeleccionado = rellenosActualizados.value.find(r => r.nombre === nuevoPaste.value.relleno);
-  return rellenoSeleccionado ? rellenoSeleccionado.cantidad : 1;
+onMounted(() => {
+  setInterval(() => {
+    currentTime.value = getCurrentDayAndTime();
+  }, 60000);
 });
 
-const isFormValid = computed(() => {
-  return nuevoPaste.value.relleno && nuevoPaste.value.cantidad > 0 && nuevoPaste.value.cantidad <= maxCantidadDisponible.value;
+function convertTo24Hour(timeStr) {
+  const [time, period] = timeStr.toLowerCase().split(" ");
+  let [hours, minutes] = time.split(":").map(Number);
+
+  if (period === "pm" && hours !== 12) {
+    hours += 12;
+  } else if (period === "am" && hours === 12) {
+    hours = 0;
+  }
+
+  return { hours, minutes };
+}
+
+const relevantProducts = computed(() => {
+  return inventario.value.filter((item) =>
+    ["pastes", "empanadas dulces", "empanadas saladas"].includes(
+      item.tipo?.toLowerCase()
+    )
+  );
 });
 
+const estimacionesVsExistentes = computed(() => {
+  if (!estimaciones.value.length || !relevantProducts.value.length) return [];
 
-const formatearTiempo = (milisegundos) => {
-  const totalSegundos = Math.ceil(milisegundos / 1000); // Convertir a segundos
-  const minutos = Math.floor(totalSegundos / 60); // Obtener los minutos
-  const segundos = totalSegundos % 60; // Obtener los segundos restantes
-  return `${minutos}:${segundos.toString().padStart(2, '0')}`; // Asegurarse de que los segundos siempre tengan dos dígitos
-};
+  return estimaciones.value
+    .map((estimacion) => {
+      const producto = relevantProducts.value.find(
+        (item) => item.id === estimacion.inventario_id
+      );
 
+      if (!producto) return null;
+
+      const { hours } = convertTo24Hour(estimacion.hora);
+
+      return {
+        id: `${producto.id}-${estimacion.hora}`,
+        nombre: producto.nombre,
+        estimado: estimacion.cantidad,
+        existente: producto.cantidad,
+        diferencia: producto.cantidad - estimacion.cantidad,
+        hora: estimacion.hora,
+        dia: estimacion.dia.toLowerCase(),
+        horaEnNumero: hours,
+      };
+    })
+    .filter(Boolean);
+});
+
+const itemsDelDia = computed(() => {
+  return estimacionesVsExistentes.value.filter(
+    (item) => item.dia === currentTime.value.day
+  );
+});
+
+const itemsFaltantes = computed(() => {
+  return itemsDelDia.value.filter((item) => item.diferencia < 0);
+});
+
+const itemsExcedentes = computed(() => {
+  return itemsDelDia.value.filter((item) => item.diferencia > 0);
+});
+
+const notificacionesActuales = computed(() => {
+  return itemsDelDia.value.filter((item) => {
+    const currentHour = currentTime.value.hour;
+    const isRelevantHour = Math.abs(item.horaEnNumero - currentHour) <= 1;
+    return isRelevantHour;
+  });
+});
+
+const notificacionesFaltantes = computed(() => {
+  return notificacionesActuales.value.filter((item) => item.diferencia < 0);
+});
+
+const notificacionesExcedentes = computed(() => {
+  return notificacionesActuales.value.filter((item) => item.diferencia > 0);
+});
 </script>

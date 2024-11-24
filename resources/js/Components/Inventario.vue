@@ -2,7 +2,7 @@
     <div class="container mx-auto p-8 md:p-10">
         <h1 class="text-2xl font-bold mb-4">Gestión de Inventario</h1>
 
-        <div class="flex flex-col md:flex-row gap-10 w-full">
+        <div class="flex flex-col md:flex-row gap-10 w-full" v-if="props.user.roles[0] ==='admin' || props.user.roles[0] === 'sucursal'">
             <div class="md:w-4/12 w-full">
                 <!-- Formulario para agregar/editar item -->
                 <div class="bg-white shadow rounded-lg p-6 mb-6">
@@ -68,7 +68,7 @@
                 </div>
 
                 <!-- Tabla de inventario -->
-                <div class="bg-white shadow rounded-lg overflow-scroll">
+                <div class="bg-white shadow rounded-lg overflow-scroll h-screen">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
@@ -110,8 +110,9 @@
             </div>
         </div>
 
+        <RegistroInventario />
 
-
+        
 
     </div>
 </template>
@@ -120,6 +121,8 @@
 import { ref, reactive, computed } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
+import RegistroInventario from './RegistroInventario.vue';
+import EstimacionPastes from './EstimacionPastes.vue';
 
 const { props } = usePage();
 const inventory = ref(props.inventario)
@@ -169,6 +172,9 @@ const saveItem = () => {
             cantidad: currentItem.cantidad,
             precio: currentItem.precio
         }, {
+            preserveScroll: true,
+            preserveState: false,  
+            replace: true,
             onSuccess: (response) => {
                 Toast.fire({
                     icon: "success",
@@ -193,6 +199,9 @@ const saveItem = () => {
             cantidad: currentItem.cantidad,
             precio: currentItem.precio
         }, {
+            preserveScroll: true,
+            preserveState: false,  
+            replace: true,
             onSuccess: (response) => {
                 Toast.fire({
                     icon: "success",
@@ -233,6 +242,9 @@ const deleteItem = (id) => {
     }).then((result) => {
         if (result.isConfirmed) {
             router.delete(`/inventario/${id}`, {
+                preserveScroll: true,
+                preserveState: false,  
+                replace: true,
                 onSuccess: (response) => {
                     Toast.fire({
                         icon: "success",

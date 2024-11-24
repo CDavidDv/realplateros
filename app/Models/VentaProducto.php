@@ -21,4 +21,9 @@ class VentaProducto extends Model
     {
         return $this->belongsTo(Inventario::class);
     }
+
+    public function inventario()
+    {
+        return $this->belongsTo(Inventario::class, 'producto_id');
+    }
 }

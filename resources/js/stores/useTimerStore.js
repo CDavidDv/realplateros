@@ -24,6 +24,7 @@ export const useTimerStore = defineStore('timerStore', () => {
   const definirTiempoHorneado = (producto) => {
     // Asigna el tiempo en milisegundos dependiendo del tipo
     if (producto.masa === 'bola') {
+      //900000
       return 900000; // 30 minutos en milisegundos
     } else if (producto.masa === 'salada' || producto.masa === 'dulce') {
       return 900000; // 40 minutos en milisegundos
@@ -64,6 +65,9 @@ export const useTimerStore = defineStore('timerStore', () => {
     reproducirSonido();
 
     router.post('/hornear', { pastes: pastesFinalizados }, {
+      preserveScroll: true,
+      preserveState: false,  // Esto asegura que el estado no se mantenga y se recargue completamente
+      replace: true,
       onSuccess: () => {
         const Toast = Swal.mixin({
           toast: true,
@@ -81,6 +85,7 @@ export const useTimerStore = defineStore('timerStore', () => {
           title: "Registrado correctamente"
         });
       },
+      
       onError: (errors) => {
         console.error('Error al registrar el horneado:', errors);
         const Toast = Swal.mixin({

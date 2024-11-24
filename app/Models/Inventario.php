@@ -23,6 +23,7 @@ class Inventario extends Model
 
     public function ventas()
     {
-        return $this->hasMany(VentaProducto::class);
+        return $this->hasMany(VentaProducto::class, 'producto_id');
     }
+
 }

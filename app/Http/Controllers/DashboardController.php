@@ -2,19 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\CorteCaja;
+use App\Models\Estimaciones;
+use App\Models\Horneados;
 use App\Models\Inventario;
-use App\Models\Sucursal;
-use App\Models\User;
-use App\Models\Venta;
-use App\Models\VentaProducto;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Spatie\Permission\Models\Role;
 
 class DashboardController extends Controller
 {
@@ -64,8 +59,19 @@ class DashboardController extends Controller
         // Filtra el inventario por sucursal_id
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
 
+        $pastesHorneados = Horneados::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', now()->toDateString())
+            ->get();
+
+        $estimaciones = Estimaciones::where('sucursal_id', $sucursalId)
+            ->with('inventario') // Carga la relación Inventario
+            ->get();
+        
+
         return Inertia::render('Hornear/index', [
-            'inventario' => $inventario
+            'inventario' => $inventario,
+            'pastesHorneados' => $pastesHorneados,
+            'estimaciones' => $estimaciones
         ]);
     }
 
@@ -80,6 +86,13 @@ class DashboardController extends Controller
         $pastesHorneados = $request->input('pastes'); // Array de pastes que contiene nombre, cantidad, masa y relleno
 
         foreach ($pastesHorneados as $paste) {
+
+            Horneados::create([
+                'sucursal_id' => $sucursalId,
+                'relleno' => $paste['nombre'],
+                'piezas' => $paste['cantidad'],
+            ]);
+
             // 1. Aumentar la cantidad de pastes en el inventario
             $inventarioPaste = Inventario::where('nombre', $paste['nombre'])
                 ->where('tipo', 'pastes')
@@ -144,12 +157,15 @@ class DashboardController extends Controller
         }
 
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
-
+        $pastesHorneados = Horneados::where('sucursal_id', $sucursalId)
+        ->whereDate('created_at', now()->toDateString())
+        ->get();
 
         return Inertia::render('Hornear/index', [
             'inventario' => $inventario,
-            'message' => 'Pastes horneados procesados con éxito.'
+            'pastesHorneados' => $pastesHorneados
         ]);
+        
     }
 
 
