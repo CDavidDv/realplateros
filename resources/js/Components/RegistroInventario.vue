@@ -316,17 +316,17 @@ async function saveGastos() {
     
     const formattedData = {
       gastos: gastos.value.map(item => ({
-        id: item.id || 0,
+        id: item.id || null,
         sucursal_id: item.sucursal_id || 0,
         nombre: item.nombre,
         costo: item.costo || 0,
       }))
     };
     console.log(formattedData)
-    await router.post('/gastos', formattedData, {
+    router.post('/gastos', formattedData, {
       
       preserveScroll: true,
-      preserveState: true,
+      preserveState: false,
       onSuccess: (e) => {
         
         Toast.fire({

@@ -166,16 +166,20 @@ class InventarioController extends Controller
 
             return redirect()->route('inventario')->with('success', 'Registros actualizados o creados correctamente.');
         } catch (\Exception $e) {
-            Log::error('Error en gastos', [
+            Log::error('Error procesando los gastos', [
+                'context' => 'Actualización de gastos',
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
             ]);
-
-            return response()->json([
-                'message' => 'Error al procesar los gastos',
+        
+            // Redirigir con mensajes de error
+            return redirect()->back()->withErrors([
+                'message' => 'Error al procesar los gastos.',
                 'error' => config('app.debug') ? $e->getMessage() : 'Error interno del servidor',
-            ], 500);
+            ]);
         }
+        
     }
 
 
