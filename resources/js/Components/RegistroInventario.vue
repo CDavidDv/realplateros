@@ -177,6 +177,7 @@ const Toast = Swal.mixin({
 });
 
 
+
 async function saveSobrantes() {
   try {
     isSaving.value = true;
@@ -226,7 +227,7 @@ const activeTab = ref('bebida');
 const isSaving = ref(false);
 const gastos = ref(props.gastos || []);
 
-
+console.log( props)
 
 function addNewGasto() {
   gastos.value.push({
@@ -305,6 +306,8 @@ function calculateTotals(item) {
 function calculateExisted(item) {
   if(item.existe) return item.existe
 
+  if(item.existe === 0) return item.existe
+
   const vendidos = getVendidos(item.id);
   
   return (item.cantidad) + Number(vendidos) ; 
@@ -360,10 +363,11 @@ async function saveForm() {
   try {
     isSaving.value = true;
     
+    
     const formattedData = {
       productos: products.value.map(item => ({
         id: item.id,
-        existe: item.existe || item.cantidad || 0,
+        existe: item.existe || 0,
         entra: item.entra || 0, 
         total: calculateTotal(item),
         vende: Number(getVendidos(item.id)),
@@ -371,6 +375,8 @@ async function saveForm() {
         sobra: calculateSobra(item)
       }))
     };
+
+    console.log(formattedData)
 
     router.post('/registro', {registros: formattedData},{
       preserveScroll: true,

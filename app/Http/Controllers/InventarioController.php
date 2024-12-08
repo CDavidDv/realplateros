@@ -49,32 +49,41 @@ class InventarioController extends Controller
 
     // Actualizar producto en el inventario
     public function update(Request $request, Inventario $inventario)
-{
-    // Validar los datos del formulario
-    $request->validate([
-        'nombre' => 'required',
-        'tipo' => 'required',
-        'detalle' => 'nullable|string',
-        'cantidad' => 'required|integer',
-        'precio' => 'required|numeric',
-    ]);
+    {
+        // Validar los datos del formulario
+        $request->validate([
+            'nombre' => 'required',
+            'tipo' => 'required',
+            'detalle' => 'nullable|string',
+            'cantidad' => 'required|integer',
+            'precio' => 'required|numeric',
+        ]);
 
-    // Asignar los campos desde el request, pero excluyendo sucursal_id
-    $inventario->nombre = $request->nombre;
-    $inventario->tipo = $request->tipo;
-    $inventario->detalle = $request->detalle;
-    $inventario->cantidad = $request->cantidad;
-    $inventario->precio = $request->precio;
+        // Buscar el registro relacionado
+        $registro = Registros::where('inventario_id', $inventario->id)->first();
 
-    $inventario->save();
+        if ($registro) {
+            // Actualizar el campo `existe` si se encuentra el registro
+            $registro->existe = $inventario->cantidad;
+            $registro->entra = 0;
+            $registro->total = 0;
+            $registro->vende = 0;
+            $registro->save();
+        }
 
-    // Redireccionar de vuelta a la vista de inventario
+        // Actualizar el inventario
+        $inventario->nombre = $request->nombre;
+        $inventario->tipo = $request->tipo;
+        $inventario->detalle = $request->detalle;
+        $inventario->cantidad = $request->cantidad;
+        $inventario->precio = $request->precio;
 
-    return redirect()->route('inventario')->with('success', 'Ítem eliminado correctamente');
+        $inventario->save();
 
-    
+        // Redireccionar de vuelta a la vista de inventario
+        return redirect()->route('inventario')->with('success', 'Inventario actualizado correctamente');
+    }
 
-}
 
 
     public function index()
@@ -186,7 +195,7 @@ class InventarioController extends Controller
 
 
     public function registro(Request $request)
-    {
+    { 
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
    
@@ -215,6 +224,7 @@ class InventarioController extends Controller
         // Si no existen registros previos, se crean nuevos
         if ($registrosExistentes->isEmpty()) {
             foreach ($registros as $registro) {
+                
                 Registros::create([
                     'inventario_id' => $registro['id'], // ID del inventario
                     'sucursal_id' => $sucursalId,
