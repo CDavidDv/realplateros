@@ -229,7 +229,7 @@ class InventarioController extends Controller
                     'inventario_id' => $registro['id'], // ID del inventario
                     'sucursal_id' => $sucursalId,
                     'existe' => $registro['existe'] ?? 0,
-                    'entra' => $registro['entra'] ?? 0,
+                    'entra' => 0,
                     'total' => $registro['total'] ?? 0,
                     'vende' => $registro['vende'] ?? 0,
                     'sobra' => $registro['sobra'] ?? 0,

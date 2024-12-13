@@ -88,7 +88,7 @@
                   <span class="ml-5 text-sm text-gray-500">{{ item.detalle }}</span>
                 </template>
               </td>
-              <td class="px-6 py-4" v-if="activeTab !== 'gastos' ">
+              <td class="px-6 py-4" v-if="activeTab !== 'gastos'   && activeTab !== 'sobrantes'">
                 
                 {{calculateExisted(item)}}
                 </td>
@@ -105,14 +105,17 @@
               </td>
               <td class="px-6 py-4 font-medium" v-if="activeTab !== 'gastos'  && activeTab !== 'sobrantes'">
                 {{ calculateTotal(item) }}
+                
               </td>
-              <td class="px-6 py-4" v-if="showVendidos">
+              <td class="px-6 py-4" v-if="showVendidos  && activeTab !== 'sobrantes'" >
                 {{ getVendidos(item.id) }}
+                
               </td>
-              <td class="px-6 py-4" v-if="activeTab !== 'gastos'  && activeTab !== 'sobrantes'">
+              <td class="px-6 py-4" v-if="activeTab !== 'gastos'  ">
                 {{ calculateSobra(item) }}
+                
               </td>
-              <td class="px-6 py-4" v-if="activeTab === 'gastos'">
+              <td class="px-6 py-4" v-if="activeTab === 'gastos' && activeTab !== 'sobrantes'">
                 <input 
                   v-model.number="item.costo"
                   type="number"
@@ -120,8 +123,10 @@
                   placeholder="0"
                   class="w-20 rounded-md border-gray-300 shadow-sm text-center"
                 />
+                
               </td>
             </tr>
+            
           </tbody>
         </table>
       </div>
@@ -133,6 +138,7 @@
       >
         {{ isSaving ? 'Guardando...' : 'Guardar Sobrantes' }}
       </button>
+      
     </div>
       <!-- Save Button -->
       <div v-else class="mt-6 flex justify-end">
@@ -227,7 +233,6 @@ const activeTab = ref('bebida');
 const isSaving = ref(false);
 const gastos = ref(props.gastos || []);
 
-console.log( props)
 
 function addNewGasto() {
   gastos.value.push({
@@ -253,9 +258,9 @@ const tabs = [
 const products = ref(props.inventario.map(item => ({
   ...item,
   existe: props?.registros[item.id-1]?.existe || item?.existe || 0,
-  entra: props?.registros[item.id-1]?.entra ||  item?.entra || 0,
+  entra: 0,
   total: null,
-  sobra: null,
+  sobra: props?.registros[item.id-1]?.existe,
   costo: item?.costo || 0
 })));
 
@@ -287,14 +292,13 @@ function getVendidos(productoId) {
 }
 
 function calculateTotal(item) {
-  return (calculateExisted(item)) + (item.entra || 0);
+  return (calculateExisted(item)) + (getVendidos(item) || 0) + (item.entra);
 }
 
 function calculateSobra(item) {
-  const total = calculateTotal(item);
-  const vendidos = getVendidos(item.id);
-  return total - vendidos;
+  return calculateTotal(item) - getVendidos(item.id) ;
 }
+
 
 function calculateTotals(item) {
 
@@ -304,9 +308,6 @@ function calculateTotals(item) {
 }
 
 function calculateExisted(item) {
-  if(item.existe) return item.existe
-
-  if(item.existe === 0) return item.existe
 
   const vendidos = getVendidos(item.id);
   
@@ -325,7 +326,6 @@ async function saveGastos() {
         costo: item.costo || 0,
       }))
     };
-    console.log(formattedData)
     router.post('/gastos', formattedData, {
       
       preserveScroll: true,
@@ -375,8 +375,6 @@ async function saveForm() {
         sobra: calculateSobra(item)
       }))
     };
-
-    console.log(formattedData)
 
     router.post('/registro', {registros: formattedData},{
       preserveScroll: true,
