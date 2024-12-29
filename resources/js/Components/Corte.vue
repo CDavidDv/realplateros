@@ -122,7 +122,7 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr v-for="product in productsUsed" :key="product.producto_id">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ product.producto.nombre }} - <small class="text-gray-500 uppercase">{{ product.producto.detalle }}</small></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ product.producto.nombre }} <small v-if="product.producto.detalle" class="text-gray-500 uppercase">- {{ product.producto.detalle }}</small></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ product.total_vendido }}</td>
                 </tr>
               </tbody>
