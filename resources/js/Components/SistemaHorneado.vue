@@ -198,11 +198,12 @@ const determinarMasaPorRelleno = (nombreRelleno) => {
 const tipoDeMasa = (nuevoPaste) => {
   const validTypes = { pastes: 'bola', 'empanadas saladas': 'salada', 'empanadas dulces': 'dulce' };
 
-  const masa = props.inventario.find(item => item.nombre === nuevoPaste.relleno && validTypes[item.tipo]);
-  
+  const masa = props.inventario.find(
+    item => 
+      item?.nombre?.toLowerCase() === nuevoPaste?.relleno?.toLowerCase() && 
+      validTypes[item?.tipo]
+  );
   const tipoFinal = masa ? validTypes[masa.tipo] : 'Tipo no válido';
-  
-  console.log(tipoFinal);
 };
 
 
