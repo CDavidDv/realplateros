@@ -111,8 +111,6 @@ const timerStore = useTimerStore();
 const { props } = usePage();
 const inventario = props.inventario;
 
-console.log(props)
-
 const masas = computed(() => inventario.filter(item => item.tipo === 'masa'));
 const rellenos = computed(() => inventario.filter(item => item.tipo === 'relleno'));
 
@@ -197,12 +195,23 @@ const determinarMasaPorRelleno = (nombreRelleno) => {
   return masaPorRelleno[nombreRelleno] || '';
 };
 
+const tipoDeMasa = (nuevoPaste) => {
+  const validTypes = { pastes: 'bola', 'empanadas saladas': 'salada', 'empanadas dulces': 'dulce' };
+
+  const masa = props.inventario.find(item => item.nombre === nuevoPaste.relleno && validTypes[item.tipo]);
+  
+  const tipoFinal = masa ? validTypes[masa.tipo] : 'Tipo no válido';
+  
+  console.log(tipoFinal);
+};
+
+
 // Agrupar pastes por tipo de relleno
 const crearPaste = () => {
-  const masaCorrespondiente = determinarMasaPorRelleno(nuevoPaste.value.relleno);
+  const masaCorrespondiente = tipoDeMasa(nuevoPaste);
   const masa = masasActualizadas.value.find(m => m.nombre === masaCorrespondiente);
   const relleno = rellenosActualizados.value.find(r => r.nombre === nuevoPaste.value.relleno);
-
+  tipoDeMasa(nuevoPaste.value)
   // Validación para evitar crear si no hay masa disponible
   if (!masa || masa.cantidad <= 0) {
     const Toast = Swal.mixin({
