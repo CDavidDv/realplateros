@@ -147,64 +147,20 @@ const nuevoPaste = ref({
   cantidad: 1
 });
 
-
-const determinarMasaPorRelleno = (nombreRelleno) => {
-  
-  const masaPorRelleno = {
-    'Papa con carne': 'bola', //paste
-    'Papa con Carne': 'bola',
-    'Crema con pollo': 'bola',  //paste
-    'Minero Papa con Pollo': 'bola',  //paste
-    'Minero papa con pollo': 'bola',  //paste
-    'Crema con Pollo': 'bola',  //paste
-    'Frijol con Chorizo': 'bola',
-    'Frijol con chorizo': 'bola', //paste
-    'Mole rojo': 'salada', //empanada salada
-    'Mole Rojo con Pollo': 'salada', //empanada salada
-    'Mole verde': 'salada', //empanada salada
-    'Mole verde con Pollo': 'salada', //empanada salada
-    'Papa con Atún': 'salada', //empanada salada
-    'Papa con atún': 'salada', //empanada salada
-    'Salchicha': 'salada', //empanada salada
-    'Tinga': 'salada', //empanada salada
-    'Minero': 'salada', //empanada salada
-    'Atún': 'salada', //empanada salada
-    'Atun': 'salada', //empanada salada
-    'Choriqueso': 'salada', //empanada salada
-    'Chorizo con Queso': 'salada', //empanada salada
-    'Chorizo con queso': 'salada', //empanada salada
-    'Rajas con champiñones': 'salada', //empanada salada
-    'Rajas': 'salada', //empanada salada
-    'Rajas con Queso': 'salada', //empanada salada
-    'Salchicha': 'salada', //empanada salada
-    'Salchicha con Queso': 'salada', //empanada salada
-    'Jamón con Queso': 'dulce', //empanada salada
-    'Hawaiano': 'dulce', //empanada dulce
-    'Arroz con leche': 'dulce', //empanada dulce
-    'Arroz': 'dulce', //empanada dulce
-    'Piña': 'dulce', //empanada dulce
-    'Manzana': 'dulce', //empanada dulce
-    'Zarzamora': 'dulce', //empanada dulce
-    'Cajeta': 'dulce', //empanada dulce
-    'Fresa': 'dulce', //empanada dulce
-    'Fresa con queso': 'dulce', //empanada dulce
-    'Fresa con Queso': 'dulce', //empanada dulce
-    'Budin': 'dulce', //empanada dulce
-    'Budín': 'dulce', //empanada dulce    
-  };
-  return masaPorRelleno[nombreRelleno] || '';
-};
-
 const tipoDeMasa = (nuevoPaste) => {
-  const validTypes = { pastes: 'bola', 'empanadas saladas': 'salada', 'empanadas dulces': 'dulce' };
+  const validTypes = {
+    pastes: 'bola',
+    'empanadas saladas': 'salada',
+    'empanadas dulces': 'dulce'
+  };
 
-  const masa = props.inventario.find(
-    item => 
-      item?.nombre?.toLowerCase() === nuevoPaste?.relleno?.toLowerCase() && 
-      validTypes[item?.tipo]
-  );
+  const masa = props.inventario.find(item => item.nombre === nuevoPaste.value.relleno && validTypes[item.tipo]);
+  
   const tipoFinal = masa ? validTypes[masa.tipo] : 'Tipo no válido';
+  
+  return tipoFinal;
 };
+
 
 
 // Agrupar pastes por tipo de relleno
@@ -212,7 +168,6 @@ const crearPaste = () => {
   const masaCorrespondiente = tipoDeMasa(nuevoPaste);
   const masa = masasActualizadas.value.find(m => m.nombre === masaCorrespondiente);
   const relleno = rellenosActualizados.value.find(r => r.nombre === nuevoPaste.value.relleno);
-  tipoDeMasa(nuevoPaste.value)
   // Validación para evitar crear si no hay masa disponible
   if (!masa || masa.cantidad <= 0) {
     const Toast = Swal.mixin({
