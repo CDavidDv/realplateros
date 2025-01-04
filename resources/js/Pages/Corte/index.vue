@@ -10,12 +10,33 @@ import AppLayout from '@/Layouts/AppLayout.vue';
             <div class="max-w-7xl w-full mx-auto sm:px-6 lg:px-8 rounded-xl">
                 <div class="overflow-scroll md:overflow-hidden rounded-xl">
                     
-                    <Corte />
-                    <ChartCorte />
+                    <Corte class="print" />
+                    <ChartCorte class="no-print" />
                 </div>
             </div>
         </div>
     </AppLayout>
 </template>
-<script>
-</script>
+<style>
+.print {
+    display: block !important;
+}
+
+@media print {
+    .no-print {
+    display: none !important;
+    }
+
+    .print {
+    display: block !important;
+    }
+
+    astro-dev-toolbar {
+    display: none !important;
+    }
+
+    article {
+    break-inside: avoid;
+    }
+}
+</style>

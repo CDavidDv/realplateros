@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Estimaciones;
 use App\Models\Horneados;
 use App\Models\Inventario;
+use App\Models\User;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -41,6 +43,27 @@ class DashboardController extends Controller
             'ticket_id' => $ticketId
         ]);
     }
+
+
+    public function verifyAdminPassword(Request $request)
+    {
+        $request->validate([
+            'admin_password' => 'required|string',
+        ]);
+
+        $admins = User::whereHas('roles', function ($query) {
+            $query->where('name', 'admin');
+        })->get();
+
+        foreach ($admins as $admin) {
+            if (Hash::check($request->admin_password, $admin->password)) {
+                return response()->json(['correct' => true], 200);
+            }
+        }
+
+        return response()->json(['correct' => false], 403);
+    }
+
 
     
 
@@ -170,4 +193,5 @@ class DashboardController extends Controller
     }
 
 
+    
 }

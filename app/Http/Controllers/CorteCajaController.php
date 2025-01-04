@@ -195,7 +195,7 @@ class CorteCajaController extends Controller
             'productsUsed' => $productosVendidos,
             'initialCash' => $initialCash,
             'finalCash' => $finalCash
-        ]);
+        ]); 
         
     }
 
@@ -235,13 +235,13 @@ class CorteCajaController extends Controller
         $ventaProductos = VentaProducto::with('producto') 
             ->get();
            
-            return Inertia::render('Corte/index', [
-                'inventario' => $inventario,
-                'ventas' => $ventas,
-                'productosVendidos' => $productosVendidos,
-                'corte' => $corte,
-                'estimaciones' => $estimaciones,
-                'ventasProductos' => $ventaProductos
-            ]);
+        return Inertia::render('Corte/index', [
+            'inventario' => $inventario,
+            'ventas' => $ventas,
+            'productosVendidos' => $productosVendidos,
+            'corte' => $corte,
+            'estimaciones' => $estimaciones,
+            'ventasProductos' => $ventaProductos
+        ]);
     }
 }

@@ -39,7 +39,7 @@ console.log(props.user.roles[0])
 
         <div >
 
-            <nav class="bg-white border-b border-gray-100">
+            <nav class="bg-white border-b border-gray-100 no-print">
 
                 <!-- Primary Navigation Menu -->
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-1 lg:px-8">
@@ -346,3 +346,26 @@ console.log(props.user.roles[0])
         </div>
     </div>
 </template>
+<style>
+.print {
+    display: block !important;
+}
+
+@media print {
+    .no-print {
+    display: none !important;
+    }
+
+    .print {
+    display: block !important;
+    }
+
+    astro-dev-toolbar {
+    display: none !important;
+    }
+
+    article {
+    break-inside: avoid;
+    }
+}
+</style>

@@ -22,23 +22,36 @@ class EstimacionesController extends Controller
 
         $dia = $validated['dia'];
 
+        // Cargar inventarios una sola vez para reducir consultas
+        $inventarios = Inventario::whereIn('tipo', ['pastes', 'empanadas saladas', 'empanadas dulces'])
+            ->where('sucursal_id', $sucursalId)
+            ->get()
+            ->keyBy('nombre');
+
         foreach ($validated['estimaciones'] as $hora => $productos) {
             foreach ($productos as $productoNombre => $cantidad) {
-                // Buscar el inventario_id basado en el nombre del producto
-                
-                $inventario = Inventario::where('nombre', $productoNombre)
-                    ->whereIn('tipo', ['pastes', 'empanadas saladas', 'empanadas dulces'])
-                    ->first();
+                $inventarioId = $inventarios->get($productoNombre)->id ?? null;
 
-                if ($inventario) {
+                if (!$inventarioId) {
+                    continue;
                     Estimaciones::updateOrCreate(
                         [
                             'sucursal_id' => $sucursalId,
-                            'inventario_id' => $inventario->id,
+                            'inventario_id' => $inventarioId,
                             'dia' => $dia,
                             'hora' => $hora,
                         ],
                         [
+                            'cantidad' => $cantidad,
+                        ]
+                    );
+                }else{
+                    Estimaciones::created(
+                        [
+                            'sucursal_id' => $sucursalId,
+                            'inventario_id' => $inventarioId,
+                            'dia' => $dia,
+                            'hora' => $hora,
                             'cantidad' => $cantidad,
                         ]
                     );

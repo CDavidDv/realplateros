@@ -29,6 +29,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/inventario', [InventarioController::class, 'store'])->name('inventario.store');
 
     Route::post('/estimaciones', [EstimacionesController::class, 'store'])->name('estimaciones.store');
+    Route::post('/verify-admin-password', [DashboardController::class, 'verifyAdminPassword'])->name('verify-admin-password');
 
     Route::post('/sobrantes', [SobrantesController::class, 'store'])->name('sobrantes.store');
 
