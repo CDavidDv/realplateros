@@ -165,9 +165,15 @@ const tipoDeMasa = (nuevoPaste) => {
 
 // Agrupar pastes por tipo de relleno
 const crearPaste = () => {
-  const masaCorrespondiente = tipoDeMasa(nuevoPaste);
-  const masa = masasActualizadas.value.find(m => m.nombre === masaCorrespondiente);
-  const relleno = rellenosActualizados.value.find(r => r.nombre === nuevoPaste.value.relleno);
+  const masaCorrespondiente = tipoDeMasa(nuevoPaste).toLowerCase();
+  const masa = masasActualizadas.value.find(m => m.nombre.toLowerCase() === masaCorrespondiente);
+  const relleno = rellenosActualizados.value.find(r => r.nombre.toLowerCase() === nuevoPaste.value.relleno.toLowerCase());
+
+  console.log(masasActualizadas.value)
+  console.log("Masa:", masa);
+  console.log("Tipo de masa:", masaCorrespondiente);
+  console.log("Relleno:", relleno);
+
   // Validación para evitar crear si no hay masa disponible
   if (!masa || masa.cantidad <= 0) {
     const Toast = Swal.mixin({

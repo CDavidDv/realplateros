@@ -11,7 +11,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
                 <div class="overflow-scroll md:overflow-hidden rounded-xl">
                     
                     <Corte class="print" />
-                    <ChartCorte class="no-print" />
+                    <ChartCorte class="no-print"  v-if="$page.props.user.roles[0] != 'trabajador'" />
                 </div>
             </div>
         </div>

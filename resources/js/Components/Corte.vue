@@ -114,7 +114,7 @@
         <div class="mb-6">
           <div class="flex justify-between">
             <h2 class="text-xl font-semibold mb-4">Productos Utilizados</h2>
-            <button v-if="!editSales"  @click="handleEditSales" class="no-print size-fit py-1 px-2 mr-8 rounded-md text-white hover:bg-orange-600 bg-orange-500">Capturar datos</button>
+            <button v-if="!editSales && $page.props.user.roles[0] != 'trabajador'"  @click="handleEditSales" class="no-print size-fit py-1 px-2 mr-8 rounded-md text-white hover:bg-orange-600 bg-orange-500">Capturar datos</button>
             <button v-else="editSales"  @click="requestAdminPassword"  class="no-print size-fit py-1 px-2 mr-8 rounded-md text-white hover:bg-purple-600 bg-purple-500">Guardar</button>
           </div>
           <div v-if="productsUsed.length <= 0" class="text-gray-500">No se han vendido productos en este período.</div>
