@@ -154,13 +154,17 @@ const tipoDeMasa = (nuevoPaste) => {
     'empanadas dulces': 'dulce'
   };
 
-  const masa = props.inventario.find(item => item.nombre === nuevoPaste.value.relleno && validTypes[item.tipo]);
-  
+  const masa = props.inventario.find((item) => {
+    return (
+      item.nombre.toLowerCase() === nuevoPaste.value.relleno.toLowerCase() || 
+      item.nombre.toLowerCase().startsWith(nuevoPaste.value.relleno.toLowerCase())
+    ) && validTypes[item.tipo.toLowerCase()];
+  });
+
   const tipoFinal = masa ? validTypes[masa.tipo] : 'Tipo no válido';
-  
+
   return tipoFinal;
 };
-
 
 
 // Agrupar pastes por tipo de relleno
