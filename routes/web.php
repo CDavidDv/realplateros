@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AlmacenController;
 use App\Http\Controllers\CheckInCheckOutController;
 use App\Http\Controllers\CorteCajaController;
 use App\Http\Controllers\DashboardController;
@@ -69,4 +70,5 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/search-check-ins', [CheckInCheckOutController::class, 'search'])->name('search-check-ins');
 
     
+    Route::get('/almacen', [AlmacenController::class, 'almacen'])->name("almacen");
 });

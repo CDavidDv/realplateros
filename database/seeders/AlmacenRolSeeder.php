@@ -34,12 +34,12 @@ class AlmacenRolSeeder extends Seeder
         $role_almacen->syncPermissions($permisisions_almacen);
 
         $sucursal = User::create([
-            'name' => 'Sucursal 2',
-            'sucursal_id' => '2',
-            'email' => 'sucursal2',
+            'name' => 'almacen',
+            'sucursal_id' => '1',
+            'email' => 'almacen',
             'password' => Hash::make('password'),
         ]);
-        $sucursal->assignRole('sucursal');
+        $sucursal->assignRole('almacen');
 
 
 

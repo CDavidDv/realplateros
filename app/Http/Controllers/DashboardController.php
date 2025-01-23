@@ -17,6 +17,16 @@ class DashboardController extends Controller
 {
     public function index()
     {
+
+        
+        
+        if (Auth::check()) {
+            return redirect()->route('dashboard');
+        }
+        if (Auth::user()){
+            if (Auth::user()->hasRole('almacen')) return redirect()->route('almacen');
+        }
+
         return Inertia::render('Auth/Login', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
@@ -29,7 +39,6 @@ class DashboardController extends Controller
     {
         // Obtén el usuario autenticado
         $user = Auth::user();
-
         // Asume que el usuario tiene una sucursal_id
         $sucursalId = $user->sucursal_id;
 

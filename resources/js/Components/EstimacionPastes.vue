@@ -143,7 +143,7 @@ const loadProductionData = () => {
 
 // Guardar datos de producción
 const saveProduction = () => {
-  router.post("/estimaciones", {
+    router.post("/estimaciones", {
     estimaciones: productionData.value,
     dia: timeFrame.value
   }, {

@@ -46,7 +46,7 @@ class EstimacionesController extends Controller
                         ]
                     );
                 }else{
-                    Estimaciones::created(
+                    Estimaciones::Create(
                         [
                             'sucursal_id' => $sucursalId,
                             'inventario_id' => $inventarioId,
