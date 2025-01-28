@@ -262,7 +262,7 @@ const isAlmacen = role.value === 'almacen';
                             Personal
                         </ResponsiveNavLink>
                     </div>
-                    <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="isAlmacen">
+                    <div class="pt-2 pb-3 space-y-1" v-if="isAlmacen">
                         <ResponsiveNavLink :href="route('tickets')" :active="route().current('tickets')">
                             Tickets Asignados
                         </ResponsiveNavLink>
