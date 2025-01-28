@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('sucursal_id')->constrained('sucursales');
             $table->string('nombre');
-            $table->enum('tipo', ['bebida', 'general', 'relleno', 'masa', 'extras', 'empanadas dulces', 'empanadas saladas', 'pastes']);
+            $table->string('tipo');
             $table->string('detalle')->nullable();
             $table->integer('cantidad')->default(0);
             $table->decimal('costo', 10, 2)->nullable();

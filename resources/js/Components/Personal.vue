@@ -164,7 +164,7 @@ const form = ref({
 const tabTitle = computed(() => currentTab.value === 'users' ? 'Usuarios' : 'Sucursales');
 const singularTabTitle = computed(() => currentTab.value === 'users' ? 'Usuario' : 'Sucursal');
 const errors = ref({}); 
-const currentItems = computed(() => currentTab.value === 'users' ? props.users : props.sucursales);
+const currentItems = computed(() => currentTab.value === 'users' ? props.users : props.sucursales.filter(sucursal => sucursal.id !== 0));
 
 const availableRoles = computed(() => props.roles.filter(role => ['admin', 'trabajador'].includes(role.name)));
 

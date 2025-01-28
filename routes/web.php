@@ -22,11 +22,18 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     // AUTH ROUTES
     Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name("dashboard");
     Route::post('/ventas', [VentaController::class, 'procesarVenta'])->name('ventas.procesar');
+    Route::post('/asignar', [VentaController::class, 'procesarTicket'])->name('ticket.procesar');
 
     Route::get('/hornear', [DashboardController::class, 'hornear'])->name("hornear");
     Route::post('/hornear', [DashboardController::class, 'procesarPastesHorneados']);
 
+    Route::get('/tickets', [InventarioController::class, 'tickets'])->name("tickets");
+    Route::post('/tickets/cancelar', [InventarioController::class, 'ticketsCancel'])->name("tickets.cancelar");
+
     Route::get('/inventario', [InventarioController::class, 'inventario'])->name("inventario");
+    Route::put('/tickets/{id}', [InventarioController::class, 'confirmTicket'])->name('confirmTicket'); 
+    Route::post('/categorias', [InventarioController::class, 'addCategorias'])->name("addCategoria");
+
     Route::post('/inventario', [InventarioController::class, 'store'])->name('inventario.store');
 
     Route::post('/estimaciones', [EstimacionesController::class, 'store'])->name('estimaciones.store');
@@ -38,6 +45,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/registro', [InventarioController::class, 'registro'])->name('inventario.registro');
     Route::put('/inventario/{inventario}', [InventarioController::class, 'update'])->name('inventario.update');
     Route::delete('/inventario/{id}', [InventarioController::class, 'destroy'])->name('inventario.destroy');
+    Route::delete('/categorias/{tipo}', [InventarioController::class, 'destroyCategoria'])->name('categoria.destroy');
 
     Route::get('/checador', [CheckInCheckOutController::class, 'index'])->name("checador");
     Route::post('/checkInOut', [CheckInCheckOutController::class, 'checkInOut'])->name('checkInOut');

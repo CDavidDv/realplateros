@@ -9,7 +9,7 @@ class Sucursal extends Model
 {
     use HasFactory;
     protected $table = 'sucursales';
-    protected $fillable = ['nombre', 'direccion', 'telefono'];
+    protected $fillable = ['id','nombre', 'direccion', 'telefono'];
 
     // Relación Muchos a Muchos con usuarios
     public function usuarios()

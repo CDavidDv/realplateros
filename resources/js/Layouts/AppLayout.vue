@@ -28,8 +28,9 @@ const logout = () => {
 };
 
 const { props } = usePage()
-console.log(props.user.roles[0])
 
+const role = ref(props.user.roles[0]);
+const isAlmacen = role.value === 'almacen';
 </script>
 
 <template>
@@ -45,33 +46,26 @@ console.log(props.user.roles[0])
                 <!-- Primary Navigation Menu -->
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-1 lg:px-8">
                     <div class="flex justify-between h-16">
-                        <div class="flex" v-if="$page.props.auth.user.roles[0].name === 'almacen'">
-                            <div class="shrink-0 flex items-center">
-                                <Link :href="route('almacen')">
-                                    <ApplicationMark class="block h-14 p-1 w-auto" />
-                                </Link>
-                            </div>
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink :href="route('almacen')" :active="route().current('almacen')">
-                                    Almacen
-                                </NavLink>
-                            </div>
-                        </div>
-                        <div class="flex" v-else>
+                        <div class="flex">
                             <!-- Logo -->
                             <div class="shrink-0 flex items-center">
-                                <Link :href="route('dashboard')">
+                                <Link v-if="$page.props.auth.user.roles[0] !== 'almacen'" :href="route('dashboard')">
+                                    <ApplicationMark class="block h-14 p-1 w-auto" />
+                                </Link>
+                                <Link :href="route('almacen')" v-else>
                                     <ApplicationMark class="block h-14 p-1 w-auto" />
                                 </Link>
                             </div>
     
                             <!-- Navigation Links -->
+
+                            <!--Almacen-->
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                 <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
                                     Home
                                 </NavLink>
                             </div>
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="!isAlmacen" >
                                 <NavLink :href="route('hornear')" :active="route().current('hornear')">
                                     Hornear
                                 </NavLink>
@@ -81,23 +75,28 @@ console.log(props.user.roles[0])
                                     Inventario
                                 </NavLink>
                             </div>
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="!isAlmacen">
                                 <NavLink :href="route('checador')" :active="route().current('checador')">
                                     Checador
                                 </NavLink>
                             </div>
                             
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="props.user.roles[0] !== 'trabajador'">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="props.user.roles[0] !== 'trabajador' && !isAlmacen">
                                 <NavLink :href="route('personal')" :active="route().current('personal')">
                                     Personal
                                 </NavLink>
                             </div>
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="isAlmacen">
+                                <NavLink :href="route('tickets')" :active="route().current('tickets')">
+                                    Tickets Asignados
+                                </NavLink>
+                            </div>
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="!isAlmacen">
                                 <NavLink :href="route('corte-caja')" :active="route().current('corte-caja')">
                                     Corte
                                 </NavLink>
                             </div>
-
+                            
                         </div>
 
                         <div class="hidden sm:flex sm:items-center sm:ms-6">

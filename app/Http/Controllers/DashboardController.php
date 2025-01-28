@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Estimaciones;
 use App\Models\Horneados;
 use App\Models\Inventario;
+use App\Models\Sucursal;
+use App\Models\TicketAsignacion;
 use App\Models\User;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -18,13 +20,8 @@ class DashboardController extends Controller
     public function index()
     {
 
-        
-        
         if (Auth::check()) {
             return redirect()->route('dashboard');
-        }
-        if (Auth::user()){
-            if (Auth::user()->hasRole('almacen')) return redirect()->route('almacen');
         }
 
         return Inertia::render('Auth/Login', [
@@ -38,6 +35,7 @@ class DashboardController extends Controller
     public function dashboard()
     {
         // Obtén el usuario autenticado
+        
         $user = Auth::user();
         // Asume que el usuario tiene una sucursal_id
         $sucursalId = $user->sucursal_id;
@@ -46,10 +44,22 @@ class DashboardController extends Controller
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
         $ticketId = session('ticket_id');
         
+        $categorias = Inventario::select('tipo')->distinct()->get();
+        $sucursales = Sucursal::all(); 
+        
+        $trabajadores = User::whereHas('roles', function ($query) {
+            $query->where('name', 'trabajador');
+        })->get();
+
+        
 
         return Inertia::render('Dashboard/index', [
             'inventario' => $inventario,
-            'ticket_id' => $ticketId
+            'ticket_id' => $ticketId,
+            'categorias' => $categorias,
+            'sucursales' => $sucursales,
+            'trabajadores' => $trabajadores,
+            
         ]);
     }
 

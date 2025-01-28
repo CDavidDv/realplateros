@@ -1,10 +1,62 @@
 <template>
     <div class="container mx-auto p-8 md:p-10">
         <h1 class="text-2xl font-bold mb-4">Gestión de Inventario</h1>
+        <!--Seccion completar asignnar ticekts-->
+        <div class="space-y-4 mb-5">
+            <div 
+                v-for="ticket in tickets" 
+                :key="ticket.id" 
+                class="flex flex-col gap-4 p-4 border rounded-lg shadow-sm bg-white"
+            >
+                <!-- Encabezado del ticket -->
+                <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <span class="text-lg font-semibold text-gray-800">Ticket #{{ ticket.id }}</span>
+                    <span class="text-gray-600 text-sm">Fecha: {{ ticket.created_at.split('T')[0] }}</span>
+                </div>
+                <div class="text-gray-600 text-sm">
+                    Estado: <span class="font-medium text-gray-800 capitalize">{{ ticket.estado }}</span>
+                </div>
+                </div>
 
-        <div class="flex flex-col md:flex-row gap-10 w-full" v-if="props.user.roles[0] ==='admin' || props.user.roles[0] === 'sucursal'">
+                <!-- Detalles del ticket -->
+                <div>
+                <div class="text-sm text-gray-700">
+                    <span class="font-medium">Hora de salida:</span> {{ ticket.hora_salida || 'N/A' }}
+                </div>
+                <div class="mt-2 space-y-1">
+                    <h4 class="text-sm font-medium text-gray-800">Productos asignados:</h4>
+                    <ul class="text-sm text-gray-700 space-y-1 pl-4 list-disc">
+                    <li 
+                        v-for="p in ticket.ticket_productos_asignacion" 
+                        :key="p.id"
+                    >
+                        {{ p.cantidad }}x {{ p.producto.nombre }}
+                    </li>
+                    </ul>
+                </div>
+                </div>
+
+                <!-- Botón de acción -->
+                <div class="flex justify-end">
+                <button 
+                    @click="completeTicket(ticket.id)" 
+                    class="bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 focus:outline-none focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+                >
+                <!--COMPLETAR Y ASIGNAR CANTIDAD AL INVENTARIO-->
+                <!--IMPRIMIR LOS TICKETS-->
+                    Completar
+                </button>
+                </div>
+            </div>
+        </div>
+
+       
+
+        <div class="flex flex-col md:flex-row gap-10 w-full" v-if="props.user.roles[0] ==='admin' || props.user.roles[0] === 'sucursal' || props.user.roles[0] === 'almacen'">
             <div class="md:w-4/12 w-full">
                 <!-- Formulario para agregar/editar item -->
+                 
                 <div class="bg-white shadow rounded-lg p-6 mb-6">
                     <h2 class="text-xl font-semibold mb-4">{{ editingItem ? 'Editar Item' : 'Agregar Nuevo Item' }}</h2>
                     <form @submit.prevent="saveItem" class="space-y-4">
@@ -18,13 +70,7 @@
                             <label for="itemCategory" class="block text-sm font-medium text-gray-700">Categoría</label>
                             <select v-model="currentItem.tipo" id="itemCategory" required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50">
-                                <option value="relleno">Rellenos</option>
-                                <option value="pastes">Pastes</option>
-                                <option value="empanadas saladas">Empanadas saladas</option>
-                                <option value="empanadas dulces">Empanadas dulces</option>
-                                <option value="bebida">Bebidas</option>
-                                <option value="masa">Masa</option>
-                                <option value="extras">Extras</option>
+                                <option v-for="categoria in categorias" class=" capitalize" :value="categoria.tipo">{{categoria.tipo}}</option>
                             </select>
                         </div>
                         <div>
@@ -57,6 +103,18 @@
                         </div>
                     </form>
                 </div>
+                <div class="w-full" v-if="isAlmacen">
+                     <button
+                        @click="openModal"
+                        class="bg-orange-500 w-full hover:bg-orange-700 text-white font-bold py-2 px-4 rounded mb-4">
+                        Agregar nueva categoría
+                    </button>
+                    <button
+                        @click="openModalDelete"
+                        class="bg-red-500 w-full hover:bg-red-700 text-white font-bold py-2 px-4 rounded mb-4">
+                        Eliminar categoría
+                    </button>
+                 </div>
             </div>
             
             <div class="md:w-8/12 w-full">
@@ -112,7 +170,56 @@
 
         <RegistroInventario />
 
-        
+        <!-- Modal para agregar categoría -->
+        <div
+            v-if="showModal"
+            class="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+                <h2 class="text-xl font-semibold mb-4">Agregar Categoría</h2>
+                <input
+                    v-model="newCategory"
+                    type="text"
+                    placeholder="Nombre de la categoría"
+                    class="w-full mb-4 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <div class="flex justify-end space-x-2">
+                    <button
+                        @click="closeModal"
+                        class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg">
+                        Cancelar
+                    </button>
+                    <button
+                        @click="addCategory"
+                        class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg">
+                        Agregar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div
+            v-if="showModalDelete"
+            class="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+                <h2 class="text-xl font-semibold mb-4">Eliminar Categoría</h2>
+                
+                <select v-model="categoriaToDelete" class="w-full mb-4 px-3 py-2 border rounded-lg capitalize focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    <option v-for="categoria in categorias"  :value="categoria" class=" capitalize">{{ categoria.tipo }}</option>
+                </select>
+                <div class="flex justify-end space-x-2">
+                    <button
+                        @click="closeModal"
+                        class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg">
+                        Cancelar
+                    </button>
+                    <button
+                        @click="subsCategory"
+                        class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
 
     </div>
 </template>
@@ -124,10 +231,125 @@ import Swal from 'sweetalert2'
 import RegistroInventario from './RegistroInventario.vue';
 import EstimacionPastes from './EstimacionPastes.vue';
 
-const { props } = usePage();
-const inventory = ref(props.inventario)
+const { props } = usePage()
+const tickets = ref(props.tickets)
+console.log(props)
+const inventory = ref(props.inventario.filter((item) => {
+    return item.nombre != '-'
+}))
+const categorias = ref(props.categorias)
+const isAlmacen = ref(props.user.roles[0] === 'almacen')
+
+const showModal = ref(false)
+const showModalDelete = ref(false)
+const categoriaToDelete = ref()
+const newCategory = ref("")
+
+const openModal = () => {
+    showModal.value = true;
+}
+const openModalDelete = () => {
+    showModalDelete.value = true;
+}
 
 
+const  closeModal = () => {
+    showModal.value = false;
+    showModalDelete.value = false;
+    newCategory.value = ""; // Limpia el input al cerrar
+}
+const addCategory = () => {
+    if (newCategory.value.trim()) {
+        // Aquí puedes agregar lógica para guardar la categoría
+        router.post(`/categorias`, {
+            tipo: newCategory.value
+        }, {
+            preserveScroll: true,
+            preserveState: false,  
+            replace: true,
+            onSuccess: (response) => {
+                Toast.fire({
+                    icon: "success",
+                    title: "Categoría agregada correctamente"
+                });
+                categorias.value = response.props.categorias
+            },
+            onError: (errors) => {
+                Toast.fire({
+                    icon: "error",
+                    title: "Hubo un problema al agregar la categoría"
+                });
+            }
+        });
+        closeModal();
+    } else {
+        Toast.fire({
+            icon: "error",
+            title: "Por favor, ingresa un nombre para la categoría"
+        });
+    }
+}
+
+const completeTicket = (id) =>{
+    router.put(`/tickets/${id}`, {
+        estado: 'completado'
+    }, {
+        preserveScroll: true,
+        preserveState: false,  
+        replace: true,
+        onSuccess: (response) => {
+            Toast.fire({
+                icon: "success",
+                title: "Ticket completado correctamente"
+            });
+            tickets.value = response.props.tickets
+        },
+        onError: (errors) => {
+            Toast.fire({
+                icon: "error",
+                title: "Hubo un problema al completar el ticket"
+            });
+            console.log(errors)
+        }
+    });
+}
+const subsCategory = () => {
+    
+    if (categoriaToDelete?.value?.tipo.trim()) {
+        router.delete(`/categorias/${categoriaToDelete.value.tipo}`, {
+            preserveScroll: true,
+            preserveState: false,  
+            replace: true,
+            onSuccess: (response) => {
+                console.log(response)
+                if(response.props.flash.success){
+                    Toast.fire({
+                        icon: "success",
+                        title: "Categoría eliminada correctamente"
+                    });
+                    categorias.value = response.props.categorias
+                }else{
+                    Toast.fire({
+                        icon: "error",
+                        title: "La categoría tiene mas de un elemento aún en alguna sucursal"
+                    });
+                }
+            },
+            onError: (errors) => {
+                Toast.fire({
+                    icon: "error",
+                    title: "Hubo un problema al eliminar la categoría"
+                });
+            }
+        });
+        closeModal();
+    } else {
+        Toast.fire({
+            icon: "error",
+            title: "Por favor, selecciona una categoría"
+        });
+    }
+}
 
 const currentItem = reactive({
     id: null,

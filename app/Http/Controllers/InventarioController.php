@@ -6,6 +6,7 @@ use App\Models\Gastos;
 use App\Models\Inventario;
 use App\Models\Registros;
 use App\Models\Sucursal;
+use App\Models\TicketAsignacion;
 use App\Models\VentaProducto;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -39,14 +40,103 @@ class InventarioController extends Controller
             ->whereDate('created_at', Carbon::today())
             ->get();
 
+        $tickets = TicketAsignacion::where('sucursal_id', $sucursalId)
+            ->where('estado', 'asignado')
+            ->with(['ticket_productos_asignacion.producto']) // Relación cargada aquí
+            ->get();
+        
+        
+        $categorias = Inventario::select('tipo')->distinct()->get();
+
         return Inertia::render('Inventario/index', [
             'inventario' => $inventario,
             'ventas' => $ventas,
             'registros' => $registros,
-            'gastos' => $gastos
+            'gastos' => $gastos,
+            'categorias' => $categorias,
+            'tickets' => $tickets
         ]);
     }
 
+    public function tickets()
+    {
+        $user = Auth::user();
+        $sucursalId = $user->sucursal_id;
+
+        $ticketsAsignados = TicketAsignacion::where('estado', 'asignado')
+            ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
+            ->limit(20)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $ticketsCancelados = TicketAsignacion::where('estado', 'cancelado')
+            ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
+            ->limit(20)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+            //limitar a 20 tickets
+        $ticketsCerrados = TicketAsignacion::where('estado', 'cerrado')
+            ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
+            ->limit(20)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return Inertia::render('Tickets/index', [
+            'ticketsCerrados' => $ticketsCerrados,
+            'ticketsCancelados' => $ticketsCancelados,
+            'ticketsAsignados' => $ticketsAsignados
+        ]);
+    }
+
+    public function ticketsCancel(Request $request) {
+        $request->validate([
+            'ticket' => 'required|exists:tickets_asignacion,id',
+        ]);
+        
+        $ticket = TicketAsignacion::findOrFail($request->ticket);
+        $ticket->estado = 'cancelado';
+        $ticket->save();
+        return redirect()->route('tickets')->with('success', 'Ticket cancelado correctamente');
+    }
+
+    public function addCategorias (Request $request)
+    {
+        $request->validate([
+            'tipo' => 'required|string|max:255',
+        ]);
+
+        $user = Auth::user();
+        $sucursalId = $user->sucursal_id;
+
+        $categoria = new Inventario();
+        $categoria->tipo = $request->tipo;
+        $categoria->nombre = '-';
+        $categoria->sucursal_id = $sucursalId;
+        $categoria->save();
+
+        return redirect()->route('inventario')->with('success', 'Categoria agregada correctamente');
+    }
+
+    public function confirmTicket($id, Request $request)
+    {
+        
+        $request->validate([
+            'estado' => 'required|string',
+        ]);
+
+        $ticket = TicketAsignacion::findOrFail($id);
+
+        if ($ticket->estado === 'asignado') {
+            $ticket->estado = 'cerrado';
+            $ticket->hora_llegada = Carbon::now();
+            $ticket->save();
+
+            return redirect()->route('inventario')->with('success', 'Ticket confirmado correctamente');
+        } else {
+            return redirect()->route('inventario')->with('error', 'El ticket no está disponible para confirmar');
+        }
+    }
     // Actualizar producto en el inventario
     public function update(Request $request, Inventario $inventario)
     {
@@ -89,6 +179,16 @@ class InventarioController extends Controller
     public function index()
     {
         $inventario = Inventario::all();
+        $categorias = Inventario::select('tipo')->distinct()->get();
+
+        $user = Auth::user();
+
+        if($user->sucursal_id == 0){
+            return Inertia::render('Inventory', [
+                'inventario' => $inventario,
+                'categorias' => $categorias
+            ]);
+        }
         return Inertia::render('Inventory', [
             'inventario' => $inventario
         ]);
@@ -279,6 +379,22 @@ class InventarioController extends Controller
 
         // Filtra el inventario por sucursal_id
         return redirect()->route('inventario')->with('success', 'Ítem eliminado correctamente');
+
+    }
+
+    public function destroyCategoria($tipo)
+    {
+        
+        $user = Auth::user();
+        $sucursalId = $user->sucursal_id;
+        $item = Inventario::where('tipo', $tipo)->where('sucursal_id', $sucursalId);
+        //if item === 1 delete 
+        if($item->count() === 1){
+            $item->delete();
+            return redirect()->route('inventario')->with('success', 'Ítem eliminado correctamente');
+        }else{
+            return redirect()->route('inventario')->with('error', 'Categoria tiene mas de un elemento');
+        }
 
     }
 }

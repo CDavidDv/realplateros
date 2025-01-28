@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Sucursal;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -33,13 +34,20 @@ class AlmacenRolSeeder extends Seeder
 
         $role_almacen->syncPermissions($permisisions_almacen);
 
-        $sucursal = User::create([
+        Sucursal::create([
+            'id' => '0',
+            'nombre' => 'almacen',
+            'direccion' => 'Calle 0',
+            'telefono' => '123',
+        ]);
+
+        $user = User::create([
             'name' => 'almacen',
-            'sucursal_id' => '1',
+            'sucursal_id' => '0',
             'email' => 'almacen',
             'password' => Hash::make('password'),
         ]);
-        $sucursal->assignRole('almacen');
+        $user->assignRole('almacen');
 
 
 

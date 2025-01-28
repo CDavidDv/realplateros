@@ -19,7 +19,7 @@
             :key="tab.id" 
             @click="activeTab = tab.id" 
             :class="[
-              'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm',
+              'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize',
               activeTab === tab.id 
                 ? 'border-blue-500 text-blue-600' 
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -244,25 +244,44 @@ function addNewGasto() {
 function removeGasto(index) {
   gastos.value.splice(index, 1);
 }
+const isAlmacen = ref(props.user.roles[0] === 'almacen');
+
+const categorias = ref(props.categorias);
+
 const tabs = [
-  { id: 'bebida', name: 'Bebidas' },
-  { id: 'masa', name: 'Tortillas y Bolas' },
-  { id: 'extras', name: 'Extras' },
-  { id: 'relleno', name: 'Rellenos' },
-  { id: 'pastes', name: 'Pastes Empanadas' },
-  { id: 'gastos', name: 'Gastos generales' },
-  { id: 'sobrantes', name: 'Sobrantes' },
+  ...categorias.value
+    .filter(categoria => categoria.tipo !== 'empanadas saladas' && categoria.tipo !== 'empanadas dulces')
+    .map(categoria => (
+      categoria.tipo === 'masa' 
+        ? { name: 'Tortillas y Bolas', id: categoria.tipo } 
+        : categoria.tipo === 'pastes' 
+        ? { name: 'Pastes / Empanadas', id: categoria.tipo } 
+        : { id: categoria.tipo, name: categoria.tipo }
+    )),
+  ...(!isAlmacen.value 
+    ? [
+        { id: 'gastos', name: 'Gastos generales' },
+        { id: 'sobrantes', name: 'Sobrantes' }
+      ]
+    : []
+  )
 ];
 
 
-const products = ref(props.inventario.map(item => ({
-  ...item,
-  existe: props?.registros[item.id-1]?.existe || item?.existe || 0,
-  entra: 0,
-  total: null,
-  sobra: props?.registros[item.id-1]?.existe,
-  costo: item?.costo || 0
-})));
+
+const products = ref(
+  props.inventario
+    .filter(item => item.nombre !== '-') // Filtrar los elementos que cumplen con la condición
+    .map(item => ({
+      ...item,
+      existe: props?.registros[item.id - 1]?.existe || item?.existe || 0,
+      entra: 0,
+      total: null,
+      sobra: props?.registros[item.id - 1]?.existe,
+      costo: item?.costo || 0,
+    }))
+);
+
 
 
 

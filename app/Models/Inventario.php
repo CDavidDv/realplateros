@@ -20,6 +20,11 @@ class Inventario extends Model
     {
         return $this->hasMany(PedidoProducto::class);
     }
+    public function producto()
+    {
+        return $this->belongsTo(Inventario::class, 'producto_id');
+    }
+
 
     public function ventas()
     {
