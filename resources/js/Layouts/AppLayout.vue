@@ -241,7 +241,7 @@ const isAlmacen = role.value === 'almacen';
                         </ResponsiveNavLink>
                     </div>
                     <div class="pt-2 pb-3 space-y-1">
-                        <ResponsiveNavLink :href="route('hornear')" :active="route().current('hornear')">
+                        <ResponsiveNavLink :href="route('hornear')" :active="route().current('hornear')" v-if="!isAlmacen">
                             Hornear
                         </ResponsiveNavLink>
                     </div>
@@ -251,18 +251,23 @@ const isAlmacen = role.value === 'almacen';
                         </ResponsiveNavLink>
                     </div>
                     <div class="pt-2 pb-3 space-y-1">
-                        <ResponsiveNavLink :href="route('checador')" :active="route().current('checador')">
+                        <ResponsiveNavLink :href="route('checador')" :active="route().current('checador')" v-if="!isAlmacen">
                             Checador
                         </ResponsiveNavLink>
                     </div>
                     
-                    <div class="pt-2 pb-3 space-y-1" v-if="props.user.roles[0] !== 'trabajador'">
+                    <div class="pt-2 pb-3 space-y-1" v-if="props.user.roles[0] !== 'trabajador' && !isAlmacen">
                         
                         <ResponsiveNavLink :href="route('personal')" :active="route().current('personal')" >
                             Personal
                         </ResponsiveNavLink>
                     </div>
-                    <div class="pt-2 pb-3 space-y-1">
+                    <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="isAlmacen">
+                        <ResponsiveNavLink :href="route('tickets')" :active="route().current('tickets')">
+                            Tickets Asignados
+                        </ResponsiveNavLink>
+                    </div>
+                    <div class="pt-2 pb-3 space-y-1" v-if="!isAlmacen">
                         <ResponsiveNavLink :href="route('corte-caja')" :active="route().current('corte-caja')">
                             Corte
                         </ResponsiveNavLink>
