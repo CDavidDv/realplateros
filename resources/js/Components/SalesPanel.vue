@@ -170,7 +170,7 @@ const trabajadores = ref(
 if(isAlmacen.value){
   categories.value = props.categorias.map(item => item.tipo)
 }else{
-  categories.value = ['pastes', 'empanadas saladas', 'empanadas dulces', 'bebida']
+  categories.value = ['pastes', 'empanadas saladas', 'empanadas dulces', 'bebida', 'extras']
 }
 
 

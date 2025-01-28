@@ -6,6 +6,7 @@ use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\Usuario;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
@@ -22,6 +23,12 @@ class UsuarioController extends Controller
             return [
                 'id' => $user->id,
                 'name' => $user->name,
+                'apellido_p' => $user->apellido_p,
+                'apellido_m' => $user->apellido_m,
+                'tel' => $user->tel,
+                'inicio_contrato' => $user->inicio_contrato,
+                'fin_contrato' => $user->fin_contrato,
+                'active' => $user->active,
                 'email' => $user->email,
                 'sucursal_id' => $user->sucursal_id,
                 'sucursal' => $user->sucursal->nombre ?? 'Sin sucursal',
@@ -121,43 +128,67 @@ class UsuarioController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|unique:users',
-            'password' => 'required|string|min:6',
-            'role' => 'required|string|exists:roles,name', // Asegura que el rol existe
+            'apellido_p' => 'nullable|string|max:255',
+            'apellido_m' => 'nullable|string|max:255',
+            'tel' => 'nullable|string|max:20',
+            'email' => 'required|string|max:255|unique:users',
+            'password' => 'required|string|min:8',
             'sucursal_id' => 'required|exists:sucursales,id',
+            'inicio_contrato' => 'nullable|date',
+            'fin_contrato' => 'nullable|date',
+            'active' => 'boolean',
+            'role' => 'nullable|string|max:255',
         ]);
 
-        // Crear el usuario (sin el campo 'role')
         $user = User::create([
             'name' => $request->name,
+            'apellido_p' => $request->apellido_p,
+            'apellido_m' => $request->apellido_m,
+            'tel' => $request->tel,
             'email' => $request->email,
-            'password' => bcrypt($request->password),
+            'password' => Hash::make($request->password),
             'sucursal_id' => $request->sucursal_id,
+            'inicio_contrato' => $request->inicio_contrato,
+            'fin_contrato' => $request->fin_contrato,
+            'active' => $request->active ?? true,
+            'role' => $request->role ?? 'trabajador',
         ]);
 
-        // Asignar el rol directamente (verificando el guard)
-        $user->assignRole($request->role); 
-
-        return redirect()->route('users.index')->with('success', 'Usuario creado y rol asignado correctamente.');
+        return redirect()->route('users.index')->with('success', 'Usuario creado correctamente.');
     }
 
-    public function update(Request $request, Usuario $user) {
+    public function update(Request $request, User $user)
+    {
         $request->validate([
-            'name' => 'required',
-            'email' => 'required|unique:users,email,' . $user->id,
-            'role' => 'required',
-            'sucursal_id' => 'required',
+            'name' => 'required|string|max:255',
+            'apellido_p' => 'nullable|string|max:255',
+            'apellido_m' => 'nullable|string|max:255',
+            'tel' => 'nullable|string|max:20',
+            'email' => 'required|string|max:255|unique:users,email,' . $user->id,
+            'password' => 'nullable|string|min:8',
+            'sucursal_id' => 'required|exists:sucursales,id',
+            'inicio_contrato' => 'nullable|date',
+            'fin_contrato' => 'nullable|date',
+            'active' => 'boolean',
         ]);
 
         $user->update([
             'name' => $request->name,
+            'apellido_p' => $request->apellido_p,
+            'apellido_m' => $request->apellido_m,
+            'tel' => $request->tel,
             'email' => $request->email,
-            'password' => $request->password ? bcrypt($request->password) : $user->password,
-            'role' => $request->role,
             'sucursal_id' => $request->sucursal_id,
+            'inicio_contrato' => $request->inicio_contrato,
+            'fin_contrato' => $request->fin_contrato,
+            'active' => $request->active ?? true,
         ]);
 
-        return redirect()->route('personal');
+        if ($request->password) {
+            $user->update(['password' => Hash::make($request->password)]);
+        }
+
+        return redirect()->route('users.index')->with('success', 'Usuario actualizado correctamente.');
     }
 
     public function destroy(Usuario $user) {

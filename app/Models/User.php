@@ -32,9 +32,16 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'apellido_p',
+        'apellido_m',
+        'tel',
         'email',
         'password',
         'sucursal_id',
+        'inicio_contrato',
+        'fin_contrato',
+        'active',
+        'role',
     ];
 
     public function checkInCheckOut()

@@ -10,6 +10,7 @@
             class="text-lg font-bold text-center text-yellow-800 "
             
           >
+          
             ⚠️ Faltantes <span class="animate-pulse">({{ notificacionesFaltantes.length }})</span> ⚠️
           </h2>
           <ul v-if="mostrarFaltantes" class="mt-2">
@@ -71,6 +72,8 @@ import SistemaHorneado from "./SistemaHorneado.vue";
 const mostrarFaltantes = ref(false);
 const mostrarExcedentes = ref(false);
 
+
+
 function toggleFaltantes() {
   mostrarFaltantes.value = !mostrarFaltantes.value;
 }
@@ -84,6 +87,9 @@ const page = usePage();
 const inventario = computed(() => page.props.inventario || []);
 const estimaciones = computed(() => page.props.estimaciones || []);
 const currentTime = ref(getCurrentDayAndTime());
+
+console.log("Inventario:", inventario.value);
+console.log("Estimaciones:", estimaciones.value);
 
 function getCurrentDayAndTime() {
   const now = new Date();
@@ -154,7 +160,12 @@ const estimacionesVsExistentes = computed(() => {
         horaEnNumero: hours,
       };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((item, index, self) => 
+      index === self.findIndex((t) => (
+        t.id === item.id
+      ))
+    ); // Elimina duplicados basados en el id
 });
 
 const itemsDelDia = computed(() => {

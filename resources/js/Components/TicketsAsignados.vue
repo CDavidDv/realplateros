@@ -2,7 +2,7 @@
   <div class="container mx-auto p-8 md:p-10 grid grid-cols-1 sm:grid-cols-3 gap-2">
     <!-- Tarjeta de Tickets Asignados -->
     <TicketCard
-      title="Tickets Asignados"
+      title="Entregas Asignados"
       :tickets="ticketsAsignados"
       tipo="asignar"
       @view-ticket-details="handleTicketDetails"
@@ -11,7 +11,7 @@
 
     <!-- Tarjeta de Tickets Cerrados -->
     <TicketCard
-      title="Tickets Completados"
+      title="Entregas Completados"
       :tickets="ticketsCerrados"
       tipo="cerrar"
       @view-ticket-details="handleTicketDetails"
@@ -19,7 +19,7 @@
 
     <!-- Tarjeta de Tickets Cancelados -->
     <TicketCard
-      title="Tickets Cancelados"
+      title="Entregas Cancelados"
       :tickets="ticketsCancelados"
       tipo="cancelar"
       @view-ticket-details="handleTicketDetails"

@@ -8,6 +8,7 @@ use App\Models\Inventario;
 use App\Models\Sucursal;
 use App\Models\TicketAsignacion;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -105,10 +106,13 @@ class DashboardController extends Controller
             ->whereDate('created_at', now()->toDateString())
             ->get();
 
+        $diaHoy = Carbon::now()->locale('es')->dayName; // Obtiene el nombre del día actual en español
+
         $estimaciones = Estimaciones::where('sucursal_id', $sucursalId)
+            ->where('dia', $diaHoy) // Filtra los registros donde el día coincide con el día actual
             ->with('inventario') // Carga la relación Inventario
             ->get();
-        
+    
 
         return Inertia::render('Hornear/index', [
             'inventario' => $inventario,
