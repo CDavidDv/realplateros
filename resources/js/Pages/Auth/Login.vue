@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticationCard from '@/Components/AuthenticationCard.vue';
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -11,11 +11,16 @@ import TextInput from '@/Components/TextInput.vue';
 defineProps({
     canResetPassword: Boolean,
     status: String,
+    sucursales: Array
 });
+
+const { props } = usePage()
+
 
 const form = useForm({
     email: '',
     password: '',
+    sucursal_id: '',
     remember: false,
 });
 
@@ -44,6 +49,19 @@ const submit = () => {
         <form @submit.prevent="submit">
             
             <div>
+                <InputLabel for="sucursal" value="Sucursal" />
+                <select
+                    id="sucursal"
+                    v-model="form.sucursal_id"
+                    class="mt-1 block w-full border-gray-300 focus:border-orange-500 focus:ring-orange-500 rounded-md shadow-sm"
+                >   
+                <option v-for="sucursal in sucursales" :value="sucursal.id">{{ sucursal.nombre }}</option>
+
+                </select>
+                <InputError class="mt-2" :message="form.errors.sucursal_id" />
+            </div>
+            
+            <div class="mt-2">
                 <InputLabel for="email" value="Matricula" />
                 <TextInput
                     id="text"
@@ -54,22 +72,22 @@ const submit = () => {
                     autofocus
                     autocomplete="username"
                 />
-                <InputError class="mt-2" :message="form.errors.email" />
             </div>
-
-            <div class="mt-4">
+            
+            <div class="mt-2">
                 <InputLabel for="password" value="Contraseña" />
                 <TextInput
-                    id="password"
+                id="password"
                     v-model="form.password"
                     type="password"
                     class="mt-1 block w-full"
                     required
                     autocomplete="current-password"
                 />
-                <InputError class="mt-2" :message="form.errors.password" />
             </div>
-
+            
+            <InputError class="mt-2" :message="form.errors.password" />
+            <InputError class="mt-2" :message="form.errors.email" />
             <div class="block mt-4">
                 <label class="flex items-center">
                     <Checkbox v-model:checked="form.remember" name="remember" />

@@ -48,6 +48,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::delete('/categorias/{tipo}', [InventarioController::class, 'destroyCategoria'])->name('categoria.destroy');
 
     Route::get('/checador', [CheckInCheckOutController::class, 'index'])->name("checador");
+    Route::post('/search-user-check-ins', [CheckInCheckOutController::class, 'searchCheckInsOuts'])->name("search.checador");
     Route::post('/checkInOut', [CheckInCheckOutController::class, 'checkInOut'])->name('checkInOut');
 
     Route::post('/checkout/{usuario}/{sucursal}', [CheckInCheckOutController::class, 'checkOut'])->name('checkout');

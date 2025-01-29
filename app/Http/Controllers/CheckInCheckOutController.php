@@ -22,9 +22,7 @@ class CheckInCheckOutController extends Controller
 
         // Obtener todos los check-ins y la información de los trabajadores
         $checkIns = CheckInCheckOut::with('user')
-            ->whereHas('user', function ($query) use ($sucursalId) {
-                $query->where('sucursal_id', $sucursalId);
-            })
+            ->where('sucursal_id', $sucursalId)
             ->whereDate('created_at', today())
             ->get();
 
@@ -57,11 +55,42 @@ class CheckInCheckOutController extends Controller
         ]);
     }
 
+    public function searchCheckInsOuts(Request $request)
+    {
+        
+        // Validar los datos de entrada
+        $request->validate([
+            'email' => 'required|string',
+            'searchDate' => 'required|date',
+        ]);
+
+        // Buscar el usuario por email
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'error' => 'Usuario no encontrado',
+            ], 404);
+        }
+
+        // Buscar los registros de CheckInCheckOut para el usuario y la fecha especificada
+        $userSearchResults = CheckInCheckOut::with(['user', 'sucursal'])
+            ->where('user_id', $user->id)
+            ->whereDate('created_at', $request->searchDate)
+            ->get();
+
+        // Devolver los resultados en formato JSON
+        return response()->json([
+            'checkIns' => $userSearchResults,
+        ]);
+    }
+
 public function checkInOut(Request $request) {
     // Validate the request
     $request->validate([
         'email' => 'required',
         'password' => 'required',
+        'sucursal_id' => 'required'
     ]);
     
     // Find the user
@@ -74,13 +103,11 @@ public function checkInOut(Request $request) {
     
     // Verificar si ya existe un registro de hoy
     $todayCheckInOut = CheckInCheckOut::where('user_id', $user->id)
-                                      ->whereDate('created_at', today())
-                                      ->first();
+            ->where('sucursal_id', $request->sucursal_id) 
+            ->whereDate('created_at', today())
+            ->orderBy('created_at', 'desc')
+            ->first();
     
-    // Si ya tiene check-in y check-out para hoy, no hace nada
-    if ($todayCheckInOut && $todayCheckInOut->check_in && $todayCheckInOut->check_out) {
-        return back()->withErrors(['email' => 'Ya has registrado tu entrada y salida hoy.']);
-    }
     
     // Si no hay registro o ya tiene un check-out, crear un nuevo check-in
     if (!$todayCheckInOut || $todayCheckInOut->check_out) {

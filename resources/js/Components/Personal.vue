@@ -2,6 +2,26 @@
   <div class="relative px-10 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
     <h1 class="text-3xl font-semibold mb-6 text-center">Gestión de Personal</h1>
 
+    <!--Notificaciones de contrato-->
+    <div>
+      <div class="container my-10 grid gap-2" v-if="contratosVencidos.length > 0 || contratosPorVencer.length > 0">
+      <CardContratos 
+        :contratos="contratosPorVencer" 
+        v-if="contratosPorVencer.length > 0"
+        title="Contratos por Vencer"  
+        color="yellow"
+      />
+      <CardContratos 
+        :contratos="contratosVencidos" 
+        v-if="contratosVencidos.length > 0"
+        title="Contratos Vencidos"  
+        color="red"
+      />
+      </div>
+
+    </div>
+
+
     <!-- Navegación de Tabs -->
     <div class="mb-6 flex justify-center">
       <button 
@@ -28,7 +48,7 @@
     </div>
 
     <!-- Tabla de Usuarios o Sucursales -->
-    <div class="mb-8">
+    <div class="mb-8 overflow-auto">
       <h2 class="text-xl font-semibold mb-4">{{ tabTitle }}</h2>
       <table class="min-w-full bg-white border border-gray-200">
         <thead>
@@ -97,33 +117,29 @@
             <input v-model="form.name" placeholder="Nombre" class="w-full px-3 py-2 border rounded">
             <span v-if="errors.name" class="text-red-500 text-sm">{{ errors.name }}</span>
 
-            <input v-model="form.apellido_p" placeholder="Apellido Paterno" class="w-full px-3 py-2 border rounded">
+            <input v-model="form.apellido_p" placeholder="Apellido Paterno" class="mt-2 w-full px-3 py-2 border rounded">
             <span v-if="errors.apellido_p" class="text-red-500 text-sm">{{ errors.apellido_p }}</span>
 
-            <input v-model="form.apellido_m" placeholder="Apellido Materno" class="w-full px-3 py-2 border rounded">
+            <input v-model="form.apellido_m" placeholder="Apellido Materno" class="mt-2 w-full px-3 py-2 border rounded">
             <span v-if="errors.apellido_m" class="text-red-500 text-sm">{{ errors.apellido_m }}</span>
 
-            <input v-model="form.tel" placeholder="Teléfono" class="w-full px-3 py-2 border rounded">
+            <input v-model="form.tel" placeholder="Teléfono" class="w-full px-3 py-2 border mt-2 rounded">
             <span v-if="errors.tel" class="text-red-500 text-sm">{{ errors.tel }}</span>
             <!--Inicio y fin contrato -->
-            <div class="flex space-x-4">
-              <div>
+            <div class="flex w-full space-x-4 mt-2">
+              <div class="w-full">
                 <label for="inicio_contrato" class="block text-sm font-medium text-gray-700">Inicio de Contrato</label>
                 <input v-model="form.inicio_contrato" type="date" id="inicio_contrato" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
                 <span v-if="errors.inicio_contrato" class="text-red-500 text-sm">{{ errors.inicio_contrato }}</span>
               </div>
-              <div>
+              <div class="w-full">
                 <label for="fin_contrato" class="block text-sm font-medium text-gray-700">Fin de Contrato</label>
                 <input v-model="form.fin_contrato" type="date" id="fin_contrato" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
                 <span v-if="errors.fin_contrato" class="text-red-500 text-sm">{{ errors.fin_contrato }}</span>
               </div>
             </div>
             <!--activo-->
-            <div class="flex items-center">
-              <input v-model="form.active" v-bind:true-value="1" v-bind:false-value="0" type="checkbox" id="active" class="form-checkbox h-5 w-5 text-orange-500">
-              <label for="active" class="ml-2 text-sm font-medium text-gray-700">Activo</label>
-            </div>
-
+            
             <input v-model="form.email" type="text" placeholder="Matricula" class="mt-2 w-full px-3 py-2 border rounded">
             <span v-if="errors.email" class="text-red-500 text-sm">{{ errors.email }}</span>
 
@@ -137,13 +153,17 @@
               </option>
             </select>
             <span v-if="errors.sucursal_id" class="text-red-500 text-sm">{{ errors.sucursal_id }}</span>
-
+            
             <select v-model="form.role" class="mt-2 w-full px-3 py-2 border rounded">
               <option value="">Seleccionar Rol</option>
               <option v-for="role in availableRoles" :key="role.id" :value="role.name">
                 {{ role.name }}
               </option>
             </select>
+            <div class="flex items-center mt-2">
+              <input v-model="form.active" v-bind:true-value="1" v-bind:false-value="0" type="checkbox" id="active" class="form-checkbox h-5 w-5 text-orange-500">
+              <label for="active" class="ml-2 text-sm font-medium text-gray-700">Activo</label>
+            </div>
             <span v-if="errors.role" class="text-red-500 text-sm">{{ errors.role }}</span>
           </div>
 
@@ -183,6 +203,8 @@
 import { ref, computed } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
+import { AlertCircle } from 'lucide-vue-next';
+import CardContratos from './CardContratos.vue';
 
 const { props } = usePage();
 
@@ -222,6 +244,38 @@ const currentItems = computed(() => currentTab.value === 'users' ? props.users :
 const availableRoles = computed(() => props.roles.filter(role => ['admin', 'trabajador'].includes(role.name)));
 
 const itemName = (item) => item.name || item.email || item.nombre;
+
+const contratosVencidos = computed(() => {
+  const today = new Date();
+  return props.users.filter(user => {
+    if (user.fin_contrato === null) return false;
+    
+    const endDate = new Date(user.fin_contrato);
+    if (isNaN(endDate)) return false;
+
+    return endDate < today; // Contrato ya vencido
+  });
+});
+
+
+
+
+const contratosPorVencer = computed(() => {
+  const today = new Date();
+  const cincoDiasEnMilisegundos = 5 * 24 * 60 * 60 * 1000;
+
+  return props.users.filter(user => {
+    if (user.fin_contrato === null) return false;
+    if (user.active === 0) return false;
+    
+    const endDate = new Date(user.fin_contrato);
+    if (isNaN(endDate)) return false;
+
+    const diferenciaEnMilisegundos = endDate - today;
+    return diferenciaEnMilisegundos > 0 && diferenciaEnMilisegundos <= cincoDiasEnMilisegundos;
+  });
+});
+
 
 const getSucursalSession = (id) => {
   if (!props.sucursales || !props.sucursalSession) {
@@ -377,3 +431,4 @@ const resetForm = () => {
   errors.value = {};
 };
 </script>
+

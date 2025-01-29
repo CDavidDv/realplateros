@@ -25,11 +25,14 @@ class DashboardController extends Controller
             return redirect()->route('dashboard');
         }
 
+        $sucursales = Sucursal::where('id', '!=', 0)->get();
+
         return Inertia::render('Auth/Login', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
             'laravelVersion' => Application::VERSION,
             'phpVersion' => PHP_VERSION,
+            'sucursales' => $sucursales
         ]);
     }
 
