@@ -74,28 +74,9 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th scope="col"
+                                        v-for="tab in titlesTable1"
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        ID
-                                    </th>
-                                    <th scope="col"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Nombre
-                                    </th>
-                                    <th scope="col"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Estado
-                                    </th>
-                                    <th scope="col"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Entrada
-                                    </th>
-                                    <th scope="col"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Salida
-                                    </th>
-                                    <th scope="col"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Horas Trabajadas
+                                        {{ tab }}
                                     </th>
                                 </tr>
                             </thead>
@@ -173,32 +154,10 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    ID
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Sucursal
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Nombre
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Apellido P.
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Apellido M.
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Estado
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Entrada
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Salida
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Horas Trabajadas
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                    v-for="tab in titlesTables2"    
+                                >
+                                    {{ tab }}
                                 </th>
                             </tr>
                         </thead>
@@ -236,6 +195,7 @@
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import { ref, onMounted } from 'vue';
 
 const { props } = usePage();
@@ -251,6 +211,26 @@ const userSearchForm = ref({
     searchDate: ''
 });
 
+const titlesTable1 = ref([
+    "ID",
+    "Nombre",
+    "Estado",
+    "Entrada",
+    "Salida",
+    "Horas Trabajadas"
+])
+
+const titlesTables2 = ref([
+    "ID",
+    "Sucursal",
+    "Nombre",
+    "Apellido P.",
+    "Apellido M.",
+    "Estado",
+    "Entrada",
+    "Salida",
+])
+
 const userSearchErrorMessage = ref('');
 const userSearchSuccessMessage = ref('')
 
@@ -262,6 +242,7 @@ const handleUserSearch = () => {
             userSearchResults.value = response.data.checkIns;
             userSearchSuccessMessage.value = 'Resultados de la búsqueda obtenidos con éxito.';
             userSearchErrorMessage.value = '';
+            showToast('success', 'Resultados de la búsqueda obtenidos con éxito.')
         })
         .catch(error => {
             userSearchErrorMessage.value = `Error al obtener los resultados de la búsqueda. ${error}` ;
@@ -300,6 +281,7 @@ const handleSubmit = () => {
             form.reset('password');
             form.reset('email');
             trabajadores.value = page.props.checkIns;
+            
         },
         onError: (errors) => {
             errorMessage.value = Object.values(errors)[0];
@@ -318,4 +300,22 @@ const handleSearch = () => {
         }
     });
 };
+
+const showToast = (icon, title) => {
+  Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    customClass: "no-print",
+    didOpen: (toast) => {
+      toast.addEventListener('mouseenter', Swal.stopTimer)
+      toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+  }).fire({
+    icon,
+    title
+  })
+}
 </script>

@@ -10,11 +10,11 @@ class Venta extends Model
     use HasFactory;
     protected $table = 'ventas';
 
-    protected $fillable = ['usuario_id', 'sucursal_id', 'total', 'metodo_pago'];
+    protected $fillable = ['id', 'usuario_id', 'sucursal_id', 'total', 'metodo_pago'];
 
     public function usuario()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'usuario_id');
     }
 
     public function sucursal()

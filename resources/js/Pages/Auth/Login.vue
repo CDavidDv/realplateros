@@ -15,7 +15,7 @@ defineProps({
 });
 
 const { props } = usePage()
-
+console.log(props)
 
 const form = useForm({
     email: '',

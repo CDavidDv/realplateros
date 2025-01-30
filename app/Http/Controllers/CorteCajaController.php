@@ -144,14 +144,17 @@ class CorteCajaController extends Controller
         // Filtrado según el tipo (día, semana, mes)
         if ($filter === 'day') {
             $ventas = Venta::where('sucursal_id', $sucursalId)
+                ->with(['detalles.producto', 'usuario'])
                 ->whereDate('created_at', $value)
                 ->get();
         } elseif ($filter === 'week') {
             $ventas = Venta::where('sucursal_id', $sucursalId)
+                ->with(['detalles.producto', 'usuario'])
                 ->whereBetween('created_at', [Carbon::parse($value)->startOfWeek(), Carbon::parse($value)->endOfWeek()])
                 ->get();
         } elseif ($filter === 'month') {
             $ventas = Venta::where('sucursal_id', $sucursalId)
+                ->with(['detalles.producto', 'usuario'])
                 ->whereMonth('created_at', Carbon::parse($value)->month)
                 ->get();
         } else {
@@ -178,7 +181,7 @@ class CorteCajaController extends Controller
             ->groupBy('producto_id')
             ->with('producto')
             ->get();
-        
+
         $initialCash = CorteCaja::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', $value)
             ->value('dinero_inicio');
@@ -187,14 +190,22 @@ class CorteCajaController extends Controller
             ->whereDate('created_at', $value)
             ->value('dinero_final');
 
-            
+        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
+
+        $ventaProductos = VentaProducto::with('producto')
+            ->where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', $value)
+            ->get();
 
         return Inertia::render('Corte/index', [
             'cashPayments' => $cashPayments,
             'cardPayments' => $cardPayments,
             'productsUsed' => $productosVendidos,
             'initialCash' => $initialCash,
-            'finalCash' => $finalCash
+            'finalCash' => $finalCash,
+            'inventario' => $inventario,
+            'ventasProductos' => $ventaProductos,
+            'ventas' => $ventas
         ]); 
         
     }
@@ -208,7 +219,18 @@ class CorteCajaController extends Controller
 
         // Obtener todas las ventas de la sucursal
         $ventas = Venta::where('sucursal_id', $sucursalId)
+            ->with(['detalles.producto', 'usuario'])
             ->whereDate('created_at', Carbon::today())
+            ->get();
+
+        $ventasEfectivo = Venta::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::today())
+            ->where('metodo_pago', 'efectivo')
+            ->get();
+
+        $ventasTarjeta = Venta::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::today())
+            ->where('metodo_pago', 'tarjeta')
             ->get();
 
         // Obtener los productos vendidos de la sucursal, sumando las cantidades por producto
@@ -232,7 +254,9 @@ class CorteCajaController extends Controller
            ->get();
 
            
-        $ventaProductos = VentaProducto::with('producto') 
+        $ventaProductos = VentaProducto::with('producto')
+            ->where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::today())
             ->get();
            
         return Inertia::render('Corte/index', [
@@ -241,7 +265,9 @@ class CorteCajaController extends Controller
             'productosVendidos' => $productosVendidos,
             'corte' => $corte,
             'estimaciones' => $estimaciones,
-            'ventasProductos' => $ventaProductos
+            'ventasProductos' => $ventaProductos,
+            'ventasEfectivo' => $ventasEfectivo,
+            'ventasTarjeta' => $ventasTarjeta
         ]);
     }
 }

@@ -1,5 +1,4 @@
 <script setup>
-import ChartCorte from '@/Components/ChartCorte.vue';
 import Corte from '@/Components/Corte.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 </script>
@@ -10,33 +9,10 @@ import AppLayout from '@/Layouts/AppLayout.vue';
             <div class="max-w-7xl w-full mx-auto sm:px-6 lg:px-8 rounded-xl">
                 <div class="overflow-scroll md:overflow-hidden rounded-xl">
                     
-                    <Corte class="print" />
-                    <ChartCorte class="no-print"  v-if="$page.props.user.roles[0] != 'trabajador'" />
+                    <Corte/>
+                    
                 </div>
             </div>
         </div>
     </AppLayout>
 </template>
-<style>
-.print {
-    display: block !important;
-}
-
-@media print {
-    .no-print {
-    display: none !important;
-    }
-
-    .print {
-    display: block !important;
-    }
-
-    astro-dev-toolbar {
-    display: none !important;
-    }
-
-    article {
-    break-inside: avoid;
-    }
-}
-</style>

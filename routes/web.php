@@ -18,10 +18,12 @@ use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 // NO AUTH ROUTES 
 Route::get('/', [DashboardController::class, 'index']);
 
+
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', ])->group(function () {
     // AUTH ROUTES
     Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name("dashboard");
     Route::post('/ventas', [VentaController::class, 'procesarVenta'])->name('ventas.procesar');
+    Route::post('/ventas/editar', [VentaController::class, 'editarVenta'])->name('ventas.editar');
     Route::post('/asignar', [VentaController::class, 'procesarTicket'])->name('ticket.procesar');
 
     Route::get('/hornear', [DashboardController::class, 'hornear'])->name("hornear");
@@ -72,7 +74,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/corte-caja/guardar-inicial', [CorteCajaController::class, 'guardarInicial'])->name('corte-caja.guardar-inicial');
     Route::post('/corte-caja/guardar-final', [CorteCajaController::class, 'guardarFinal'])->name('corte-caja.guardar-final');
     
-    Route::post('/corte-caja/filtro', [CorteCajaController::class, 'filtro'])->name('corte-caja.filtro');
+    Route::post('/corte-caja', [CorteCajaController::class, 'filtro'])->name('corte-caja.filtro');
 
 
     Route::post('/print-ticket', [PrintController::class, 'printTicket']);

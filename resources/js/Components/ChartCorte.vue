@@ -1,64 +1,7 @@
 <template>
-    <div class="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow space-y-6">
+    <div class="no-print w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow space-y-6">
         <!-- Filtros -->
         <div class="flex flex-wrap gap-4 mb-6">
-            <!-- Selección de Periodo -->
-            <div>
-                <label class="block text-sm font-medium">Periodo</label>
-                <select 
-                    v-model="timeFilter" 
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                >
-                    <option value="day">Día</option>
-                    <option value="week">Semana</option>
-                    <option value="month">Mes</option>
-                </select>
-            </div>
-
-            <!-- Dinámico: Filtro por Fecha -->
-            <div v-if="timeFilter === 'day'">
-                <label class="block text-sm font-medium">Fecha</label>
-                <input 
-                    type="date" 
-                    v-model="startDate" 
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                />
-            </div>
-            <div v-if="timeFilter === 'customRange'">
-            <label class="block text-sm font-medium">Fecha Inicial</label>
-            <input 
-                type="date" 
-                v-model="startDate" 
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-            />
-            <label class="block text-sm font-medium mt-4">Fecha Final</label>
-            <input 
-                type="date" 
-                v-model="endDate" 
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-            />
-        </div>
-
-
-            <!-- Dinámico: Filtro por Semana -->
-            <div v-if="timeFilter === 'week'">
-                <label class="block text-sm font-medium">Semana</label>
-                <input 
-                    type="week" 
-                    v-model="weekFilter" 
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                />
-            </div>
-
-            <!-- Dinámico: Filtro por Mes -->
-            <div v-if="timeFilter === 'month'">
-                <label class="block text-sm font-medium">Mes</label>
-                <input 
-                    type="month" 
-                    v-model="monthFilter" 
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                />
-            </div>
 
             <!-- Botones de Exportación -->
             <div class="flex gap-2">
@@ -125,10 +68,10 @@ import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
 
-
-const { props } = usePage();
-const ventasProductos = props.ventasProductos;
-const inventario = props.inventario;
+const props = defineProps({
+    ventasProductos: Array,
+    inventario: Array
+});
 
 // Obtener el día actual
 const today = new Date().toISOString().split('T')[0];
@@ -148,27 +91,29 @@ const selectedProduct = ref(null);
 
 // Filtros de datos
 const filteredVentas = computed(() => {
-    return ventasProductos.filter(venta => {
-        const productoEnInventario = inventario.find(item => item.id === venta.producto_id);
+    return props.ventasProductos.filter(venta => {
+        const productoEnInventario = props.inventario.find(item => item.id === venta.producto_id);
         const salesDate = new Date(venta.created_at);
 
         // Manejo de fechas
         const start = startDate.value ? new Date(startDate.value) : null;
         const end = endDate.value ? new Date(endDate.value) : null;
-        const dateInRange = (!start || salesDate >= start) && (!end || salesDate <= end);
+        
 
         // Validación de categorías
         const productInCategory =
             selectedCategories.value.length === 0 || 
             (productoEnInventario && selectedCategories.value.includes(productoEnInventario.tipo));
 
-        return dateInRange && productInCategory;
+        return productInCategory;
     });
 });
 
+
+
 // Preparar datos de productos
 const productosVenta = computed(() => 
-    inventario.filter(item => selectedCategories.value.includes(item.tipo))
+    props.inventario.filter(item => selectedCategories.value.includes(item.tipo))
 );
 
 // Actualización de ventas por producto con filtros
@@ -295,7 +240,7 @@ const renderCharts = () => {
         const hourlyRevenue = Array(24).fill(0);
         filteredVentas.value.forEach(venta => {
             const hour = new Date(venta.created_at).getHours();
-            const producto = inventario.find(item => item.id === venta.producto_id);
+            const producto = props.inventario.find(item => item.id === venta.producto_id);
             hourlyRevenue[hour] += venta.cantidad * (producto?.precio || 0);
         });
 
@@ -338,7 +283,7 @@ const renderCharts = () => {
         const dailyRevenue = {};
         filteredVentas.value.forEach(venta => {
             const day = new Date(venta.created_at).toISOString().split('T')[0];
-            const producto = inventario.find(item => item.id === venta.producto_id);
+            const producto = props.inventario.find(item => item.id === venta.producto_id);
             dailyRevenue[day] = (dailyRevenue[day] || 0) + (venta.cantidad * (producto?.precio || 0));
         });
 
@@ -377,7 +322,7 @@ const renderCharts = () => {
     // Gráfico de Ventas por Hora de Producto
     if (productByHourChart) productByHourChart.destroy();
     if (productByHourChartRef.value) {
-        const selectedProductInfo = inventario.find(item => item.id === selectedProduct.value);
+        const selectedProductInfo = props.inventario.find(item => item.id === selectedProduct.value);
         const productHourlyRevenue = Array(24).fill(0);
         
         if (selectedProductInfo) {
@@ -432,7 +377,7 @@ onMounted(() => {
 
 const exportData = () => {
     const data = filteredVentas.value.map(venta => ({
-        Producto: inventario.find(item => item.id === venta.producto_id)?.nombre || 'Desconocido',
+        Producto: props.inventario.find(item => item.id === venta.producto_id)?.nombre || 'Desconocido',
         Fecha: venta.created_at,
         Cantidad: venta.cantidad
     }));

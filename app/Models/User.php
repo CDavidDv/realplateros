@@ -54,6 +54,10 @@ class User extends Authenticatable
         return $this->belongsTo(Sucursal::class);
     }
 
+    public function ventas()
+    {
+        return $this->belongsTo(Venta::class);
+    }
     
     /**
      * The attributes that should be hidden for serialization.

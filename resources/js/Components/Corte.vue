@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen py-6 flex rounded-2xl border-0 flex-col justify-center sm:py-12">
-    <div class="relative py-3 sm:max-w-xl sm:mx-auto w-full px-4 sm:px-0">
+  <div class="print min-h-screen py-6 flex rounded-2xl border-0 flex-col justify-center sm:py-12">
+    <div class="relative py-3 w-full px-4 sm:px-0">
       <div class="relative px-4 py-10 bg-white shadow-lg rounded-3xl sm:p-20">
-        <h1 class="text-3xl font-bold mb-6 text-center ">Corte de Caja</h1>
-        <span class="text-red-500 font-bold mt-2 print" v-if="mensajeNoAutorizado">No autorizado</span>
+        <h1 class="text-3xl font-bold mb-6 text-center">Corte de Caja</h1>
+
         <!-- Filtro por día, semana o mes -->
         <div class="flex flex-col md:flex-row items-center gap-4 mb-8">
           <div class="w-full gap-2 flex flex-col items-center">
@@ -29,9 +29,8 @@
         <!-- Mensaje de error -->
         <div v-if="error" class="text-red-500 font-bold mt-2">{{ error }}</div>
 
-        <!-- Cantidad inicial -->
+        <!-- Cantidad inicial y final -->
         <div class="mb-6 no-print" v-if="isToday">
-          <!-- Cantidad Inicial -->
           <label for="initialCash" class="block text-sm font-medium text-gray-700">Cantidad Inicial en Caja</label>
           <div class="flex space-x-2">
             <input
@@ -53,11 +52,8 @@
               Guardar
             </button>
           </div>
-        </div>
 
-        <!-- Cantidad Final -->
-        <div class="mb-6" v-if="isToday">
-          <label for="finalCash" class="block text-sm font-medium text-gray-700">Cantidad Final en Caja</label>
+          <label for="finalCash" class="block text-sm font-medium text-gray-700 mt-4">Cantidad Final en Caja</label>
           <div class="flex space-x-2">
             <input
               type="number"
@@ -81,7 +77,6 @@
           </div>
         </div>
 
-
         <!-- Resumen financiero -->
         <div class="bg-gray-50 p-4 rounded-lg mb-6">
           <h2 class="text-xl font-semibold mb-4">Resumen Financiero</h2>
@@ -104,47 +99,82 @@
             </div>
             <div>
               <p class="text-sm text-gray-600">Total ventas:</p>
-              <p v-if="!editSales" class="font-medium">${{ Number(cashPayments) + Number(cardPayments) }}</p>
-              <p v-else>{{ totalventas  }}</p>
+              <p class="font-medium">${{ Number(cashPayments) + Number(cardPayments) }}</p>
             </div>
           </div>
         </div>
 
-        <!-- Productos utilizados -->
+        <!-- Ventas -->
         <div class="mb-6">
           <div class="flex justify-between">
-            <h2 class="text-xl font-semibold mb-4">Productos Utilizados</h2>
-            <button v-if="!editSales && $page.props.user.roles[0] != 'trabajador'"  @click="handleEditSales" class="no-print size-fit py-1 px-2 mr-8 rounded-md text-white hover:bg-orange-600 bg-orange-500">Capturar datos</button>
-            <button v-else="editSales"  @click="requestAdminPassword"  class="no-print size-fit py-1 px-2 mr-8 rounded-md text-white hover:bg-purple-600 bg-purple-500">Guardar</button>
+            <h2 class="text-xl font-semibold mb-4">Ventas</h2>
+            <button @click="imprimir" class="no-print size-fit py-1 px-2 mr-8 rounded-md text-white hover:bg-purple-600 bg-purple-500">
+              Imprimir
+            </button>
           </div>
-          <div v-if="productsUsed.length <= 0" class="text-gray-500">No se han vendido productos en este período.</div>
+          <div v-if="ventas.length <= 0" class="text-gray-500">No se han vendido productos en este período.</div>
           <div v-else class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="tabla min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                  <th v-for="tab in tabTitles" :key="tab" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {{ tab }}
+                  </th>
+                  <th v-if="$page.props.user.roles[0] != 'trabajador'" class="no-print px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="product in productsUsed" :key="product.producto_id">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ product.producto.nombre }} <small v-if="product.producto.detalle" class="text-gray-500 uppercase">- {{ product.producto.detalle }}</small></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <input
-                    v-if="editSales"
-                    type="number"
-                    v-model="product.total_vendido"
-                    class="w-16 border border-gray-300 rounded-md px-2 py-1"
-                    :class="[ filtrarProductoOriginal(product.producto_id) > product.total_vendido ? 'text-red-500' : 'text-black']"
-                    :max="filtrarProductoOriginal(product.producto_id)"
-                    min="0"
-                    />
-                    <span v-else class="print" >{{ product.total_vendido }}</span>
-                    <!-- <div v-if="filtrarProductoOriginal(product.producto_id) > product.total_vendido">
-                      Se modifico de {{ filtrarProductoOriginal(product.producto_id) }} a {{ product.total_vendido }}
-                    </div> -->
+                <tr class="odd:bg-white even:bg-gray-100" v-for="venta in ventas" :key="venta.id">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                    {{ venta.id }}
                   </td>
+                  <td class="px-6 py-4 whitespace-nowrap overflow-auto text-sm text-gray-500">
+                    <span class="print">
+                      {{ `${venta.usuario.name} 
+                          ${venta.usuario?.apellido_p ? venta.usuario.apellido_p : ''} 
+                          ${venta.usuario?.apellido_m ? venta.usuario.apellido_m : ''}` }}
+                    </span> 
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                    {{ venta.created_at.split('T')[1].split('.')[0] }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-500">
+                    <div class="flex flex-col space-y-1">
+                      <div v-for="producto in venta.detalles" :key="producto.id" class="flex justify-between">
+                        <span>
+                          {{ producto.cantidad }} × {{ producto.producto?.nombre || 'Producto desconocido' }}
+                        </span>
+                        <span 
+                          :class="[
+                            'font-semibold', 
+                            (!producto?.cantidadEditado || producto?.cantidadEditado === producto?.cantidad )
+                              ? 'text-gray-700'  
+                              : 'text-red-700'
+                          ]">
+                          ${{ (producto.producto?.precio ?? 0) * (producto.cantidad ?? 0) }}
+                        </span>
 
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-500 capitalize text-center">
+                    {{ venta.metodo_pago }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-900 font-semibold text-right">
+                    ${{ venta.total }}
+                  </td>
+                  <td v-if="$page.props.user.roles[0] != 'trabajador'" class="no-print px-6 py-4 text-center">
+                    <div class="flex justify-center gap-2">
+                      <button @click="editVenta(venta.id)" class="text-white rounded-md px-2 py-1 bg-orange-500 hover:bg-orange-700">
+                        Editar
+                      </button>
+                      <!-- <button @click="deleteVenta(venta.id)" class="text-white rounded-md px-2 py-1 bg-red-500 hover:bg-red-700">
+                        Eliminar
+                      </button> -->
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -156,14 +186,42 @@
       </div>
     </div>
   </div>
+
+  <ChartCorte 
+      v-if="$page.props.user.roles[0] != 'trabajador'"
+      :ventasProductos="ventasProductos"
+      :inventario="inventario"
+  />
+
+  <div v-if="isEditing" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg overflow-auto w-1/2 max-h-96">
+      <h2 class="text-xl font-bold mb-4">Editar Venta</h2>
+      <div class="">
+
+        <div v-for="(producto, index) in editedProducts" :key="producto.id" class="mb-4">
+          <label class="block text-sm font-medium text-gray-700">{{ producto.nombre }}</label>
+          <input
+            type="number"
+            v-model="producto.cantidad"
+            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+            min="1"
+          />
+        </div>
+        <div class="flex justify-end">
+          <button @click="saveEditedVenta" class="bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600">Guardar</button>
+          <button @click="cancelEdit" class="ml-2 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
 import { route } from '../../../vendor/tightenco/ziggy/src/js'
-
+import ChartCorte from './ChartCorte.vue'
 
 const { props } = usePage()
 const selectedFilter = ref('day')
@@ -176,105 +234,19 @@ const finalCash = ref(props?.corte?.dinero_final || 0)
 const cashPayments = ref(0)
 const cardPayments = ref(0)
 const productsUsed = ref(props.productosVendidos || [])
-let productsUsedOriginal = ref(props.productosVendidos || [])
 const isLoading = ref(false)
 const error = ref('')
-const mensajeNoAutorizado = ref(false)
+const ventasProductos = ref(props.ventasProductos)
+const inventario = ref(props.inventario)
+const ventas = ref(props.ventas)
 
-
-
-const totalventas = computed(() => {
-  return productsUsed.value.reduce((total, product) => {
-    return total + (product.total_vendido * product.producto.precio);
-  }, 0);
-})
-
-const filtrarProductoOriginal = (productoId) => {
-  const productoOriginal = productsUsedOriginal.value.find(producto => producto.producto_id === productoId);
-  return productoOriginal ? productoOriginal.total_vendido : 0;
-}
-
-const editSales = ref(false)
-
-const handleEditSales = () => {
-  editSales.value = !editSales.value
-}
-
-const hasChanges = computed(() => {
-  return productsUsed.value.some(product =>
-    product.total_vendido !== filtrarProductoOriginal(product.producto_id)
-  );
-});
-
-
-watch(hasChanges, () => {
-  mensajeNoAutorizado.value = !mensajeNoAutorizado.value;
-});
-
-
-const requestAdminPassword = () => {
-  if (!hasChanges.value) {
-    mensajeNoAutorizado.value = !mensajeNoAutorizado.value;
-    handleEditSales();
-    window.print();
-  } else {  
-    Swal.fire({
-      title: 'Contraseña de administrador',
-      input: 'password',
-      inputLabel: 'Ingrese la contraseña',
-      inputPlaceholder: 'Contraseña',
-      showCancelButton: true,
-      confirmButtonText: 'Aceptar',
-      preConfirm: (password) => {
-        if (!password) {
-          Swal.showValidationMessage('La contraseña no puede estar vacía');
-          return;
-        }
-        return axios
-          .post(
-            route('verify-admin-password'),
-            { admin_password: password },
-            {
-              headers: { 'X-Inertia': false }, // Deshabilita Inertia
-            }
-          )
-          .then((response) => response.data.correct)
-          .catch(() => {
-            Swal.showValidationMessage('Contraseña incorrecta o error en la verificación');
-          });
-      },
-    }).then((result) => {
-      if (result.isConfirmed) {
-        if (result.value) {
-          mensajeNoAutorizado.value = !mensajeNoAutorizado.value;
-            setTimeout(() => {
-              showToast('success', 'Contraseña correcta');
-              window.print();
-              handleEditSales();
-            }, 1000);
-        } else {
-          showToast('error', 'Contraseña incorrecta');
-          handleEditSales();
-        }
-      }
-    }).catch((error) => {
-      showToast('error', error.message || 'Error inesperado');
-    });
-  }
-};
- 
-
-
+const tabTitles = ['ID Venta', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Total']
 
 const isToday = computed(() => {
   const today = new Date();
   const formattedToday = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-  
   return selectedFilter.value === 'day' && selectedDate.value === formattedToday;
 });
-
-
-
 
 const fetchFilteredData = () => {
   isLoading.value = true
@@ -291,7 +263,7 @@ const fetchFilteredData = () => {
     value = selectedMonth.value
   }
 
-  router.post('/corte-caja/filtro', {
+  router.post('/corte-caja', {
     filter: filter, 
     value: value 
   }, {
@@ -300,10 +272,12 @@ const fetchFilteredData = () => {
       cashPayments.value = response.props.cashPayments
       cardPayments.value = response.props.cardPayments
       productsUsed.value = response.props.productsUsed
-      productsUsedOriginal.value = JSON.parse(JSON.stringify(response.props.productsUsed)); // Clona los originales
+      ventas.value = response.props.ventas
       initialCash.value = response.props.initialCash || 0
       finalCash.value = response.props.finalCash || 0
       isLoading.value = false
+      ventasProductos.value = response.props.ventasProductos || []
+      inventario.value = response.props.inventario || []
       showToast("success", "Filtro actualizado correctamente");
     },
     onError(e) {
@@ -314,19 +288,21 @@ const fetchFilteredData = () => {
   })
 }
 
-
 const resetFilters = () => {
   selectedFilter.value = 'day'
-  const today = new Date();
   selectedDate.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   selectedWeek.value = null
   selectedMonth.value = null
   fetchFilteredData()
 }
 
+const imprimir = () => {
+  window.print()
+}
+
 const calculatePayments = () => {
-  cashPayments.value = props.ventas.reduce((total, venta) => venta.metodo_pago === 'efectivo' ? Number(total) + Number(venta.total) : Number(total), 0)
-  cardPayments.value = props.ventas.reduce((total, venta) => venta.metodo_pago === 'tarjeta' ? Number(total) + Number(venta.total) : Number(total), 0)
+  cashPayments.value = props?.ventas?.reduce((total, venta) => venta.metodo_pago === 'efectivo' ? Number(total) + Number(venta.total) : Number(total), 0)
+  cardPayments.value = props?.ventas?.reduce((total, venta) => venta.metodo_pago === 'tarjeta' ? Number(total) + Number(venta.total) : Number(total), 0)
 }
 
 const showToast = (icon, title) => {
@@ -347,8 +323,7 @@ const showToast = (icon, title) => {
   })
 }
 
-const handleSaveInitialCash = () => {
-  
+const handleSaveInitialCash = async () => {
   const data = {
     sucursal_id: props?.sucursal_id,
     usuario_id: props?.usuario_id,
@@ -356,24 +331,15 @@ const handleSaveInitialCash = () => {
     dinero_inicio: initialCash.value
   };
 
-
-  router.post(route('corte-caja.guardar-inicial'), data, {
-    preserveScroll: true,
-    onSuccess(e) {
-      if(e.props.flash.error){
-        showToast("error", e.props.flash.error || "Error al guardar la cantidad inicial");
-      }else{
-        showToast("success", "Cantidad inicial guardada correctamente");
-      }
-    },
-    onError(e) {
-      showToast("error", e.error || "Error al guardar la cantidad inicial");
-    }
-  });
+  try {
+    await router.post(route('corte-caja.guardar-inicial'), data, { preserveScroll: true });
+    showToast("success", "Cantidad inicial guardada correctamente");
+  } catch (e) {
+    showToast("error", e.error || "Error al guardar la cantidad inicial");
+  }
 };
 
-const handleSaveFinalCash = () => {
-  
+const handleSaveFinalCash = async () => {
   const data = {
     sucursal_id: props?.sucursal_id,
     usuario_id: props?.usuario_id,
@@ -381,19 +347,12 @@ const handleSaveFinalCash = () => {
     dinero_final: finalCash.value
   };
 
-  router.post('/corte-caja/guardar-final', data, {
-    preserveScroll: true,
-    onSuccess(e) {
-      if(e.props.flash.error){
-        showToast("error", e.props.flash.error || "Error al guardar la cantidad inicial");
-      }else{
-        showToast("success", "Cantidad final guardada correctamente");
-      }
-    },
-    onError(e) {
-      showToast("error", e.error || "Error al guardar la cantidad inicial");
-    }
-  });
+  try {
+    await router.post('/corte-caja/guardar-final', data, { preserveScroll: true });
+    showToast("success", "Cantidad final guardada correctamente");
+  } catch (e) {
+    showToast("error", e.error || "Error al guardar la cantidad final");
+  }
 };
 
 onMounted(() => {
@@ -403,5 +362,104 @@ onMounted(() => {
 const safeToFixed = (value) => {
   return parseFloat(value).toFixed(2)
 }
+
+const isEditing = ref(false)
+const editedProducts = ref([])
+const editedVentaId = ref(null)
+
+const editVenta = (ventaId) => {
+  const venta = ventas.value.find(v => v.id === ventaId);
+  editedProducts.value = venta.detalles.map(detalle => ({
+    id: detalle.producto.id,
+    nombre: detalle.producto.nombre,
+    cantidad: detalle.cantidad,
+    oldQuantity:  detalle.producto.cantidad,
+    precio: detalle.producto.precio
+  }));
+  editedVentaId.value = ventaId;
+  isEditing.value = true;
+};
+
+const saveEditedVenta = async () => {
+  
+  const data = {
+    venta_id: editedVentaId.value,
+    productos: editedProducts.value.map(producto => ({
+      id: producto.id,
+      ticketQuantity: producto.cantidad,
+      oldQuantity: producto.oldQuantity // Guardar la cantidad anterior para ajustar el inventario
+    })),
+  };
+
+  console.log(data);
+  try {
+    const response = await axios.post('/ventas/editar', data);
+    if (response.status === 200) {
+      showToast("success", "Venta actualizada correctamente");
+      fetchFilteredData(); // Recargar los datos para reflejar los cambios
+      isEditing.value = false;
+    } else {
+      showToast("error", response.data.error || "Error al actualizar la venta");
+    }
+  } catch (error) {
+    showToast("error", error.response.data.error || "Error al actualizar la venta");
+  }
+};
+
+const cancelEdit = () => {
+  isEditing.value = false
+}
 </script>
 
+<style>
+.print {
+    display: block !important;
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    .print {
+        display: block !important;
+    }
+
+    body {
+        overflow: scroll !important;
+    }
+
+    ::-webkit-scrollbar {
+        display: none;
+    }
+
+    astro-dev-toolbar {
+        display: none !important;
+    }
+
+    article {
+        break-inside: avoid;
+    }
+
+    @page {
+        size: A4 landscape;
+        margin: 0;
+    }
+
+    .tabla {
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    .tabla th, .tabla td {
+        word-wrap: break-word;
+    }
+}
+
+@media print {
+  .text-red-700 {
+    color: #6b7280 !important; /* Cambiar a gris al imprimir */
+  }
+}
+
+</style>
