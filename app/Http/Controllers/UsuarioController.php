@@ -151,8 +151,13 @@ class UsuarioController extends Controller
             'inicio_contrato' => $request->inicio_contrato,
             'fin_contrato' => $request->fin_contrato,
             'active' => $request->active ?? true,
-            'role' => $request->role ?? 'trabajador',
         ]);
+
+        if($request->role) {
+            $user->assignRole($request->role);
+        } else {
+            $user->assignRole('trabajador');
+        }
 
         return redirect()->route('users.index')->with('success', 'Usuario creado correctamente.');
     }
@@ -170,6 +175,7 @@ class UsuarioController extends Controller
             'inicio_contrato' => 'nullable|date',
             'fin_contrato' => 'nullable|date',
             'active' => 'boolean',
+            'role' => 'nullable|string|max:255',
         ]);
 
         $user->update([
@@ -184,9 +190,17 @@ class UsuarioController extends Controller
             'active' => $request->active ?? true,
         ]);
 
+        if($request->role) {
+            $user->syncRoles($request->role);
+        } else {
+            $user->syncRoles('trabajador');
+        }
+
         if ($request->password) {
             $user->update(['password' => Hash::make($request->password)]);
         }
+
+
 
         return redirect()->route('users.index')->with('success', 'Usuario actualizado correctamente.');
     }
