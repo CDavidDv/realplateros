@@ -106,7 +106,7 @@ class DashboardController extends Controller
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
 
         $pastesHorneados = Horneados::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', now()->toDateString())
+            ->whereDate('created_at', Carbon::now())
             ->get();
 
         $diaHoy = Carbon::now()->locale('es')->dayName; // Obtiene el nombre del día actual en español
@@ -140,7 +140,7 @@ class DashboardController extends Controller
                 'sucursal_id' => $sucursalId,
                 'relleno' => $paste['nombre'],
                 'piezas' => $paste['cantidad'],
-                'created_at' => now()->subHours(6)
+                'created_at' => Carbon::now()
             ]);
 
             // 1. Aumentar la cantidad de pastes en el inventario

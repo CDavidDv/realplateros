@@ -88,7 +88,6 @@ const inventario = computed(() => page.props.inventario || []);
 const estimaciones = computed(() => page.props.estimaciones || []);
 const currentTime = ref(getCurrentDayAndTime());
 
-console.log("Inventario:", inventario.value);
 console.log("Estimaciones:", estimaciones.value);
 
 function getCurrentDayAndTime() {
