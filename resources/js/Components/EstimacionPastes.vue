@@ -128,10 +128,10 @@ const loadProductionData = () => {
   productionData.value = initializeProductionData()
   
   // Obtener estimaciones del día seleccionado
-  const estimacionesDia = props.estimaciones.filter(item => item.dia === timeFrame.value)
+  const estimacionesDia = props?.estimaciones?.filter(item => item.dia === timeFrame.value)
   
   // Rellenar con datos existentes
-  estimacionesDia.forEach(({ hora, cantidad, inventario_id }) => {
+  estimacionesDia?.forEach(({ hora, cantidad, inventario_id }) => {
     const product = props.inventario.find(i => i.id === inventario_id)?.nombre
     if (product && productionData.value[hora]) {
       productionData.value[hora][product] = cantidad

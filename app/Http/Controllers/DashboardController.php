@@ -106,7 +106,7 @@ class DashboardController extends Controller
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
 
         $pastesHorneados = Horneados::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', Carbon::now())
+            ->whereDate('created_at', Carbon::now()->subHours(6))
             ->get();
 
         $diaHoy = Carbon::now()->locale('es')->dayName; // Obtiene el nombre del día actual en español
@@ -206,15 +206,7 @@ class DashboardController extends Controller
             }
         }
 
-        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
-        $pastesHorneados = Horneados::where('sucursal_id', $sucursalId)
-        ->whereDate('created_at', now()->toDateString())
-        ->get();
-
-        return Inertia::render('Hornear/index', [
-            'inventario' => $inventario,
-            'pastesHorneados' => $pastesHorneados
-        ]);
+        return redirect()->route('hornear');
         
     }
 
