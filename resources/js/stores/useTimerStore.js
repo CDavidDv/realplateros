@@ -23,7 +23,7 @@ export const useTimerStore = defineStore('timerStore', () => {
 
   const definirTiempoHorneado = (producto) => {
     // return 900000;
-    return 900;
+    return 900000;
   };
 
   const iniciarHorneado = () => {

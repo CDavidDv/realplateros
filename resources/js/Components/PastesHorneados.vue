@@ -88,7 +88,8 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('es-ES', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: 'America/Mexico_City'
   })
 }
 </script>

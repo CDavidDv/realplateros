@@ -140,7 +140,7 @@ class DashboardController extends Controller
                 'sucursal_id' => $sucursalId,
                 'relleno' => $paste['nombre'],
                 'piezas' => $paste['cantidad'],
-                'created_at' => Carbon::now()
+                'created_at' => Carbon::now()->subHours(6)
             ]);
 
             // 1. Aumentar la cantidad de pastes en el inventario
