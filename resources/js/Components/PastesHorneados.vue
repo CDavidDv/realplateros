@@ -16,7 +16,7 @@
           <tbody class="bg-white divide-y divide-gray-200">
             <tr v-for="(item, index) in bakedGoodsWithTotals" :key="index">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.relleno }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.created_at) }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.updated_at) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDay(item.created_at) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.piezas }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
