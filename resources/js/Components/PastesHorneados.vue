@@ -44,9 +44,6 @@ import { computed } from 'vue'
 
 const { props } = usePage();
 const pastesHorneados = ref(props.pastesHorneados);
-
-console.log("horneados: ", pastesHorneados.value)
-
 // Group items by relleno and add a total field for each type
 const bakedGoodsWithTotals = computed(() => {
   const grouped = {}

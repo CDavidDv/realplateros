@@ -111,8 +111,12 @@ class DashboardController extends Controller
 
         $diaHoy = Carbon::now()->locale('es')->dayName; // Obtiene el nombre del día actual en español
 
-        $estimaciones = Estimaciones::where('sucursal_id', $sucursalId)
-            ->where('dia', $diaHoy) // Filtra los registros donde el día coincide con el día actual
+        $estimacionesHoy = Estimaciones::where('sucursal_id', $sucursalId)
+            ->where('dia', $diaHoy)
+            ->get();
+
+        $estimaciones = Estimaciones::
+            where('sucursal_id', $sucursalId)
             ->with('inventario') // Carga la relación Inventario
             ->get();
     
@@ -120,7 +124,8 @@ class DashboardController extends Controller
         return Inertia::render('Hornear/index', [
             'inventario' => $inventario,
             'pastesHorneados' => $pastesHorneados,
-            'estimaciones' => $estimaciones
+            'estimaciones' => $estimaciones,
+            'estimacionesHoy' => $estimacionesHoy
         ]);
     }
 

@@ -69,9 +69,13 @@ import { usePage, router } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
 
 const { props } = usePage()
+
+// Días de la semana
 const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sábado'];
 const today = new Date().getDay(); // Obtiene el índice del día actual (0 = Domingo, 1 = Lunes, etc.)
-const timeFrame = ref(daysOfWeek[today]); // Asigna el día actual basado en el índice
+const initialDay = daysOfWeek[today];
+
+const timeFrame = ref(initialDay || 'Lunes'); // Usar 'Lunes' como valor predeterminado si no hay datos para hoy
 
 const isDataReady = ref(false)
 
@@ -82,7 +86,7 @@ const days = [
   { value: 'Miercoles', label: 'Miércoles' },
   { value: 'Jueves', label: 'Jueves' },
   { value: 'Viernes', label: 'Viernes' },
-  { value: 'Sabado', label: 'Sábado' },
+  { value: 'Sábado', label: 'Sábado' },
   { value: 'Domingo', label: 'Domingo' }
 ]
 const hours = ['9:00 am', '11:00 am', '1:00 pm', '3:00 pm', '6:00 pm', '9:00 pm']
@@ -122,28 +126,28 @@ const initializeProductionData = () => {
 
 // Cargar datos de producción
 const loadProductionData = () => {
-  isDataReady.value = false
-  
+  isDataReady.value = false;
+
   // Inicializar con estructura base
-  productionData.value = initializeProductionData()
-  
+  productionData.value = initializeProductionData();
+
   // Obtener estimaciones del día seleccionado
-  const estimacionesDia = props?.estimaciones?.filter(item => item.dia === timeFrame.value)
-  
+  const estimacionesDia = props.estimaciones.filter(item => item.dia === timeFrame.value);
+
   // Rellenar con datos existentes
-  estimacionesDia?.forEach(({ hora, cantidad, inventario_id }) => {
-    const product = props.inventario.find(i => i.id === inventario_id)?.nombre
+  estimacionesDia.forEach(({ hora, cantidad, inventario_id }) => {
+    const product = props.inventario.find(i => i.id === inventario_id)?.nombre;
     if (product && productionData.value[hora]) {
-      productionData.value[hora][product] = cantidad
+      productionData.value[hora][product] = cantidad;
     }
-  })
-  
-  isDataReady.value = true
-}
+  });
+
+  isDataReady.value = true;
+};
 
 // Guardar datos de producción
 const saveProduction = () => {
-    router.post("/estimaciones", {
+  router.post("/estimaciones", {
     estimaciones: productionData.value,
     dia: timeFrame.value
   }, {
@@ -151,15 +155,20 @@ const saveProduction = () => {
     preserveScroll: true,
     onSuccess: () => Toast.fire({ icon: "success", title: "Sobrantes guardados exitosamente" }),
     onError: () => Toast.fire({ icon: "error", title: "Error al guardar los sobrantes" })
-  })
-}
+  });
+};
 
 // Lifecycle hooks y watchers
 onMounted(() => {
-  loadProductionData()
-})
+  loadProductionData();
+});
 
-watch(timeFrame, loadProductionData)
+watch(timeFrame, () => {
+  loadProductionData();
+  console.log("Cambio de día detectado:", productionData.value);
+});
 
+
+console.log("Estimaciones recibidas:", props.estimaciones);
 
 </script>

@@ -11,29 +11,30 @@ class EstimacionesController extends Controller
 {
     public function store(Request $request)
     {
-        $user = Auth::user();
-        $sucursalId = $user->sucursal_id;
+        try {
+            $user = Auth::user();
+            $sucursalId = $user->sucursal_id;
 
-        // Validar el request
-        $validated = $request->validate([
-            'estimaciones' => 'required|array',
-            'dia' => 'required|string',
-        ]);
+            $validated = $request->validate([
+                'estimaciones' => 'required|array',
+                'dia' => 'required|string',
+            ]);
 
-        $dia = $validated['dia'];
+            $dia = $validated['dia'];
 
-        // Cargar inventarios una sola vez para reducir consultas
-        $inventarios = Inventario::whereIn('tipo', ['pastes', 'empanadas saladas', 'empanadas dulces'])
-            ->where('sucursal_id', $sucursalId)
-            ->get()
-            ->keyBy('nombre');
+            $inventarios = Inventario::whereIn('tipo', ['pastes', 'empanadas saladas', 'empanadas dulces'])
+                ->where('sucursal_id', $sucursalId)
+                ->get()
+                ->keyBy('nombre');
 
-        foreach ($validated['estimaciones'] as $hora => $productos) {
-            foreach ($productos as $productoNombre => $cantidad) {
-                $inventarioId = $inventarios->get($productoNombre)->id ?? null;
+            foreach ($validated['estimaciones'] as $hora => $productos) {
+                foreach ($productos as $productoNombre => $cantidad) {
+                    $inventarioId = $inventarios->get($productoNombre)->id ?? null;
 
-                if (!$inventarioId) {
-                    continue;
+                    if (!$inventarioId) {
+                        continue;
+                    }
+
                     Estimaciones::updateOrCreate(
                         [
                             'sucursal_id' => $sucursalId,
@@ -45,20 +46,12 @@ class EstimacionesController extends Controller
                             'cantidad' => $cantidad,
                         ]
                     );
-                }else{
-                    Estimaciones::Create(
-                        [
-                            'sucursal_id' => $sucursalId,
-                            'inventario_id' => $inventarioId,
-                            'dia' => $dia,
-                            'hora' => $hora,
-                            'cantidad' => $cantidad,
-                        ]
-                    );
                 }
             }
-        }
 
-        return back()->with('success', 'Datos guardados correctamente.');
+            return back()->with('success', 'Datos guardados correctamente.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error al guardar los datos: ' . $e->getMessage());
+        }
     }
 }

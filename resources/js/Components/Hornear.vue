@@ -6,19 +6,11 @@
       <div class="flex gap-3">
         <!-- Notificaciones Faltantes -->
         <div class="p-4 border rounded shadow bg-yellow-100 mb-4 size-fit cursor-pointer" @click="toggleFaltantes">
-          <h2
-            class="text-lg font-bold text-center text-yellow-800 "
-            
-          >
-          
+          <h2 class="text-lg font-bold text-center text-yellow-800">
             ⚠️ Faltantes <span class="animate-pulse">({{ notificacionesFaltantes.length }})</span> ⚠️
           </h2>
           <ul v-if="mostrarFaltantes" class="mt-2">
-            <li
-              v-for="notif in notificacionesFaltantes"
-              :key="notif.id"
-              class="mb-2"
-            >
+            <li v-for="notif in notificacionesFaltantes" :key="notif.id" class="mb-2">
               <span>
                 <span class="font-bold">{{ notif.nombre }}</span>: Faltan
                 {{ Math.abs(notif.diferencia) }} unidades para las
@@ -30,18 +22,11 @@
 
         <!-- Notificaciones Excedentes -->
         <div class="p-4 border rounded shadow bg-blue-100 mb-4 size-fit cursor-pointer" @click="toggleExcedentes">
-          <h2
-            class="text-lg font-bold text-center text-blue-800 "
-            
-          >
-            ℹ️ Excedentes <span class="animate-pulse">({{ notificacionesExcedentes.length }})</span>  ℹ️
+          <h2 class="text-lg font-bold text-center text-blue-800">
+            ℹ️ Excedentes <span class="animate-pulse">({{ notificacionesExcedentes.length }})</span> ℹ️
           </h2>
           <ul v-if="mostrarExcedentes" class="mt-2">
-            <li
-              v-for="notif in notificacionesExcedentes"
-              :key="notif.id"
-              class="mb-2"
-            >
+            <li v-for="notif in notificacionesExcedentes" :key="notif.id" class="mb-2">
               <span>
                 <span class="font-bold">{{ notif.nombre }}</span>: Hay
                 {{ notif.diferencia }} unidades extra para las {{ notif.hora }}
@@ -72,8 +57,6 @@ import SistemaHorneado from "./SistemaHorneado.vue";
 const mostrarFaltantes = ref(false);
 const mostrarExcedentes = ref(false);
 
-
-
 function toggleFaltantes() {
   mostrarFaltantes.value = !mostrarFaltantes.value;
 }
@@ -85,10 +68,8 @@ function toggleExcedentes() {
 // Restante código de lógica
 const page = usePage();
 const inventario = computed(() => page.props.inventario || []);
-const estimaciones = computed(() => page.props.estimaciones || []);
+const estimaciones = computed(() => page.props.estimacionesHoy || []);
 const currentTime = ref(getCurrentDayAndTime());
-
-console.log("Estimaciones:", estimaciones.value);
 
 function getCurrentDayAndTime() {
   const now = new Date();
