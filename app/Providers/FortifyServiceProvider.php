@@ -54,8 +54,10 @@ class FortifyServiceProvider extends ServiceProvider
 
             // Verifica que el usuario existe y la contraseña es correcta
             if ($request->input('sucursal_id') && $user && Hash::check($request->input('password'), $user->password)) {
-                $user->sucursal_id = $request->input('sucursal_id');
-                $user->save();
+                if($user->sucursal_id !== 0){
+                    $user->sucursal_id = $request->input('sucursal_id');
+                    $user->save();
+                }
             } 
 
 
