@@ -31,6 +31,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
     Route::get('/tickets', [InventarioController::class, 'tickets'])->name("tickets");
     Route::post('/tickets/cancelar', [InventarioController::class, 'ticketsCancel'])->name("tickets.cancelar");
+    Route::post('/tickets/buscar', [InventarioController::class, 'ticketsBuscar'])->name("tickets.buscar");
 
     Route::get('/inventario', [InventarioController::class, 'inventario'])->name("inventario");
     Route::put('/tickets/{id}', [InventarioController::class, 'confirmTicket'])->name('confirmTicket'); 

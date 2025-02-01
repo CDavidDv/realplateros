@@ -82,10 +82,13 @@ class InventarioController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $sucursales = Sucursal::where('id', '!=', 0)->get();
+
         return Inertia::render('Tickets/index', [
             'ticketsCerrados' => $ticketsCerrados,
             'ticketsCancelados' => $ticketsCancelados,
-            'ticketsAsignados' => $ticketsAsignados
+            'ticketsAsignados' => $ticketsAsignados,
+            'sucursales' => $sucursales
         ]);
     }
 
@@ -98,6 +101,77 @@ class InventarioController extends Controller
         $ticket->estado = 'cancelado';
         $ticket->save();
         return redirect()->route('tickets')->with('success', 'Ticket cancelado correctamente');
+    }
+
+    public function ticketsBuscar(Request $request) {
+        // Validar los datos de entrada
+        $request->validate([
+            'fecha' => 'required|date',
+            'sucursal' => 'required',
+        ]);
+    
+        // Obtener la fecha y la sucursal del request
+        $fecha = $request->input('fecha');
+        $sucursalId = $request->input('sucursal');
+
+        if($request->input('sucursal') != 'todas'){
+            $ticketsAsignados = TicketAsignacion::where('estado', 'asignado')
+            ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
+                ->limit(20)
+                ->whereDate('created_at', $fecha)
+                ->where('sucursal_id', $sucursalId)
+                ->orderBy('created_at', 'desc')
+                ->get();
+    
+            $ticketsCancelados = TicketAsignacion::where('estado', 'cancelado')
+                ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
+                ->limit(20)
+                ->whereDate('created_at', $fecha)
+                ->where('sucursal_id', $sucursalId)
+                ->orderBy('created_at', 'desc')
+                ->get();
+    
+                //limitar a 20 tickets
+            $ticketsCerrados = TicketAsignacion::where('estado', 'cerrado')
+                ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
+                ->limit(20)
+                ->whereDate('created_at', $fecha)
+                ->where('sucursal_id', $sucursalId)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }else{
+            $ticketsAsignados = TicketAsignacion::where('estado', 'asignado')
+            ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
+                ->limit(20)
+                ->whereDate('created_at', $fecha)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $ticketsCancelados = TicketAsignacion::where('estado', 'cancelado')
+                ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
+                ->limit(20)
+                ->whereDate('created_at', $fecha)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+                //limitar a 20 tickets
+            $ticketsCerrados = TicketAsignacion::where('estado', 'cerrado')
+                ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
+                ->limit(20)
+                ->whereDate('created_at', $fecha)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+    
+    
+        // Devolver los tickets filtrados
+        return response()->json([
+            'ticketsAsignados' => $ticketsAsignados,
+            'ticketsCerrados' => $ticketsCerrados,
+            'ticketsCancelados' => $ticketsCancelados,
+            'sucursal' => $sucursalId,
+            'fecha' => $fecha
+        ]);
     }
 
     public function addCategorias (Request $request)
