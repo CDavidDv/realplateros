@@ -16,8 +16,8 @@
           <tbody class="bg-white divide-y divide-gray-200">
             <tr v-for="(item, index) in bakedGoodsWithTotals" :key="index">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.relleno }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.created_at.split('T')[1].split('.')[0] }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.created_at) }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDay(item.created_at) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.piezas }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <span v-if="item.isFirst">{{ item.totalPiezas }}</span>
@@ -81,9 +81,21 @@ const grandTotalPiezas = computed(() => {
 })
 
 
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('es-MX', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'America/Mexico_City' // Asegura que la hora se muestre en la zona horaria de México
+  });
+}
 
 // Format date to display in dd/mm/yyyy format
-const formatDate = (dateString) => {
+const formatDay = (dateString) => {
   const date = new Date(dateString)
   return date.toLocaleDateString('es-ES', {
     day: '2-digit',
