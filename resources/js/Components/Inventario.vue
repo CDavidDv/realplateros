@@ -233,7 +233,7 @@ import EstimacionPastes from './EstimacionPastes.vue';
 
 const { props } = usePage()
 const tickets = ref(props.tickets)
-console.log(props)
+
 const inventory = ref(props.inventario.filter((item) => {
     return item.nombre != '-'
 }))
@@ -309,7 +309,7 @@ const completeTicket = (id) =>{
                 icon: "error",
                 title: "Hubo un problema al completar el ticket"
             });
-            console.log(errors)
+            console.error(errors)
         }
     });
 }
@@ -321,7 +321,6 @@ const subsCategory = () => {
             preserveState: false,  
             replace: true,
             onSuccess: (response) => {
-                console.log(response)
                 if(response.props.flash.success){
                     Toast.fire({
                         icon: "success",

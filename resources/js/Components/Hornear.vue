@@ -1,9 +1,9 @@
 <template>
   <div class="container mx-auto p-4">
-    <div class="flex justify-between text-sm">
+    <div class="sm:flex justify-between flex-row text-sm">
       <h1 class="text-2xl font-bold mb-4">Sistema de Horneado</h1>
 
-      <div class="flex gap-3">
+      <div class="flex gap-3 sm:flex-row flex-col ">
         <!-- Notificaciones Faltantes -->
         <div class="p-4 border rounded shadow bg-yellow-100 mb-4 size-fit cursor-pointer" @click="toggleFaltantes">
           <h2 class="text-lg font-bold text-center text-yellow-800">

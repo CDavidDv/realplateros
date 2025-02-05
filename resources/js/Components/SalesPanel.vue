@@ -263,11 +263,11 @@ const completeAsignacion = () => {
     onSuccess: (a) => {
       // Agregar el ítem especial al inicio del ticket
       ticket.value.unshift({
-        id: a.props.ticket_id, // ID único para este ítem
+        id: a.props.ticket_id || 0, // ID único para este ítem
         nombre: `Asignación ticket no.`, // Nombre visible en el ticket
         detalle: `Sucursal: ${sucursal_id.value}`, // Detalle adicional
-        ticketQuantity: a.props.ticket_i,
-        precio: 1,
+        ticketQuantity: a.props.ticket_id || 0,
+        precio: 0,
         sucursal_id: 0,
         tipo: 'asignacion'
       });

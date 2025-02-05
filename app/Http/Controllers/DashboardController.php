@@ -4,15 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Estimaciones;
 use App\Models\Horneados;
+use App\Models\Hornos;
 use App\Models\Inventario;
 use App\Models\Sucursal;
-use App\Models\TicketAsignacion;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -55,7 +56,7 @@ class DashboardController extends Controller
             $query->where('name', 'trabajador');
         })->get();
 
-        
+        $hornos = Hornos::where('sucursal_id', $sucursalId);
 
         return Inertia::render('Dashboard/index', [
             'inventario' => $inventario,
@@ -63,7 +64,7 @@ class DashboardController extends Controller
             'categorias' => $categorias,
             'sucursales' => $sucursales,
             'trabajadores' => $trabajadores,
-            
+            'hornos' => $hornos,
         ]);
     }
 
@@ -119,13 +120,16 @@ class DashboardController extends Controller
             where('sucursal_id', $sucursalId)
             ->with('inventario') // Carga la relación Inventario
             ->get();
+
+        $horno = Hornos::where('sucursal_id', $sucursalId)->first();
     
 
         return Inertia::render('Hornear/index', [
             'inventario' => $inventario,
             'pastesHorneados' => $pastesHorneados,
             'estimaciones' => $estimaciones,
-            'estimacionesHoy' => $estimacionesHoy
+            'estimacionesHoy' => $estimacionesHoy,
+            'horno' => $horno
         ]);
     }
 
@@ -135,9 +139,13 @@ class DashboardController extends Controller
         // Obtén el usuario autenticado
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
-
         // Obtener los pastes horneados desde la solicitud
         $pastesHorneados = $request->input('pastes'); // Array de pastes que contiene nombre, cantidad, masa y relleno
+
+        $horno = Hornos::where('sucursal_id', $sucursalId)->first();
+        $horno->estado = 0;
+        $horno->pastesHorneando = null;
+        $horno->save();
 
         foreach ($pastesHorneados as $paste) {
 
@@ -215,6 +223,63 @@ class DashboardController extends Controller
         
     }
 
+    public function check_estado(Request $request)
+    {
+        $pastes = $request->input('pastes');
+        $sucursalId = null;
+        if($pastes){
+            foreach ($pastes as $paste) {
+                $sucursalId = $paste['sucursal_id'];
+            }
+    
+            $horno = Hornos::where('sucursal_id', $sucursalId)->first();
+    
+            if ($horno) {
+                return response()->json(['estado' => $horno->estado, 'sucursalId' => $sucursalId]);
+            } else {
+                return response()->json(['estado' => 0, 'sucursalId' => $sucursalId]);
+            }
+        }else{
+            return response()->json(['estado' => 0, 'sucursalId' => $sucursalId]);
+        }
+    }
+    
+    public function iniciar_horneado(Request $request)
+    {
+        // Obtén el usuario autenticado
+        $user = Auth::user();
+        $sucursalId = $user->sucursal_id;
+        // Obtener los pastes horneados desde la solicitud
+        $pastesHorneados = $request->input('pastes_horneando');
+        // El tiempo llega en unix como pasarlo a timestamp
+        $tiempo_inicio = date('Y-m-d H:i:s', $request->input('tiempo_inicio') / 1000);
+        $tiempo_fin = date('Y-m-d H:i:s', $request->input('tiempo_fin') / 1000);
 
+        
+        $estado = $request->input('estado');
+
+        $horno = Hornos::where('sucursal_id', $sucursalId)->first();
+
+        if ($horno) {
+            $horno->tiempo_inicio = $tiempo_inicio;
+            $horno->tiempo_fin = $tiempo_fin;
+            $horno->estado = $estado;
+            $horno->pastesHorneando = $pastesHorneados;
+            $horno->save();
+        } else {
+            Hornos::create([
+                'sucursal_id' => $sucursalId,
+                'tiempo_inicio' => $tiempo_inicio,
+                'tiempo_fin' => $tiempo_fin,
+                'pastesHorneando' => $pastesHorneados,
+                'estado' => $estado,
+            ]);
+        }
+        
+        return redirect()->route('hornear')->with('success', 'Horno iniciado correctamente');
+        
+    }
+
+    
     
 }

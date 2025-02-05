@@ -107,8 +107,8 @@
     </div>
 
     <!-- Modal para agregar/editar -->
-    <div v-if="isModalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div class="bg-white p-6 rounded-lg w-1/2">
+    <div v-if="isModalOpen" class="fixed inset-0 bg-black w-full bg-opacity-50 flex items-center justify-center">
+      <div class="bg-white p-6 rounded-lg md:w-1/2 w-full m-5">
         <h2 class="text-xl font-semibold mb-4">
           {{ form.id ? 'Editar' : 'Agregar' }} {{ singularTabTitle }}
         </h2>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Gastos;
+use App\Models\Hornos;
 use App\Models\Inventario;
 use App\Models\Registros;
 use App\Models\Sucursal;
@@ -48,13 +49,16 @@ class InventarioController extends Controller
         
         $categorias = Inventario::select('tipo')->distinct()->get();
 
+        $horno = Hornos::where('sucursal_id', $sucursalId)->first();
+
         return Inertia::render('Inventario/index', [
             'inventario' => $inventario,
             'ventas' => $ventas,
             'registros' => $registros,
             'gastos' => $gastos,
             'categorias' => $categorias,
-            'tickets' => $tickets
+            'tickets' => $tickets,
+            'horno' => $horno
         ]);
     }
 

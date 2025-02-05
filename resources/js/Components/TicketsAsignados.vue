@@ -92,6 +92,7 @@
               class="p-4 border rounded-lg shadow-sm hover:shadow-md transition"
             >
               <p><strong>Nombre:</strong> {{ producto?.producto?.nombre }}</p>
+              <p><strong>Detalle:</strong> {{ producto?.producto?.detalle }}</p>
               <p><strong>Tipo:</strong> {{ producto?.producto?.tipo }}</p>
               <p><strong>Cantidad:</strong> {{ producto?.cantidad }}</p>
             </li>

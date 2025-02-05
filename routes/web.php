@@ -28,6 +28,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
     Route::get('/hornear', [DashboardController::class, 'hornear'])->name("hornear");
     Route::post('/hornear', [DashboardController::class, 'procesarPastesHorneados']);
+    Route::post('/iniciar-horneado', [DashboardController::class, 'iniciar_horneado']);
+    Route::post('/check-estado', [DashboardController::class, 'check_estado']);
 
     Route::get('/tickets', [InventarioController::class, 'tickets'])->name("tickets");
     Route::post('/tickets/cancelar', [InventarioController::class, 'ticketsCancel'])->name("tickets.cancelar");

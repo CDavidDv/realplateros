@@ -165,10 +165,6 @@ onMounted(() => {
 
 watch(timeFrame, () => {
   loadProductionData();
-  console.log("Cambio de día detectado:", productionData.value);
 });
-
-
-console.log("Estimaciones recibidas:", props.estimaciones);
 
 </script>
