@@ -149,9 +149,11 @@ class DashboardController extends Controller
 
         foreach ($pastesHorneados as $paste) {
 
+            //dd($request->all());
             //buscar si ya se hizo un registro con los mismos pastes, las misma sucursal y el mismo relleno 
             $registroExistente = Horneados::where('sucursal_id', $sucursalId)
                 ->where('relleno', $paste['nombre'])
+                ->where('piezas', $paste['cantidad'])
                 ->whereDate('created_at', Carbon::now()->subHours(6))
                 ->first();
 
