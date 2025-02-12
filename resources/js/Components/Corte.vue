@@ -132,9 +132,9 @@
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap overflow-auto text-sm text-gray-500">
                     <span class="print">
-                      {{ `${venta.usuario.name} 
-                          ${venta.usuario?.apellido_p ? venta.usuario.apellido_p : ''} 
-                          ${venta.usuario?.apellido_m ? venta.usuario.apellido_m : ''}` }}
+                      {{ `${venta?.usuario?.name} 
+                          ${venta?.usuario?.apellido_p ? venta?.usuario?.apellido_p : ''} 
+                          ${venta?.usuario?.apellido_m ? venta?.usuario?.apellido_m : ''}` }}
                     </span> 
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
