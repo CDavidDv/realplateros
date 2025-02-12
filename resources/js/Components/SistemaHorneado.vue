@@ -110,9 +110,9 @@ const pastesHorneando = ref(
     ? props.horno.pastesHorneando
     : []
 );
-//tiempo horneado 15 min
+//tiempo horneado 15 min 15 * 60 * 10000
 //90000
-const tiempoTotal = ref(15 * 60 * 1000); 
+const tiempoTotal = ref(15 * 60 * 10000); 
 const tiempoTranscurrido = ref(0);
 const pastesPorHornear = ref([]);
 const tiempoInicio = ref(horneando.value ? new Date(props?.horno?.tiempo_inicio).getTime() : 0);

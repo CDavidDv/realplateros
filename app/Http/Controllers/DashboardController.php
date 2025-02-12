@@ -143,21 +143,15 @@ class DashboardController extends Controller
         $pastesHorneados = $request->input('pastes'); // Array de pastes que contiene nombre, cantidad, masa y relleno
 
         $horno = Hornos::where('sucursal_id', $sucursalId)->first();
-        $horno->estado = 0;
-        $horno->pastesHorneando = null;
-        $horno->save();
+        
+        if($horno->estado){
 
-        foreach ($pastesHorneados as $paste) {
+            foreach ($pastesHorneados as $paste) {
+                
+                //dd($request->all());
+                //buscar si ya se hizo un registro con los mismos pastes, las misma sucursal y el mismo relleno 
 
-            //dd($request->all());
-            //buscar si ya se hizo un registro con los mismos pastes, las misma sucursal y el mismo relleno 
-            $registroExistente = Horneados::where('sucursal_id', $sucursalId)
-                ->where('relleno', $paste['nombre'])
-                ->where('piezas', $paste['cantidad'])
-                ->whereDate('created_at', Carbon::now()->subHours(6))
-                ->first();
-
-            if (!$registroExistente) {
+                
                 // Si no existe, crea un nuevo registro
                 
                 Horneados::create([
@@ -169,20 +163,20 @@ class DashboardController extends Controller
                 
                 // 1. Aumentar la cantidad de pastes en el inventario
                 $inventarioPaste = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'pastes')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
+                ->where('tipo', 'pastes')
+                ->where('sucursal_id', $sucursalId)
+                ->first();
                 
                 $inventarioEmpanadaSalada = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'empanadas saladas')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
+                ->where('tipo', 'empanadas saladas')
+                ->where('sucursal_id', $sucursalId)
+                ->first();
                 
                 $inventarioEmpanadaDulce = Inventario::where('nombre', $paste['nombre'])
                     ->where('tipo', 'empanadas dulces')
                     ->where('sucursal_id', $sucursalId)
                     ->first();
-                
+                    
                     if ($inventarioPaste) {
                         $inventarioPaste->cantidad += $paste['cantidad']; // Aumenta la cantidad de pastes horneados
                         $inventarioPaste->save();
@@ -200,13 +194,13 @@ class DashboardController extends Controller
                         'cantidad' => $paste['cantidad'],
                     ]);
                 }
-
+                
                 // 2. Restar la cantidad de masa utilizada
                 $inventarioMasa = Inventario::where('nombre', $paste['masa'])
                 ->where('tipo', 'masa')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
-
+                ->where('sucursal_id', $sucursalId)
+                ->first();
+                
                 if ($inventarioMasa) {
                     $inventarioMasa->cantidad -= ($paste['cantidad']); // Suponemos que cada paste usa 0.1 kg de masa
                     if ($inventarioMasa->cantidad < 0) {
@@ -214,13 +208,13 @@ class DashboardController extends Controller
                     }
                     $inventarioMasa->save();
                 }
-
+                
                 // 3. Restar la cantidad de relleno utilizado
                 $inventarioRelleno = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'relleno')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
-
+                ->where('tipo', 'relleno')
+                ->where('sucursal_id', $sucursalId)
+                ->first();
+                
                 if ($inventarioRelleno) {
                     $inventarioRelleno->cantidad -= ($paste['cantidad']); // Suponemos que cada paste usa 0.2 kg de relleno
                     if ($inventarioRelleno->cantidad < 0) {
@@ -228,10 +222,16 @@ class DashboardController extends Controller
                     }
                     $inventarioRelleno->save();
                 }
-            }
+            
 
             
+            }
         }
+            
+        $horno = Hornos::where('sucursal_id', $sucursalId)->first();
+        $horno->estado = 0;
+        
+        $horno->save();
 
         return redirect()->route('hornear');
         
