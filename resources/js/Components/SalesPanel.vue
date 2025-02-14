@@ -311,7 +311,6 @@ const printTicket = (id) => {
       ticket_id: id,
     })
   })
-  .then(response => response.json())
   .then(data => {
     if (data.success) {
       showToast('success', 'Ticket impreso correctamente');
