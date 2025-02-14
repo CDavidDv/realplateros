@@ -314,8 +314,6 @@ const printTicket = (id) => {
   .then(data => {
     if (data.success) {
       showToast('success', 'Ticket impreso correctamente');
-    } else {
-      showToast('error', 'Error al imprimir el ticket');
     }
   })
   .catch(error => {
