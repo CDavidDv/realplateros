@@ -519,7 +519,21 @@ class InventarioController extends Controller
 
         $registros = Registros::where('sucursal_id', $sucursalId)
             ->whereBetween('created_at', [$startDate, $endDate])
-            ->get();
+            ->get()
+            ->groupBy('inventario_id')
+            ->map(function ($items) {
+                return [
+                    'inventario_id' => $items->first()->inventario_id,
+                    'total' => $items->sum('total'),
+                    'vende' => $items->sum('vende'),
+                    'existe' => $items->sum('existe'),
+                    'entra' => $items->sum('entra'),
+                    'precio' => $items->sum('precio'),
+                    'sobra' => $items->sum('sobra'),
+                ];
+            })->values(); // Para resetear los índices
+        
+        
 
         $gastos = Gastos::where('sucursal_id', $sucursalId)
             ->whereBetween('created_at', [$startDate, $endDate])

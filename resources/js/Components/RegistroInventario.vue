@@ -347,7 +347,7 @@ const searchFilter = () =>{
   }, {
     preserveScroll: true,
     onSuccess(response) {
-      console.log("Respuesta completa del servidor:", filteredProducts.value);
+      console.log("Respuesta completa del servidor:", response.props);
       registros.value = response.props.registros
       inventario.value = response.props.inventario
       gastos.value = response.props.gastos
