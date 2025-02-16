@@ -79,7 +79,6 @@ const today = new Date().toISOString().split('T')[0];
 // Estados para filtros
 const startDate = ref(today);
 const endDate = ref(today);
-const timeFilter = ref('day'); // Predeterminado: Día
 const selectedCategories = ref(['pastes', 'empanadas saladas', 'empanadas dulces', 'bebida']);
 const sortOrder = ref('desc');
 

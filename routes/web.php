@@ -47,6 +47,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/sobrantes', [SobrantesController::class, 'store'])->name('sobrantes.store');
 
     Route::post('/gastos', [InventarioController::class, 'gastos'])->name('inventario.gastos');
+    Route::post('/inventario/filtro', [InventarioController::class, 'filtroInventario'])->name('inventario.filtro');
+    Route::get('/inventario/filtro', function () {
+        return redirect('/inventario');
+    });
+    
+    
     Route::post('/registro', [InventarioController::class, 'registro'])->name('inventario.registro');
     Route::put('/inventario/{inventario}', [InventarioController::class, 'update'])->name('inventario.update');
     Route::delete('/inventario/{id}', [InventarioController::class, 'destroy'])->name('inventario.destroy');
@@ -85,4 +91,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
     
     Route::get('/almacen', [AlmacenController::class, 'almacen'])->name("almacen");
+});
+
+//si no se encuentra el link regresar a la pagina principal
+Route::fallback(function () {
+    return redirect('/');
 });

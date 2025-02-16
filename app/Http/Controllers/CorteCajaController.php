@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\CorteCaja;
+use App\Models\EntradasInventario;
 use App\Models\Estimaciones;
+use App\Models\Gastos;
 use App\Models\Inventario;
 use App\Models\Venta;
 use App\Models\VentaProducto;
@@ -137,65 +139,77 @@ class CorteCajaController extends Controller
     {
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
-        
+
         $filter = $request->input('filter');
         $value = $request->input('value');
 
-        // Filtrado según el tipo (día, semana, mes)
+        // Definir el rango de fechas según el filtro
         if ($filter === 'day') {
-            $ventas = Venta::where('sucursal_id', $sucursalId)
-                ->with(['detalles.producto', 'usuario'])
-                ->whereDate('created_at', $value)
-                ->get();
+            $startDate = Carbon::parse($value)->startOfDay();
+            $endDate = Carbon::parse($value)->endOfDay();
         } elseif ($filter === 'week') {
-            $ventas = Venta::where('sucursal_id', $sucursalId)
-                ->with(['detalles.producto', 'usuario'])
-                ->whereBetween('created_at', [Carbon::parse($value)->startOfWeek(), Carbon::parse($value)->endOfWeek()])
-                ->get();
+            $startDate = Carbon::parse($value)->startOfWeek();
+            $endDate = Carbon::parse($value)->endOfWeek();
         } elseif ($filter === 'month') {
-            $ventas = Venta::where('sucursal_id', $sucursalId)
-                ->with(['detalles.producto', 'usuario'])
-                ->whereMonth('created_at', Carbon::parse($value)->month)
-                ->get();
+            $startDate = Carbon::parse($value)->startOfMonth();
+            $endDate = Carbon::parse($value)->endOfMonth();
         } else {
             return response()->json(['error' => 'Filtro no válido.'], 400);
         }
 
-        // Aquí podrías incluir cálculos adicionales como los pagos en efectivo o tarjeta
+        // Filtrar ventas según el rango de fechas
+        $ventas = Venta::where('sucursal_id', $sucursalId)
+            ->with(['detalles.producto', 'usuario'])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
+
+        // Cálculos adicionales
         $cashPayments = $ventas->where('metodo_pago', 'efectivo')->sum('total');
         $cardPayments = $ventas->where('metodo_pago', 'tarjeta')->sum('total');
-        
-        // También podrías obtener los productos usados y la caja inicial y final
+
+        // Productos vendidos
         $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
-            ->whereHas('venta', function ($query) use ($sucursalId, $filter, $value) {
-                $query->where('sucursal_id', $sucursalId);
-                
-                if ($filter === 'day') {
-                    $query->whereDate('created_at', $value);
-                } elseif ($filter === 'week') {
-                    $query->whereBetween('created_at', [Carbon::parse($value)->startOfWeek(), Carbon::parse($value)->endOfWeek()]);
-                } elseif ($filter === 'month') {
-                    $query->whereMonth('created_at', Carbon::parse($value)->month);
-                }
+            ->whereHas('venta', function ($query) use ($sucursalId, $startDate, $endDate) {
+                $query->where('sucursal_id', $sucursalId)
+                    ->whereBetween('created_at', [$startDate, $endDate]);
             })
             ->groupBy('producto_id')
             ->with('producto')
             ->get();
 
+        // Caja inicial y final
         $initialCash = CorteCaja::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', $value)
+            ->whereDate('created_at', $startDate)
             ->value('dinero_inicio');
-        
+
         $finalCash = CorteCaja::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', $value)
+            ->whereDate('created_at', $endDate)
             ->value('dinero_final');
 
+        // Inventario
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
 
+        // Ventas de productos
         $ventaProductos = VentaProducto::with('producto')
-            ->where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', $value)
+            ->whereHas('venta', function ($query) use ($sucursalId, $startDate, $endDate) {
+                $query->where('sucursal_id', $sucursalId)
+                    ->whereBetween('created_at', [$startDate, $endDate]);
+            })
             ->get();
+
+        // Registros de inventario
+        $registrosInventario = EntradasInventario::where('sucursal_id', $sucursalId)
+            ->with(['inventario', 'trabajador'])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
+
+        $gastos = Gastos::where('sucursal_id', $sucursalId)
+            ->with('trabajador')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
+
+        $totalGastos = $gastos->sum('costo');
+        
 
         return Inertia::render('Corte/index', [
             'cashPayments' => $cashPayments,
@@ -205,9 +219,11 @@ class CorteCajaController extends Controller
             'finalCash' => $finalCash,
             'inventario' => $inventario,
             'ventasProductos' => $ventaProductos,
-            'ventas' => $ventas
-        ]); 
-        
+            'ventas' => $ventas,
+            'registrosInventario' => $registrosInventario,
+            'gastos' => $gastos,
+            'totalGastos' => $totalGastos
+        ]);
     }
 
 
@@ -259,6 +275,19 @@ class CorteCajaController extends Controller
             ->whereDate('created_at', Carbon::today())
             ->get();
            
+        $registrosInventario = EntradasInventario::where('sucursal_id', $sucursalId)
+            ->with(['inventario', 'trabajador' ])
+            ->whereDate('created_at', Carbon::today())
+            ->get(); 
+
+        $gastos = Gastos::where('sucursal_id', $sucursalId)
+            ->with('trabajador')
+            ->whereDate('created_at', Carbon::today())
+            ->get();
+
+        $totalGastos = $gastos->sum('costo');
+        
+
         return Inertia::render('Corte/index', [
             'inventario' => $inventario,
             'ventas' => $ventas,
@@ -267,7 +296,10 @@ class CorteCajaController extends Controller
             'estimaciones' => $estimaciones,
             'ventasProductos' => $ventaProductos,
             'ventasEfectivo' => $ventasEfectivo,
-            'ventasTarjeta' => $ventasTarjeta
+            'ventasTarjeta' => $ventasTarjeta,
+            'registrosInventario' => $registrosInventario,
+            'gastos' => $gastos,
+            'totalGastos' => $totalGastos
         ]);
     }
 }

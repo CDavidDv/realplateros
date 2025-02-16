@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EntradasInventario;
 use App\Models\Gastos;
 use App\Models\Hornos;
 use App\Models\Inventario;
@@ -37,6 +38,10 @@ class InventarioController extends Controller
             ->whereDate('created_at', Carbon::today())
             ->get();
 
+        $registrosAyer = Registros::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::yesterday())
+            ->get();
+
         $gastos = Gastos::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
             ->get();
@@ -49,16 +54,14 @@ class InventarioController extends Controller
         
         $categorias = Inventario::select('tipo')->distinct()->get();
 
-        $horno = Hornos::where('sucursal_id', $sucursalId)->first();
-
         return Inertia::render('Inventario/index', [
             'inventario' => $inventario,
             'ventas' => $ventas,
             'registros' => $registros,
+            'registrosAyer' => $registrosAyer,
             'gastos' => $gastos,
             'categorias' => $categorias,
             'tickets' => $tickets,
-            'horno' => $horno
         ]);
     }
 
@@ -342,6 +345,7 @@ class InventarioController extends Controller
             $gastosAInsertar = collect($gastosNuevos)->map(fn($gasto) => [
                 'id' => $gasto['id'] ?? null, // Esto permite que `upsert` lo trate como nuevo si no tiene ID.
                 'nombre' => $gasto['nombre'],
+                'trabajador_id' => $user->id,
                 'sucursal_id' => $sucursalId,
                 'created_at' => $today,
                 'updated_at' => now(),
@@ -349,7 +353,7 @@ class InventarioController extends Controller
             ])->toArray();
 
             // Actualizar o insertar
-            Gastos::upsert($gastosAInsertar, ['id'], ['nombre', 'costo', 'updated_at']);
+            Gastos::upsert($gastosAInsertar, ['id'], ['nombre', 'trabajador_id', 'costo', 'updated_at']);
 
             return redirect()->route('inventario')->with('success', 'Registros actualizados o creados correctamente.');
         } catch (\Exception $e) {
@@ -373,10 +377,9 @@ class InventarioController extends Controller
 
 
     public function registro(Request $request)
-    { 
+    {
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
-   
 
         // Validar la estructura del request
         $request->validate([
@@ -389,63 +392,70 @@ class InventarioController extends Controller
             'registros.productos.*.sobra' => 'nullable|integer|min:0',
             'registros.productos.*.precio' => 'nullable|numeric|min:0',
         ]);
-        
 
         $registros = $request->registros['productos'];
 
-        
         // Obtener registros existentes para esta sucursal y fecha
         $registrosExistentes = Registros::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
-            ->get();
+            ->get()
+            ->keyBy('inventario_id');
 
-        // Si no existen registros previos, se crean nuevos
-        if ($registrosExistentes->isEmpty()) {
+        // Iniciar una transacción para asegurar la integridad de los datos
+        DB::transaction(function () use ($registros, $user, $sucursalId, $registrosExistentes) {
             foreach ($registros as $registro) {
-                
-                Registros::create([
-                    'inventario_id' => $registro['id'], // ID del inventario
-                    'sucursal_id' => $sucursalId,
-                    'existe' => $registro['existe'] ?? 0,
-                    'entra' => 0,
-                    'total' => $registro['total'] ?? 0,
-                    'vende' => $registro['vende'] ?? 0,
-                    'sobra' => $registro['sobra'] ?? 0,
-                    'precio' => $registro['precio'] ?? 0,
-                ]);
-                $inventario = Inventario::find($registro['id']);
-                
-                if ($inventario) {
-                    $inventario->cantidad = $registro['sobra'];
-                    $inventario->update();
-                }
+                $this->procesarRegistro($registro, $user, $sucursalId, $registrosExistentes);
             }
-        } else {
-            // Actualizar registros existentes
-            foreach ($registros as $registro) {
-                $registroExistente = $registrosExistentes->firstWhere('inventario_id', $registro['id']);
-                if ($registroExistente) {
-                    $registroExistente->update([
-                        'existe' => $registro['existe'] ?? $registroExistente->existe,
-                        'entra' => $registro['entra'] ?? $registroExistente->entra,
-                        'total' => $registro['total'] ?? $registroExistente->total,
-                        'vende' => $registro['vende'] ?? $registroExistente->vende,
-                        'sobra' => $registro['sobra'] ?? $registroExistente->sobra,
-                        'precio' => $registro['precio'] ?? $registroExistente->precio,
-                    ]);
-                }
-                $inventario = Inventario::find($registro['id']);
-                
-                if ($inventario) {
-                    $inventario->cantidad = $registro['sobra'];
-                    $inventario->update();
-                }
-            }
-        }
+        });
 
         // Redirigir con mensaje de éxito
         return redirect()->route('inventario')->with('success', 'Registros actualizados o creados correctamente.');
     }
+
+    private function procesarRegistro($registro, $user, $sucursalId, $registrosExistentes)
+    {
+        // Crear entrada de inventario si es necesario
+        if ($registro['entra'] > 0) {
+            EntradasInventario::create([
+                'inventario_id' => $registro['id'],
+                'trabajador_id' => $user->id,
+                'sucursal_id' => $sucursalId,
+                'cantidad' => $registro['entra'] ?? 0,
+            ]);
+        }
+
+        // Crear o actualizar el registro
+        $registroExistente = $registrosExistentes->get($registro['id']);
+        if ($registroExistente) {
+            $registroExistente->update([
+                'existe' => $registro['existe'] ?? $registroExistente->existe,
+                'entra' => $registro['entra'] ?? $registroExistente->entra,
+                'total' => $registro['total'] ?? $registroExistente->total,
+                'vende' => $registro['vende'] ?? $registroExistente->vende,
+                'sobra' => $registro['sobra'] ?? $registroExistente->sobra,
+                'precio' => $registro['precio'] ?? $registroExistente->precio,
+            ]);
+        } else {
+            Registros::create([
+                'inventario_id' => $registro['id'],
+                'sucursal_id' => $sucursalId,
+                'existe' => $registro['existe'] ?? 0,
+                'entra' => 0,
+                'total' => $registro['total'] ?? 0,
+                'vende' => $registro['vende'] ?? 0,
+                'sobra' => $registro['sobra'] ?? 0,
+                'precio' => $registro['precio'] ?? 0,
+            ]);
+        }
+
+        // Actualizar el inventario
+        $inventario = Inventario::find($registro['id']);
+        if ($inventario) {
+            $inventario->cantidad = $registro['sobra'];
+            $inventario->save();
+        }
+    }
+
 
     // Elimina un ítem del inventario
     public function destroy($id)
@@ -475,4 +485,68 @@ class InventarioController extends Controller
         }
 
     }
+
+
+    public function filtroInventario(Request $request){
+        $user = Auth::user();
+        $sucursalId = $user->sucursal_id;
+
+        $filter = $request->input('filter');
+        $value = $request->input('value');
+
+        // Definir el rango de fechas según el filtro
+        if ($filter === 'day') {
+            $startDate = Carbon::parse($value)->startOfDay();
+            $endDate = Carbon::parse($value)->endOfDay();
+        } elseif ($filter === 'week') {
+            $startDate = Carbon::parse($value)->startOfWeek();
+            $endDate = Carbon::parse($value)->endOfWeek();
+        } elseif ($filter === 'month') {
+            $startDate = Carbon::parse($value)->startOfMonth();
+            $endDate = Carbon::parse($value)->endOfMonth();
+        } else {
+            return response()->json(['error' => 'Filtro no válido.'], 400);
+        }
+    
+        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
+
+        $ventas = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
+            ->where('sucursal_id', $sucursalId)
+            ->with('inventario:id,nombre')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->groupBy('producto_id')
+            ->get();
+
+        $registros = Registros::where('sucursal_id', $sucursalId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
+
+        $gastos = Gastos::where('sucursal_id', $sucursalId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
+
+            
+        $tickets = TicketAsignacion::where('sucursal_id', $sucursalId)
+            ->where('estado', 'asignado')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->with(['ticket_productos_asignacion.producto']) // Relación cargada aquí
+            ->get();
+
+        $categorias = Inventario::select('tipo')->distinct()->get();
+
+        return Inertia::render('Inventario/index', [
+            'inventario' => $inventario,
+            'ventas' => $ventas,
+            'registros' => $registros,
+            'gastos' => $gastos,
+            'filter' => $filter,
+            'value' => $value,
+            'categorias' => $categorias,
+            'tickets' => $tickets,
+        ]);
+
+            
+    }
+
+    
 }

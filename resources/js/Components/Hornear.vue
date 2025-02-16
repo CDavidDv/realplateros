@@ -52,6 +52,7 @@ import { usePage } from "@inertiajs/vue3";
 import PastesHorneados from "./PastesHorneados.vue";
 import EstimacionPastes from "./EstimacionPastes.vue";
 import SistemaHorneado from "./SistemaHorneado.vue";
+import Swal from "sweetalert2";
 
 // Lógica de estado para mostrar/ocultar
 const mostrarFaltantes = ref(false);
@@ -173,6 +174,61 @@ const notificacionesActuales = computed(() => {
 const notificacionesFaltantes = computed(() => {
   return notificacionesActuales.value.filter((item) => item.diferencia < 0);
 });
+
+const checkNotificationsInterval = ref(null);
+onMounted(() => {
+  let sonidoReproducido = false; // Variable de control
+
+  notificacionesFaltantes.value.forEach(notif => {
+    if (Math.abs(notif.diferencia) > 3 && !sonidoReproducido) {
+      reproducirSonido();
+      sonidoReproducido = true; // Marcamos que el sonido ya se reprodujo
+    }
+    if (Math.abs(notif.diferencia) > 3) {
+      showToast('warning', `Faltan ${Math.abs(notif.diferencia)} unidades para las ${notif.hora}`);
+    }
+  });
+
+  clearInterval(checkNotificationsInterval.value);
+
+  // Verificar notificaciones cada 10 minutos
+  checkNotificationsInterval.value = setInterval(() => {
+    let sonidoReproducidoEnCiclo = false; // Reiniciar la variable de control por ciclo
+
+    notificacionesFaltantes.value.forEach(notif => {
+      if (Math.abs(notif.diferencia) > 3 && !sonidoReproducidoEnCiclo) {
+        reproducirSonido();
+        sonidoReproducidoEnCiclo = true; // Evita que suene más de una vez en este ciclo
+      }
+      if (Math.abs(notif.diferencia) > 3) {
+        showToast('warning', `Faltan ${Math.abs(notif.diferencia)} unidades para las ${notif.hora}`);
+      }
+    });
+  }, 10 * 60 * 1000);
+});
+
+const reproducirSonido = () => {
+  const audio = new Audio('/sound/videoplayback.mp3');
+  audio.play().catch(error => console.error("Error al reproducir el sonido:", error));
+};
+
+const showToast = (icon, title) => {
+  Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    customClass: "no-print",
+    didOpen: (toast) => {
+      toast.addEventListener('mouseenter', Swal.stopTimer)
+      toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+  }).fire({
+    icon,
+    title
+  })
+}
 
 const notificacionesExcedentes = computed(() => {
   return notificacionesActuales.value.filter((item) => item.diferencia > 0);

@@ -1,8 +1,8 @@
 <template>
-    <div class="container mx-auto p-8 md:p-10">
+    <div class="container mx-auto p-8 md:p-10 ">
         <h1 class="text-2xl font-bold mb-4">Gestión de Inventario</h1>
         <!--Seccion completar asignnar ticekts-->
-        <div class="space-y-4 mb-5">
+        <div class="space-y-4 mb-5 no-print">
             <div 
                 v-for="ticket in tickets" 
                 :key="ticket.id" 
@@ -27,11 +27,11 @@
                 <div class="mt-2 space-y-1">
                     <h4 class="text-sm font-medium text-gray-800">Productos asignados:</h4>
                     <ul class="text-sm text-gray-700 space-y-1 pl-4 list-disc">
-                    <li 
+                    <li  class="flex gap-1 items-center"
                         v-for="p in ticket.ticket_productos_asignacion" 
                         :key="p.id"
                     >
-                        {{ p.cantidad }}x {{ p.producto.nombre }}
+                        {{ p.cantidad }}x {{ p.producto.nombre}}<p v-if="p.producto.detalle" class="text-xs">- {{ p.producto.detalle }}</p>
                     </li>
                     </ul>
                 </div>
@@ -53,7 +53,7 @@
 
        
 
-        <div class="flex flex-col md:flex-row gap-10 w-full" v-if="props.user.roles[0] ==='admin' || props.user.roles[0] === 'sucursal' || props.user.roles[0] === 'almacen'">
+        <div class="no-print flex flex-col md:flex-row gap-10 w-full" v-if="props.user.roles[0] ==='admin' || props.user.roles[0] === 'sucursal' || props.user.roles[0] === 'almacen'">
             <div class="md:w-4/12 w-full">
                 <!-- Formulario para agregar/editar item -->
                  
@@ -126,7 +126,7 @@
                 </div>
 
                 <!-- Tabla de inventario -->
-                <div class="bg-white shadow rounded-lg overflow-scroll h-screen">
+                <div class="bg-white shadow rounded-lg overflow-auto h-screen">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
@@ -168,12 +168,12 @@
             </div>
         </div>
 
-        <RegistroInventario />
+        <RegistroInventario  />
 
         <!-- Modal para agregar categoría -->
         <div
             v-if="showModal"
-            class="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
+            class="no-print fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
             <div class="bg-white p-6 rounded-lg shadow-lg w-96">
                 <h2 class="text-xl font-semibold mb-4">Agregar Categoría</h2>
                 <input
@@ -234,7 +234,7 @@ import EstimacionPastes from './EstimacionPastes.vue';
 const { props } = usePage()
 const tickets = ref(props.tickets)
 
-const inventory = ref(props.inventario.filter((item) => {
+const inventory = ref(props?.inventario?.filter((item) => {
     return item.nombre != '-'
 }))
 const categorias = ref(props.categorias)
@@ -363,7 +363,7 @@ const editingItem = ref(false)
 const searchTerm = ref('')
 
 const filteredInventory = computed(() => {
-    return inventory.value.filter(item =>
+    return inventory?.value?.filter(item =>
         item.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
         item.tipo.toLowerCase().includes(searchTerm.value.toLowerCase())
     )
@@ -498,6 +498,59 @@ const resetForm = () => {
 }
 </script>
 
+<style>
+.print {
+    display: block !important;
+}
 
+@media print {
+    .no-print {
+        display: none !important;
+    }
 
+    .print {
+        display: block !important;
+    }
 
+    body {
+        overflow: scroll !important;
+    }
+
+    ::-webkit-scrollbar {
+        display: none;
+    }
+
+    astro-dev-toolbar {
+        display: none !important;
+    }
+
+    article {
+        break-inside: avoid;
+    }
+
+    @page {
+        size: A4 landscape;
+        margin: 0;
+    }
+
+    .tabla {
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    .tabla th, .tabla td {
+        word-wrap: break-word;
+    }
+}
+
+@media print {
+  .text-red-700 {
+    color: #6b7280 !important; /* Cambiar a gris al imprimir */
+  }
+  .ventasR{
+    height: fit-content !important;
+    overflow: auto !important;
+  }
+}
+
+</style>

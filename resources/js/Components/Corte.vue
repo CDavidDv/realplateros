@@ -1,5 +1,5 @@
 <template>
-  <div class="print min-h-screen py-6 flex rounded-2xl border-0 flex-col justify-center sm:py-12">
+  <div class="print min-h-screen py-6 flex rounded-2xl border-0 flex-col justify-center sm:py-4">
     <div class="relative py-3 w-full px-4 sm:px-0">
       <div class="relative px-4 py-10 bg-white shadow-lg rounded-3xl sm:p-20">
         <h1 class="text-3xl font-bold mb-6 text-center">Corte de Caja</h1>
@@ -98,22 +98,30 @@
               <p class="font-medium">${{ cardPayments }}</p>
             </div>
             <div>
-              <p class="text-sm text-gray-600">Total ventas:</p>
+              <p class="text-sm text-gray-600">Total ventas (Efectivo + Tarjetas):</p>
               <p class="font-medium">${{ Number(cashPayments) + Number(cardPayments) }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Gastos:</p>
+              <p class="font-medium">${{ totalGastos }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Total menos gastos:</p>
+              <p class="font-medium">${{ Number(cashPayments) + Number(cardPayments) - Number(totalGastos) }}</p>
             </div>
           </div>
         </div>
 
         <!-- Ventas -->
-        <div class="mb-6">
+        <div class="mb-6 ">
           <div class="flex justify-between">
             <h2 class="text-xl font-semibold mb-4">Ventas</h2>
             <button @click="imprimir" class="no-print size-fit py-1 px-2 mr-8 rounded-md text-white hover:bg-purple-600 bg-purple-500">
               Imprimir
             </button>
           </div>
-          <div v-if="ventas.length <= 0" class="text-gray-500">No se han vendido productos en este período.</div>
-          <div v-else class="overflow-x-auto">
+          <div v-if="ventas.length <= 0" class="text-gray-500 ">No se han vendido productos en este período.</div>
+          <div v-else class="overflow-x-auto h-screen overflow-auto ventasR">
             <table class="tabla min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -187,6 +195,10 @@
     </div>
   </div>
 
+  <Entradas :registrosInventario="registrosInventario" />
+
+  <Gastos  :gastos="gastos" />
+
   <ChartCorte 
       v-if="$page.props.user.roles[0] != 'trabajador'"
       :ventasProductos="ventasProductos"
@@ -222,6 +234,8 @@ import { router, usePage } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
 import { route } from '../../../vendor/tightenco/ziggy/src/js'
 import ChartCorte from './ChartCorte.vue'
+import Entradas from './Entradas.vue'
+import Gastos from './Gastos.vue'
 
 const { props } = usePage()
 const selectedFilter = ref('day')
@@ -239,6 +253,8 @@ const error = ref('')
 const ventasProductos = ref(props.ventasProductos)
 const inventario = ref(props.inventario)
 const ventas = ref(props.ventas)
+const gastos = ref(props.gastos)
+const totalGastos = ref(props.totalGastos)
 
 const tabTitles = ['ID Venta', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Total']
 
@@ -247,6 +263,8 @@ const isToday = computed(() => {
   const formattedToday = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   return selectedFilter.value === 'day' && selectedDate.value === formattedToday;
 });
+
+const registrosInventario = ref(props?.registrosInventario)
 
 const fetchFilteredData = () => {
   isLoading.value = true
@@ -278,6 +296,9 @@ const fetchFilteredData = () => {
       isLoading.value = false
       ventasProductos.value = response.props.ventasProductos || []
       inventario.value = response.props.inventario || []
+      registrosInventario.value = response.props.registrosInventario || []
+      gastos.value = response.props.gastos || 0
+      totalGastos.value = response.props.totalGastos || 0
       showToast("success", "Filtro actualizado correctamente");
     },
     onError(e) {
@@ -459,6 +480,10 @@ const cancelEdit = () => {
 @media print {
   .text-red-700 {
     color: #6b7280 !important; /* Cambiar a gris al imprimir */
+  }
+  .ventasR{
+    height: fit-content !important;
+    overflow: auto !important;
   }
 }
 

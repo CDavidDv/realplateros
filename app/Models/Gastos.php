@@ -19,6 +19,7 @@ class Gastos extends Model
         'sucursal_id',
         'costo',
         'nombre ',
+        'trabajador_id'
     ];
 
     /**
@@ -35,5 +36,10 @@ class Gastos extends Model
     public function sucursal()
     {
         return $this->belongsTo(Sucursal::class);
+    }
+
+    public function trabajador()
+    {
+        return $this->belongsTo(User::class, 'trabajador_id', 'id');
     }
 }

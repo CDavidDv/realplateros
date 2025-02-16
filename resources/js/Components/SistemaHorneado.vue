@@ -138,7 +138,6 @@ const iniciarHorneado = () => {
       pastes_horneando: pastesHorneando.value,
       estado: true,
     }).then(response => {
-      console.log('Horneado iniciado:');
     }).catch(error => {
       console.error('Error al iniciar el horneado:', error);
     });
@@ -359,7 +358,7 @@ onMounted(() => {
     // Recalcula el tiempoFin en función del tiempo actual
     const tiempoTranscurridoDesdeInicio = Date.now() - tiempoInicio.value;
     tiempoFin.value = Date.now() + (tiempoTotal.value - tiempoTranscurridoDesdeInicio);
-
+    
     // Inicia el temporizador
     iniciarTemporizador();
   }

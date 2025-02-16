@@ -17,7 +17,7 @@
             <tr v-for="(item, index) in bakedGoodsWithTotals" :key="index">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.relleno }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.updated_at) }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDay(item.created_at) }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDay(item.updated_at) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.piezas }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <span v-if="item.isFirst">{{ item.totalPiezas }}</span>
@@ -84,7 +84,7 @@ const formatDate = (dateString) => {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    timeZone: 'America/Mexico_City' // Asegura que la hora se muestre en la zona horaria de México
+    timeZone: 'America/Mexico_City' 
   });
 }
 
