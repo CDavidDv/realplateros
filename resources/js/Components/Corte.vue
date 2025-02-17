@@ -43,12 +43,14 @@
               placeholder="Ingrese cantidad"
             />
             <button @click="handleSaveInitialCash" 
-              :class="{
-                'px-4 py-2 rounded-md text-white hover:bg-orange-600 bg-orange-500': props?.corte === null && props?.corte?.dinero_inicio === null,
-                'bg-gray-500 px-4 py-2 rounded-md text-gray-300 cursor-not-allowed': props?.corte !== null && props?.corte?.dinero_inicio !== null,
-                'px-4 py-2 rounded-md text-white hover:bg-orange-600 bg-orange-500': props?.corte === null
-              }" 
-              :disabled="props?.corte !== null || props?.corte?.dinero_inicio  === null">
+              :class="[
+                'px-4 py-2 rounded-md ',
+                !props?.corte && !props?.corte?.dinero_inicio ? 
+                'text-white hover:bg-orange-600 bg-orange-500'  
+                : props?.corte && props?.corte?.dinero_inicio ?
+                'bg-gray-500 text-gray-300 cursor-not-allowed':  '' 
+              ]" 
+              :disabled="props?.corte || props?.corte?.dinero_inicio">
               Guardar
             </button>
           </div>
@@ -65,13 +67,14 @@
               placeholder="Ingrese cantidad"
             />
             <button @click="handleSaveFinalCash" 
-              :class="{
-                'px-4 py-2 rounded-md text-white hover:bg-orange-600 bg-orange-500': props?.corte !== null && props?.corte?.dinero_final === null,
-                'bg-gray-500 px-4 py-2 rounded-md text-gray-300 cursor-not-allowed': props?.corte !== null && props?.corte?.dinero_final !== null,
-                'bg-orange-500': props?.corte !== null && props?.corte?.dinero_final === null,
-                'px-4 py-2 rounded-md text-white hover:bg-orange-600 bg-orange-500': props?.corte === null
-              }" 
-              :disabled=" props?.corte !== null && props?.corte?.dinero_final !== null">
+            :class="[
+                'px-4 py-2 rounded-md ',
+                !props?.corte && !props?.corte?.dinero_final ? 
+                'text-white hover:bg-orange-600 bg-orange-500'  
+                : props?.corte && props?.corte?.dinero_final ?
+                'bg-gray-500 text-gray-300 cursor-not-allowed':  '' 
+              ]" 
+              :disabled="props?.corte || props?.corte?.dinero_final">
               Guardar
             </button>
           </div>
@@ -344,7 +347,7 @@ const showToast = (icon, title) => {
   })
 }
 
-const handleSaveInitialCash = async () => {
+const handleSaveInitialCash = () => {
   const data = {
     sucursal_id: props?.sucursal_id,
     usuario_id: props?.usuario_id,
@@ -353,14 +356,22 @@ const handleSaveInitialCash = async () => {
   };
 
   try {
-    await router.post(route('corte-caja.guardar-inicial'), data, { preserveScroll: true });
-    showToast("success", "Cantidad inicial guardada correctamente");
+    router.post(route('corte-caja.guardar-inicial'), data, { 
+      preserveScroll: true,
+      onSuccess: (e) => {
+        if(e.props.flash.success){
+          showToast("success", e.props.flash.success);
+        }else{
+          showToast("error", e.props.flash.error);
+        }
+      }
+     });
   } catch (e) {
     showToast("error", e.error || "Error al guardar la cantidad inicial");
   }
 };
 
-const handleSaveFinalCash = async () => {
+const handleSaveFinalCash = () => {
   const data = {
     sucursal_id: props?.sucursal_id,
     usuario_id: props?.usuario_id,
@@ -369,8 +380,15 @@ const handleSaveFinalCash = async () => {
   };
 
   try {
-    await router.post('/corte-caja/guardar-final', data, { preserveScroll: true });
-    showToast("success", "Cantidad final guardada correctamente");
+    router.post('/corte-caja/guardar-final', data, { preserveScroll: true, 
+      onSuccess: (e) => {
+        if(e.props.flash.success){
+          showToast("success", e.props.flash.success);
+        }else{
+          showToast("error", e.props.flash.error);
+        }
+      },
+    })
   } catch (e) {
     showToast("error", e.error || "Error al guardar la cantidad final");
   }
