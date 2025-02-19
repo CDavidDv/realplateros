@@ -149,7 +149,7 @@
                     </span> 
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                    {{ venta.created_at.split('T')[1].split('.')[0] }}
+                    {{ formatDate(venta.created_at) }}
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-500">
                     <div class="flex flex-col space-y-1">
@@ -266,6 +266,15 @@ const isToday = computed(() => {
   const formattedToday = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   return selectedFilter.value === 'day' && selectedDate.value === formattedToday;
 });
+
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Mexico_City' 
+  });
+}
 
 const registrosInventario = ref(props?.registrosInventario)
 
