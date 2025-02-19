@@ -152,7 +152,7 @@ class DashboardController extends Controller
                 $existe = Horneados::firstOrCreate([
                     'sucursal_id' => $sucursalId,
                     'relleno' => $paste['nombre'],
-                    'created_at' => Carbon::now()->subHours(6)
+                    'created_at' => Carbon::now()
                 ], [
                     'piezas' => $paste['cantidad']
                 ]);
