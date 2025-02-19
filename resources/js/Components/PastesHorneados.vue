@@ -6,6 +6,7 @@
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Responsable</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paste/Empanada</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Día</th>
@@ -15,6 +16,7 @@
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
             <tr v-for="(item, index) in bakedGoodsWithTotals" :key="index">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item?.responsable?.name }} {{ item?.responsable?.apellido_p || '' }} {{ item?.responsable?.apellido_m || '' }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.relleno }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.updated_at) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDay(item.updated_at) }}</td>

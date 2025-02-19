@@ -107,6 +107,7 @@ class DashboardController extends Controller
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
 
         $pastesHorneados = Horneados::where('sucursal_id', $sucursalId)
+            ->with('responsable')
             ->whereDate('created_at', Carbon::now()->toDateString())
             ->get();
 
@@ -152,8 +153,9 @@ class DashboardController extends Controller
                 $existe = Horneados::firstOrCreate([
                     'sucursal_id' => $sucursalId,
                     'relleno' => $paste['nombre'],
-                    'created_at' => Carbon::now()
+                    'created_at' => Carbon::now(),
                 ], [
+                    'responsable_id' => $user->id,
                     'piezas' => $paste['cantidad']
                 ]);
 

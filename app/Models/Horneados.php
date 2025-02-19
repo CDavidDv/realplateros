@@ -13,8 +13,19 @@ class Horneados extends Model
 
     protected $fillable = [
         'sucursal_id',
+        'responsable_id',
         'relleno',
         'piezas',
     ];
+
+    public function sucursal()
+    {
+        return $this->belongsTo(Sucursal::class, 'sucursal_id');
+    }
+
+    public function responsable()
+    {
+        return $this->belongsTo(User::class, 'responsable_id');
+    }
 
 }

@@ -112,12 +112,12 @@ const pastesHorneando = ref(
 );
 //tiempo horneado 15 min 15 * 60 * 10000
 //90000
-const tiempoTotal = ref(15 * 60 * 1000); 
+const tiempoTotal = ref(15 * 60 * 10000); 
 const tiempoTranscurrido = ref(0);
 const pastesPorHornear = ref([]);
 const tiempoInicio = ref(horneando.value ? new Date(props?.horno?.tiempo_inicio).getTime() : 0);
 const tiempoFin = ref(horneando.value ? new Date(props?.horno?.tiempo_fin).getTime() : 0);
-let timer = null;
+const timer = ref(null);
 
 // Función para iniciar el horneado
 const iniciarHorneado = () => {
@@ -166,8 +166,7 @@ const Toast = Swal.mixin({
 const finalizarHorneado = () => {
 
   if(checkEstado()) return;
-
-  clearInterval(timer);
+  clearInterval(timer.value);
 
   const pastesFinalizados = [...pastesHorneando.value];
   horneando.value = false;
@@ -321,6 +320,21 @@ const cancelarPaste = (id) => {
   pastesPorHornear.value = pastesPorHornear.value.filter(paste => paste.id !== id);
 };
 
+const finalizarContinueTimer = () => {
+
+if(checkEstado()) return;
+clearInterval(timer.value);
+clearInterval(continueTimer.value)
+
+horneando.value = false;
+pastesHorneando.value = [];
+tiempoTranscurrido.value = 0;
+
+reproducirSonido();
+Toast.fire({ icon: 'success', title: 'Horneado finalizado' });
+};
+
+
 const iniciarTemporizador = () => {
   const tiempoFinMs = tiempoFin.value;
 
@@ -337,7 +351,7 @@ const iniciarTemporizador = () => {
   tiempoTranscurrido.value = tiempoTotal.value - tiempoRestante;
 
   // Iniciar el temporizador
-  timer = setInterval(() => {
+  timer.value = setInterval(() => {
     const tiempoRestante = tiempoFinMs - Date.now();
     
     // Actualizar el tiempo transcurrido
@@ -352,18 +366,52 @@ const iniciarTemporizador = () => {
   }, 1000);
 };
 
+const continuarTemporizador = () => {
+  const tiempoFinMs = tiempoFin.value;
+
+  // Calcular el tiempo restante
+  const tiempoRestante = tiempoFinMs - Date.now();
+  
+  // Si el tiempo restante es menor o igual a 0, finalizar el horneado
+  if (tiempoRestante <= 0) {
+    finalizarContinueTimer();
+    return;
+  }
+
+  // Calcular el tiempo transcurrido correctamente
+  tiempoTranscurrido.value = tiempoTotal.value - tiempoRestante;
+
+  // Iniciar el temporizador
+  continueTimer.value = setInterval(() => {
+    const tiempoRestante = tiempoFinMs - Date.now();
+    
+    // Actualizar el tiempo transcurrido
+    tiempoTranscurrido.value = tiempoTotal.value - tiempoRestante;
+    
+    labeltime.value = formatearTiempo(tiempoRestante);
+    console.log("tiempo transcurrido: ", labeltime.value)
+    // Si el tiempo restante es menor o igual a 0, finalizar el horneado
+    if (tiempoRestante <= 0) {
+      finalizarContinueTimer();
+    }
+  }, 1000);
+};
+
+const continueTimer = ref(null);
+
 onMounted(() => {
-  clearInterval(timer)
   if (horneando.value) {
     // Recalcula el tiempoFin en función del tiempo actual
     const tiempoTranscurridoDesdeInicio = Date.now() - tiempoInicio.value;
     tiempoFin.value = Date.now() + (tiempoTotal.value - tiempoTranscurridoDesdeInicio);
     
     // Inicia el temporizador
-    iniciarTemporizador();
+    continuarTemporizador();
   }
-
-  
 });
+
+onUnmounted(() => {
+  clearInterval(continueTimer.value)
+})
 
 </script>
