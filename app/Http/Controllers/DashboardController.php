@@ -152,7 +152,7 @@ class DashboardController extends Controller
                 $existingHorneado = Horneados::where('sucursal_id', $sucursalId)
                     ->where('relleno', $paste['nombre'])
                     ->where('piezas', $paste['cantidad'])
-                    ->whereDate('created_at', '>=', Carbon::now()->subHours(6))
+                    ->whereDate('created_at', '>=', Carbon::now())
                     ->first();
 
                 
@@ -228,7 +228,7 @@ class DashboardController extends Controller
                         $inventarioRelleno->save();
                     }
                 }else{
-                    dd(Carbon::now()->subHours(6));
+                    return redirect()->route('hornear')->with('error', 'Ya existe un paste horneado con el mismo nombre, cantidad y masa.');
                 }
 
             
