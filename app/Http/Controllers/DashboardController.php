@@ -40,7 +40,7 @@ class DashboardController extends Controller
     public function dashboard()
     {
         // Obtén el usuario autenticado
-        
+
         $user = Auth::user();
         // Asume que el usuario tiene una sucursal_id
         $sucursalId = $user->sucursal_id;
@@ -48,10 +48,10 @@ class DashboardController extends Controller
         // Filtra el inventario por sucursal_id
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
         $ticketId = session('ticket_id');
-        
+
         $categorias = Inventario::select('tipo')->distinct()->get();
-        $sucursales = Sucursal::all(); 
-        
+        $sucursales = Sucursal::all();
+
         $trabajadores = User::whereHas('roles', function ($query) {
             $query->where('name', 'trabajador');
         })->get();
@@ -89,11 +89,11 @@ class DashboardController extends Controller
     }
 
 
-    
 
 
 
-    
+
+
 
     public function hornear()
     {
@@ -116,13 +116,12 @@ class DashboardController extends Controller
             ->where('dia', $diaHoy)
             ->get();
 
-        $estimaciones = Estimaciones::
-            where('sucursal_id', $sucursalId)
+        $estimaciones = Estimaciones::where('sucursal_id', $sucursalId)
             ->with('inventario') // Carga la relación Inventario
             ->get();
 
         $horno = Hornos::where('sucursal_id', $sucursalId)->first();
-    
+
 
         return Inertia::render('Hornear/index', [
             'inventario' => $inventario,
@@ -133,7 +132,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    
+
     public function procesarPastesHorneados(Request $request)
     {
         // Obtén el usuario autenticado
@@ -143,69 +142,64 @@ class DashboardController extends Controller
         $pastesHorneados = $request->input('pastes'); // Array de pastes que contiene nombre, cantidad, masa y relleno
 
         $horno = Hornos::where('sucursal_id', $sucursalId)->first();
-        
-        if($horno->estado){
+
+        if ($horno->estado) {
 
             foreach ($pastesHorneados as $paste) {
-                
-                // Si no existe, crea un nuevo registro
-                $existingHorneado = Horneados::where('sucursal_id', $sucursalId)
-                    ->where('relleno', $paste['nombre'])
-                    ->where('piezas', $paste['cantidad'])
-                    ->whereDate('created_at', '>=', Carbon::now())
-                    ->first();
 
-                
-                if (!$existingHorneado) {
-                    // Si no existe, crea un nuevo registro
-                    Horneados::create([
-                        'sucursal_id' => $sucursalId,
-                        'relleno' => $paste['nombre'],
-                        'piezas' => $paste['cantidad'],
-                        'created_at' => Carbon::now()->subHours(6)
-                    ]);
-                    
-                    
+
+                // Si no existe, crea un nuevo registro
+                $existe = Horneados::firstOrCreate([
+                    'sucursal_id' => $sucursalId,
+                    'relleno' => $paste['nombre'],
+                    'created_at' => Carbon::now()->subHours(6)
+                ], [
+                    'piezas' => $paste['cantidad']
+                ]);
+
+                if (!$existe) {
+
+
                     // 1. Aumentar la cantidad de pastes en el inventario
                     $inventarioPaste = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'pastes')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
-                    
+                        ->where('tipo', 'pastes')
+                        ->where('sucursal_id', $sucursalId)
+                        ->first();
+
                     $inventarioEmpanadaSalada = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'empanadas saladas')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
-                    
+                        ->where('tipo', 'empanadas saladas')
+                        ->where('sucursal_id', $sucursalId)
+                        ->first();
+
                     $inventarioEmpanadaDulce = Inventario::where('nombre', $paste['nombre'])
                         ->where('tipo', 'empanadas dulces')
                         ->where('sucursal_id', $sucursalId)
                         ->first();
-                        
-                        if ($inventarioPaste) {
-                            $inventarioPaste->cantidad += $paste['cantidad']; // Aumenta la cantidad de pastes horneados
-                            $inventarioPaste->save();
-                        } else if ($inventarioEmpanadaSalada){
-                            $inventarioEmpanadaSalada->cantidad += $paste['cantidad']; // Aumenta la cantidad de pastes horneados
-                            $inventarioEmpanadaSalada->save();
-                        } else if ($inventarioEmpanadaDulce){
-                            $inventarioEmpanadaDulce->cantidad += $paste['cantidad']; // Aumenta la cantidad de pastes horneados
-                            $inventarioEmpanadaDulce->save();
-                        }else{
-                            Inventario::create([
+
+                    if ($inventarioPaste) {
+                        $inventarioPaste->cantidad += $paste['cantidad']; // Aumenta la cantidad de pastes horneados
+                        $inventarioPaste->save();
+                    } else if ($inventarioEmpanadaSalada) {
+                        $inventarioEmpanadaSalada->cantidad += $paste['cantidad']; // Aumenta la cantidad de pastes horneados
+                        $inventarioEmpanadaSalada->save();
+                    } else if ($inventarioEmpanadaDulce) {
+                        $inventarioEmpanadaDulce->cantidad += $paste['cantidad']; // Aumenta la cantidad de pastes horneados
+                        $inventarioEmpanadaDulce->save();
+                    } else {
+                        Inventario::create([
                             'sucursal_id' => $sucursalId,
                             'nombre' => $paste['nombre'],
                             'tipo' => 'pastes',
                             'cantidad' => $paste['cantidad'],
                         ]);
                     }
-                    
+
                     // 2. Restar la cantidad de masa utilizada
                     $inventarioMasa = Inventario::where('nombre', $paste['masa'])
-                    ->where('tipo', 'masa')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
-                    
+                        ->where('tipo', 'masa')
+                        ->where('sucursal_id', $sucursalId)
+                        ->first();
+
                     if ($inventarioMasa) {
                         $inventarioMasa->cantidad -= ($paste['cantidad']); // Suponemos que cada paste usa 0.1 kg de masa
                         if ($inventarioMasa->cantidad < 0) {
@@ -213,13 +207,13 @@ class DashboardController extends Controller
                         }
                         $inventarioMasa->save();
                     }
-                    
+
                     // 3. Restar la cantidad de relleno utilizado
                     $inventarioRelleno = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'relleno')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
-                    
+                        ->where('tipo', 'relleno')
+                        ->where('sucursal_id', $sucursalId)
+                        ->first();
+
                     if ($inventarioRelleno) {
                         $inventarioRelleno->cantidad -= ($paste['cantidad']); // Suponemos que cada paste usa 0.2 kg de relleno
                         if ($inventarioRelleno->cantidad < 0) {
@@ -227,44 +221,39 @@ class DashboardController extends Controller
                         }
                         $inventarioRelleno->save();
                     }
-                }else{
-                    
                 }
-
-            
             }
         }
-            
+
         $horno = Hornos::where('sucursal_id', $sucursalId)->first();
         $horno->estado = 0;
-        
+
         $horno->save();
 
         return redirect()->route('hornear');
-        
     }
 
     public function check_estado(Request $request)
     {
         $pastes = $request->input('pastes');
         $sucursalId = null;
-        if($pastes){
+        if ($pastes) {
             foreach ($pastes as $paste) {
                 $sucursalId = $paste['sucursal_id'];
             }
-    
+
             $horno = Hornos::where('sucursal_id', $sucursalId)->first();
-    
+
             if ($horno) {
                 return response()->json(['estado' => $horno->estado, 'sucursalId' => $sucursalId]);
             } else {
                 return response()->json(['estado' => 0, 'sucursalId' => $sucursalId]);
             }
-        }else{
+        } else {
             return response()->json(['estado' => 0, 'sucursalId' => $sucursalId]);
         }
     }
-    
+
     public function iniciar_horneado(Request $request)
     {
         // Obtén el usuario autenticado
@@ -276,7 +265,7 @@ class DashboardController extends Controller
         $tiempo_inicio = date('Y-m-d H:i:s', $request->input('tiempo_inicio') / 1000);
         $tiempo_fin = date('Y-m-d H:i:s', $request->input('tiempo_fin') / 1000);
 
-        
+
         $estado = $request->input('estado');
 
         $horno = Hornos::where('sucursal_id', $sucursalId)->first();
@@ -296,11 +285,7 @@ class DashboardController extends Controller
                 'estado' => $estado,
             ]);
         }
-        
-        return redirect()->route('hornear')->with('success', 'Horno iniciado correctamente');
-        
-    }
 
-    
-    
+        return redirect()->route('hornear')->with('success', 'Horno iniciado correctamente');
+    }
 }
