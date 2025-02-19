@@ -228,7 +228,7 @@ class DashboardController extends Controller
                         $inventarioRelleno->save();
                     }
                 }else{
-                    return redirect()->route('hornear')->with('error', 'Ya existe un paste horneado con el mismo nombre, cantidad y masa.');
+                    return back()->route('dashboard')->with('error', 'Ya existe un paste horneado con el mismo nombre, cantidad y masa.');
                 }
 
             
