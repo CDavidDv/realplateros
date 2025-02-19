@@ -107,7 +107,7 @@ class DashboardController extends Controller
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
 
         $pastesHorneados = Horneados::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', Carbon::now())
+            ->whereDate('created_at', Carbon::now()->toDateString())
             ->get();
 
         $diaHoy = Carbon::now()->locale('es')->dayName; // Obtiene el nombre del día actual en español
@@ -152,9 +152,10 @@ class DashboardController extends Controller
                 $existingHorneado = Horneados::where('sucursal_id', $sucursalId)
                     ->where('relleno', $paste['nombre'])
                     ->where('piezas', $paste['cantidad'])
-                    ->whereDate('created_at', Carbon::now()->subHours(6))
+                    ->whereDate('created_at', '>=', Carbon::now()->subHours(6))
                     ->first();
 
+                
                 if (!$existingHorneado) {
                     // Si no existe, crea un nuevo registro
                     Horneados::create([
@@ -226,7 +227,9 @@ class DashboardController extends Controller
                         }
                         $inventarioRelleno->save();
                     }
-                }   
+                }else{
+                    dd(Carbon::now()->subHours(6));
+                }
 
             
             }
