@@ -157,7 +157,7 @@ class DashboardController extends Controller
                     'piezas' => $paste['cantidad']
                 ]);
 
-                if (!$existe) {
+                if ($existe) {
 
 
                     // 1. Aumentar la cantidad de pastes en el inventario
