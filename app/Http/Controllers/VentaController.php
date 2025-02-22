@@ -96,9 +96,9 @@ class VentaController extends Controller
                     
                     if ($detalleVenta) {
                         // Ajustar el inventario: revertir la cantidad anterior y aplicar la nueva
-                        $item->cantidad += $detalleVenta->cantidad; // Revertir la cantidad anterior
-                        $item->cantidad -= $producto['ticketQuantity']; // Aplicar la nueva cantidad
-                        $item->save();
+                        // $item->cantidad += $detalleVenta->cantidad; // Revertir la cantidad anterior
+                        // $item->cantidad -= $producto['ticketQuantity']; // Aplicar la nueva cantidad
+                        // $item->save();
                         
                         // Actualizar el detalle de la venta existente
                         
@@ -122,8 +122,8 @@ class VentaController extends Controller
                         $detalleVenta->save();
     
                         // Ajustar el inventario para el nuevo producto
-                        $item->cantidad -= $producto['ticketQuantity'];
-                        $item->save();
+                        // $item->cantidad -= $producto['ticketQuantity'];
+                        // $item->save();
                     }
     
                     // Sumar al total de la venta
@@ -135,11 +135,11 @@ class VentaController extends Controller
             foreach ($detallesVenta as $detalle) {
                 if (!collect($productos)->contains('id', $detalle->producto_id)) {
                     // Revertir la cantidad en el inventario
-                    $item = Inventario::find($detalle->producto_id);
-                    if ($item) {
-                        $item->cantidad += $detalle->cantidad;
-                        $item->save();
-                    }
+                    // $item = Inventario::find($detalle->producto_id);
+                    // if ($item) {
+                    //     $item->cantidad += $detalle->cantidad;
+                    //     $item->save();
+                    // }
     
                     // Eliminar el detalle de la venta
                     $detalle->delete();
