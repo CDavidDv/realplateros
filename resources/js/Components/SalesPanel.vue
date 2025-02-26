@@ -229,10 +229,10 @@ const completeSale = () => {
     onSuccess: (a) => {
       setTimeout(() => {
         printTicket(a.props.ticket_id)
-      }, 5000);
+      }, 2000);
       setTimeout(() => {
         printTicket(a.props.ticket_id)
-      }, 5000);
+      }, 2000);
       inventario.value = a.props.inventario;
       ticket.value = [];
       searchTerm.value = '';
