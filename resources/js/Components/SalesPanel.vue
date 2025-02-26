@@ -216,7 +216,7 @@ const showToast = (icon, title) => {
 };
 
 const completeSale = () => {
-  
+  //variable
   if (ticket.value.length === 0) return;
   
   loading.value = true;
@@ -227,8 +227,12 @@ const completeSale = () => {
   }, {
     preserveScroll: true,
     onSuccess: (a) => {
-      printTicket(a.props.ticket_id)
-      printTicket(a.props.ticket_id)
+      setTimeout(() => {
+        printTicket(a.props.ticket_id)
+      }, 5000);
+      setTimeout(() => {
+        printTicket(a.props.ticket_id)
+      }, 5000);
       inventario.value = a.props.inventario;
       ticket.value = [];
       searchTerm.value = '';
