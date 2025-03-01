@@ -227,12 +227,10 @@ const completeSale = () => {
   }, {
     preserveScroll: true,
     onSuccess: (a) => {
-      setTimeout(() => {
-        printTicket(a.props.ticket_id)
-      }, 2000);
-      setTimeout(() => {
-        printTicket(a.props.ticket_id)
-      }, 2000);
+      
+      printTicket(a.props.ticket_id)
+      printTicket(a.props.ticket_id)
+      
       inventario.value = a.props.inventario;
       ticket.value = [];
       searchTerm.value = '';
