@@ -352,18 +352,25 @@ const searchFilter = () =>{
       inventario.value = response.props.inventario
       gastos.value = response.props.gastos
 
+      const registrosMap = new Map(
+        response.props.registros.map(reg => [reg.inventario_id, reg])
+      );
 
       products.value = inventario.value
-          .filter(item => item.nombre !== '-')
-            .map(item => ({
-              ...item,
-              existe: response.props.registros[item.id - 1]?.existe || 0,
-              entra:  response.props.registros[item.id - 1]?.entra || 0,
-              total:  response.props.registros[item.id - 1]?.total || 0,
-              vende:  response.props.registros[item.id - 1]?.vende || 0,
-              sobra:  response.props.registros[item.id - 1]?.sobra || 0,
-              costo:  response.props.registros[item.id - 1]?.costo || 0,
-          }));
+        .filter(item => item.nombre !== '-')
+        .map(item => {
+          const registro = registrosMap.get(item.id) || {}; // Buscar por ID del inventario
+          return {
+            ...item,
+            existe: registro.existe || 0,
+            entra: registro.entra || 0,
+            total: registro.total || 0,
+            vende: registro.vende || 0,
+            sobra: registro.sobra || 0,
+            costo: registro.precio || item?.costo || 0, // Ajustado para tomar el precio correcto
+          };
+        });
+
       filtro.value = true
       
       showToast("success", "Filtro actualizado correctamente");
