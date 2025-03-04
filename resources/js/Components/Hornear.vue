@@ -68,7 +68,7 @@ function toggleExcedentes() {
 
 // Restante código de lógica
 const { props } = usePage();
-console.log(props);
+
 const inventario = computed(() => props.inventario || []);
 const estimaciones = computed(() => props.estimacionesHoy || []);
 const currentTime = ref(getCurrentDayAndTime());
@@ -229,14 +229,11 @@ const showToast = (icon, title) => {
 }
 
 const notificacionesFaltantes = computed(() => {
-  return notificacionesActuales.value
-    .filter((item) => item.diferencia < 0 && item.estimado > 0);
+  return notificacionesActuales.value.filter((item) => item.diferencia < 0);
 });
 
 const notificacionesExcedentes = computed(() => {
-  return notificacionesActuales.value
-    .filter((item) => item.diferencia > 0 && item.estimado > 0);
+  return notificacionesActuales.value.filter((item) => item.diferencia > 0);
 });
-
 
 </script>

@@ -11,6 +11,7 @@ class EstimacionesController extends Controller
 {
     public function store(Request $request)
     {
+        
         try {
             $user = Auth::user();
             $sucursalId = $user->sucursal_id;
@@ -29,8 +30,11 @@ class EstimacionesController extends Controller
 
             foreach ($validated['estimaciones'] as $hora => $productos) {
                 foreach ($productos as $productoNombre => $cantidad) {
-                    $inventarioId = $inventarios->get($productoNombre)->id ?? null;
 
+                    $inventarioId = $inventarios->get($productoNombre)->id ?? null;
+                    
+                   
+                    
                     if (!$inventarioId) {
                         continue;
                     }
@@ -46,6 +50,8 @@ class EstimacionesController extends Controller
                             'cantidad' => $cantidad,
                         ]
                     );
+
+                    
                 }
             }
 
