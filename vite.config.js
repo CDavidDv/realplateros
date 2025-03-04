@@ -7,7 +7,7 @@ export default defineConfig({
         host: '0.0.0.0', // Escucha en todas las interfaces
         port: 5173, // Puerto que quieres usar, 5173 es el predeterminado
         hmr: {
-          host: '192.168.1.99', // Reemplaza con la IP local de tu laptop
+          host: '192.168.1.69', // Reemplaza con la IP local de tu laptop
         },
       },
     plugins: [

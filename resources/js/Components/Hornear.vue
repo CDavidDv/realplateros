@@ -67,9 +67,10 @@ function toggleExcedentes() {
 }
 
 // Restante código de lógica
-const page = usePage();
-const inventario = computed(() => page.props.inventario || []);
-const estimaciones = computed(() => page.props.estimacionesHoy || []);
+const { props } = usePage();
+console.log(props);
+const inventario = computed(() => props.inventario || []);
+const estimaciones = computed(() => props.estimacionesHoy || []);
 const currentTime = ref(getCurrentDayAndTime());
 
 function getCurrentDayAndTime() {
@@ -171,9 +172,6 @@ const notificacionesActuales = computed(() => {
   });
 });
 
-const notificacionesFaltantes = computed(() => {
-  return notificacionesActuales.value.filter((item) => item.diferencia < 0);
-});
 
 const checkNotificationsInterval = ref(null);
 onMounted(() => {
@@ -230,7 +228,15 @@ const showToast = (icon, title) => {
   })
 }
 
-const notificacionesExcedentes = computed(() => {
-  return notificacionesActuales.value.filter((item) => item.diferencia > 0);
+const notificacionesFaltantes = computed(() => {
+  return notificacionesActuales.value
+    .filter((item) => item.diferencia < 0 && item.estimado > 0);
 });
+
+const notificacionesExcedentes = computed(() => {
+  return notificacionesActuales.value
+    .filter((item) => item.diferencia > 0 && item.estimado > 0);
+});
+
+
 </script>
