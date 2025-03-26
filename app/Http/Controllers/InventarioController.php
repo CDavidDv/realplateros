@@ -9,6 +9,7 @@ use App\Models\Inventario;
 use App\Models\Registros;
 use App\Models\Sucursal;
 use App\Models\TicketAsignacion;
+use App\Models\TicketProductosAsignacion;
 use App\Models\VentaProducto;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -103,12 +104,28 @@ class InventarioController extends Controller
         $request->validate([
             'ticket' => 'required|exists:tickets_asignacion,id',
         ]);
-        
+    
         $ticket = TicketAsignacion::findOrFail($request->ticket);
+    
+        // Cambiar el estado del ticket a 'cancelado'
         $ticket->estado = 'cancelado';
         $ticket->save();
-        return redirect()->route('tickets')->with('success', 'Ticket cancelado correctamente');
+    
+        // Obtener los productos asociados al ticket
+        $productos = $ticket->ticket_productos_asignacion;
+    
+        // Devolver los productos al inventario
+        foreach ($productos as $producto) {
+            $inventario = Inventario::find($producto->producto_id);
+            if ($inventario) {
+                $inventario->cantidad += $producto->cantidad;
+                $inventario->save();
+            }
+        }
+    
+        return redirect()->route('tickets')->with('success', 'Ticket cancelado correctamente y productos devueltos al inventario');
     }
+    
 
     public function ticketsBuscar(Request $request) {
         // Validar los datos de entrada
@@ -201,12 +218,46 @@ class InventarioController extends Controller
 
     public function confirmTicket($id, Request $request)
     {
-        
         $request->validate([
             'estado' => 'required|string',
         ]);
 
-        $ticket = TicketAsignacion::findOrFail($id);
+        // Inventario local
+        $user = Auth::user();
+        $sucursalId = $user->sucursal_id;
+
+        // Ticket de asignación
+        $ticket = TicketAsignacion::with('ticket_productos_asignacion.producto')->find($id);
+        $productos = TicketProductosAsignacion::where('ticket_asignacion_id', $id)->with('inventario')->get();
+
+        // Sumar los productos del ticket al inventario local
+        foreach ($productos as $producto) {
+            
+            // Normalizar nombre eliminando espacios y convirtiéndolo en minúsculas
+            $nombreNormalizado = strtolower(str_replace(' ', '', $producto->producto->nombre));
+            //detalle
+            $detalleNormalizado = strtolower(str_replace(' ', '', $producto->producto->detalle));
+
+            // Buscar el producto en el inventario aplicando la misma normalización
+            $inventario = Inventario::where('sucursal_id', $sucursalId)
+                ->whereRaw("LOWER(REPLACE(nombre, ' ', '')) = ?", [$nombreNormalizado])
+                ->whereRaw("LOWER(REPLACE(detalle, ' ', '')) = ?", [$detalleNormalizado])
+                ->first();
+
+            if ($inventario) {
+                
+                $inventario->cantidad += $producto->cantidad;
+            } else {
+                // Si no existe, crearlo
+                $inventario = new Inventario();
+                $inventario->nombre = $producto->producto->nombre; // Mantener el nombre original
+                $inventario->sucursal_id = $sucursalId;
+                $inventario->cantidad = $producto->cantidad;
+            }
+
+            // Guardar cambios en la BD
+            $inventario->save();
+        }
 
         if ($ticket->estado === 'asignado') {
             $ticket->estado = 'cerrado';
@@ -218,6 +269,7 @@ class InventarioController extends Controller
             return redirect()->route('inventario')->with('error', 'El ticket no está disponible para confirmar');
         }
     }
+
     // Actualizar producto en el inventario
     public function update(Request $request, Inventario $inventario)
     {
