@@ -229,7 +229,7 @@ class CorteCajaController extends Controller
             ->whereBetween('created_at', [$startDate, $endDate])
             ->get();
 
-        $cantidadDeCortes = $cortes->count();
+        $cantidadCortes = $cortes->count();
 
         // Registros de inventario
         $registrosInventario = EntradasInventario::where('sucursal_id', $sucursalId)
@@ -258,7 +258,7 @@ class CorteCajaController extends Controller
             'gastos' => $gastos,
             'totalGastos' => $totalGastos,
             'cortes' => $cortes,
-            'cantidadDeCortes' => $cantidadDeCortes
+            'cantidadCortes' => $cantidadCortes
         ]);
     }
 

@@ -2,7 +2,7 @@
   <div class="print min-h-screen py-6 flex rounded-2xl border-0 flex-col justify-center sm:py-4">
     <div class="relative py-3 w-full px-4 sm:px-0">
       <div class="relative px-4 py-10 bg-white shadow-lg rounded-3xl sm:p-20">
-        <h1 class="text-3xl font-bold mb-6 text-center">Corte de Caja {{ props?.cantidadDeCortes ? props?.cantidadDeCortes : 1 }} </h1>
+        <h1 class="text-3xl font-bold mb-6 text-center">Corte de Caja {{ cantidadCortes ? cantidadCortes : 1 }} </h1>
 
         <!-- Filtro por día, semana o mes -->
         <div class="flex flex-col md:flex-row items-center gap-4 mb-8" v-if="$page.props.user.roles[0] != 'trabajador'">
@@ -97,7 +97,7 @@
                 <div v-for="(corte, index) in props.cortes" :key="corte.id"
                      class="bg-white p-3 rounded shadow"
                      :class="{ 'selected-corte': selectedCorteId === corte.id }"
-                     @click="filterVentasByCorte(corte.id, corte.fecha_inicio, corte.fecha_fin)">
+                     @click="filterVentasByCorte(corte.id, corte.created_at, corte.updated_at)">
                   <h4 class="font-medium">Corte #{{ index + 1 }}</h4>
                   <p class="text-sm text-gray-600">Inicial: ${{ safeToFixed(corte.dinero_inicio || 0) }}</p>
                   <p class="text-sm text-gray-600">Final: ${{ safeToFixed(corte.dinero_final || 0) }}</p>
@@ -242,7 +242,7 @@
       <h2 class="text-xl font-bold mb-4">Editar Venta</h2>
       <div class="">
 
-        <div v-for="(producto, index) in editedProducts" :key="producto.id" class="mb-4">
+        <div v-for="(producto) in editedProducts" :key="producto.id" class="mb-4">
           <label class="block text-sm font-medium text-gray-700">{{ producto.nombre }}</label>
           <input
             type="number"
@@ -273,7 +273,7 @@ import Sobrantes from './Sobrantes.vue'
 const { props } = usePage()
 
 const sobrantes = ref(props.sobrantes)
-const categoriasInventario = ref(props.categoriasInventario)
+const categoriasInventario = ref(props?.categoriasInventario || [])
 const selectedFilter = ref('day')
 const today = new Date();
 const selectedDate = ref(today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'))
@@ -291,6 +291,7 @@ const inventario = ref(props.inventario)
 const ventas = ref(props.ventas)
 const gastos = ref(props.gastos)
 const totalGastos = ref(props.totalGastos)
+const cantidadCortes = ref(props?.cantidadCortes || 0)
 
 // Estados para controlar el guardado de cantidades
 const savingInitialCash = ref(false)
@@ -352,7 +353,7 @@ const fetchFilteredData = () => {
       gastos.value = response.props.gastos || 0;
       totalGastos.value = response.props.totalGastos || 0;
       props.cortes = response.props.cortes || [];
-      cantidadCortes.value = response.props.cantidadCortes || 0;
+      cantidadCortes.value = response?.props?.cantidadCortes || 0;
       showToast("success", "Filtro actualizado correctamente");
       calculatePayments(); // Llamar a calculatePayments después de obtener los datos
     },
@@ -386,18 +387,39 @@ const calculatePayments = () => {
 
 const selectedCorteId = ref(null);
 
-const filterVentasByCorte = (corteId, fechaInicio, fechaFin) => {
+const filterVentasByCorte = (corteId, createdAt, updatedAt) => {
+  // Validar que corteId, createdAt y updatedAt sean válidos
+  if (!corteId || !createdAt || !updatedAt) {
+    console.error("Parámetros inválidos:", { corteId, createdAt, updatedAt });
+    return;
+  }
+
+  console.log(createdAt, updatedAt)
+
   selectedCorteId.value = corteId;
 
   // Filtrar las ventas que están dentro del rango de tiempo del corte
   ventas.value = props.ventas.filter(venta => {
+    // Verifica que venta.created_at sea una cadena de fecha válida
+    if (!venta.created_at) {
+      return false;
+    }
+
     const ventaDate = new Date(venta.created_at);
-    return ventaDate >= new Date(fechaInicio) && ventaDate <= new Date(fechaFin);
+    if (isNaN(ventaDate)) {
+      return false;
+    }
+
+    return ventaDate >= new Date(createdAt) && ventaDate <= new Date(updatedAt);
   });
+
+  console.log("Ventas filtradas:", ventas.value);
 
   // Actualizar los pagos en efectivo y con tarjeta
   calculatePayments();
 };
+
+
 
 const resetCorteSelection = () => {
   selectedCorteId.value = null;
