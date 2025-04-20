@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('sucursal_id')->constrained('sucursales')->onDelete('cascade');
             $table->unsignedBigInteger('usuario_id')->constrained('usuarios')->onDelete('cascade');
             $table->date('fecha');
-            $table->decimal('dinero_inicio', 10, 2);
+            $table->decimal('dinero_inicio', 10, 2)->nullable();
             $table->decimal('dinero_final', 10, 2)->nullable();
             $table->decimal('ventas_total', 10, 2)->nullable();
             $table->decimal('dinero_en_efectivo', 10, 2)->nullable();

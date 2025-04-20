@@ -18,7 +18,7 @@
                     <tr v-for="registro in registrosInventario" :key="registro.id" class="border-b hover:bg-gray-100">
                         <td class="py-2 px-6"> 
                             <span class="font-medium text-gray-800">{{ registro.inventario.nombre }}</span> 
-                            <span class="text-sm text-gray-500">({{ registro.inventario.detalle }})</span>
+                            <span class="text-sm text-gray-500"> ({{ registro.inventario.detalle }})</span>
                         </td>
                         <td class="py-2 px-6 text-gray-700">{{ registro.cantidad }}</td>
                         <td class="py-2 px-6 text-gray-700">

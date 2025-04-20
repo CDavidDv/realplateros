@@ -73,6 +73,8 @@ class CorteCajaController extends Controller
         //
     }
 
+    
+
     public function guardarInicial(Request $request)
     {
         $usuario = auth()->user();
@@ -81,23 +83,31 @@ class CorteCajaController extends Controller
             'fecha' => 'required|date',
             'dinero_inicio' => 'required|numeric|min:0',
         ]);
-        
-        // Verifica si ya existe un corte de caja para esa sucursal y fecha
-        if (CorteCaja::where('sucursal_id', $usuario->sucursal_id)
-                    ->where('fecha', $request->fecha)
-                    ->exists()) {
-            return back()->with('error', 'Ya existe un corte de caja para esta fecha.');
+
+        $ultimoCorte = CorteCaja::where('sucursal_id', $usuario->sucursal_id)
+            ->where('fecha', $request->fecha)
+            ->latest('created_at')
+            ->first();
+
+        if ($ultimoCorte) {
+            if (!is_null($ultimoCorte->dinero_inicio)) {
+                return back()->with('error', 'Ya existe un dinero de inicio para esta fecha y corte de caja.');
+            }
+
+            // Actualizar el dinero_inicio del último corte de caja
+            $ultimoCorte->dinero_inicio = $request->dinero_inicio;
+            $ultimoCorte->save();
         } else {
-            // Crea un nuevo corte de caja
+            // Crear un nuevo corte de caja
             CorteCaja::create([
                 'sucursal_id' => $usuario->sucursal_id,
                 'fecha' => $request->fecha,
                 'dinero_inicio' => $request->dinero_inicio,
                 'usuario_id' => $usuario->id,
             ]);
-            return redirect()->route('corte-caja')->with('success', 'Cantidad inicial guardada correctamente.');
-            
         }
+
+        return redirect()->route('corte-caja')->with('success', 'Cantidad inicial guardada correctamente.');
     }
 
 
@@ -109,7 +119,25 @@ class CorteCajaController extends Controller
             'fecha' => 'required|date',
             'dinero_final' => 'required|numeric|min:0',
         ]);
+        // Obtener el último corte de caja para esa sucursal y fecha
+        $ultimoCorte = CorteCaja::where('sucursal_id', $usuario->sucursal_id)
+            ->where('fecha', $request->fecha)
+            ->latest('created_at')
+            ->first();
 
+        if (!$ultimoCorte) {
+            return back()->with('error', 'No existe un corte de caja para esta fecha. Debe guardar la cantidad inicial primero.');
+        }
+
+        if (!is_null($ultimoCorte->dinero_final)) {
+            return back()->with('error', 'Ya existe un dinero final para esta fecha y corte de caja.');
+        }
+
+        // Actualiza el dinero final del último corte
+        $ultimoCorte->dinero_final = $request->dinero_final;
+        $ultimoCorte->save();
+
+        return back()->with('success', 'Cantidad final guardada correctamente.');
         // Verifica si ya existe un corte de caja para esa sucursal y fecha
         $corteCaja = CorteCaja::where('sucursal_id', $usuario->sucursal_id)
                             ->where('fecha', $request->fecha)
@@ -197,6 +225,12 @@ class CorteCajaController extends Controller
             })
             ->get();
 
+        $cortes = CorteCaja::where('sucursal_id', $sucursalId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
+
+        $cantidadDeCortes = $cortes->count();
+
         // Registros de inventario
         $registrosInventario = EntradasInventario::where('sucursal_id', $sucursalId)
             ->with(['inventario', 'trabajador'])
@@ -222,7 +256,9 @@ class CorteCajaController extends Controller
             'ventas' => $ventas,
             'registrosInventario' => $registrosInventario,
             'gastos' => $gastos,
-            'totalGastos' => $totalGastos
+            'totalGastos' => $totalGastos,
+            'cortes' => $cortes,
+            'cantidadDeCortes' => $cantidadDeCortes
         ]);
     }
 
@@ -261,9 +297,21 @@ class CorteCajaController extends Controller
 
         // Obtener inventario de la sucursal
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
+        //obtener el ultimo corte de caja de la sucursal
+        
         $corte = CorteCaja::where('sucursal_id', $sucursalId)
            ->whereDate('created_at', Carbon::today())
+           ->latest('created_at')
            ->first();
+        //contar los cortes de caja de la sucursal
+        $cantidadDeCortes = CorteCaja::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::today())  
+            ->count();
+
+        //obtener todos los cortes de caja de la sucursal de hoy
+        $cortes = CorteCaja::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::today())
+            ->get();
 
         $estimaciones = Estimaciones::where('sucursal_id', $sucursalId)
            ->with('inventario') // Carga la relación Inventario
@@ -286,7 +334,15 @@ class CorteCajaController extends Controller
             ->get();
 
         $totalGastos = $gastos->sum('costo');
-        
+    
+        $sobrantes = Inventario::where('sucursal_id', $sucursalId)
+            ->get();
+
+        //obtener las categorias de los inventarios en su columna tipo
+        $categoriasInventario = Inventario::where('sucursal_id', $sucursalId)
+            ->select('tipo')
+            ->distinct()
+            ->get();
 
         return Inertia::render('Corte/index', [
             'inventario' => $inventario,
@@ -299,7 +355,25 @@ class CorteCajaController extends Controller
             'ventasTarjeta' => $ventasTarjeta,
             'registrosInventario' => $registrosInventario,
             'gastos' => $gastos,
-            'totalGastos' => $totalGastos
+            'totalGastos' => $totalGastos,
+            'sobrantes' => $sobrantes,
+            'categoriasInventario' => $categoriasInventario,
+            'cantidadDeCortes' => $cantidadDeCortes,
+            'cortes' => $cortes
         ]);
+    }
+
+    public function crearCorte(Request $request)
+    {
+        $user = Auth::user();
+        $sucursalId = $user->sucursal_id;
+        
+        $corteNuevo = CorteCaja::create([
+            'sucursal_id' => $user->sucursal_id,
+            'fecha' => Carbon::today(),
+            'usuario_id' => $user->id,
+        ]);
+
+        return response()->json(['corte' => $corteNuevo]);
     }
 }

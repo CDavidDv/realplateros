@@ -2,10 +2,10 @@
   <div class="print min-h-screen py-6 flex rounded-2xl border-0 flex-col justify-center sm:py-4">
     <div class="relative py-3 w-full px-4 sm:px-0">
       <div class="relative px-4 py-10 bg-white shadow-lg rounded-3xl sm:p-20">
-        <h1 class="text-3xl font-bold mb-6 text-center">Corte de Caja</h1>
+        <h1 class="text-3xl font-bold mb-6 text-center">Corte de Caja {{ props?.cantidadDeCortes ? props?.cantidadDeCortes : 1 }} </h1>
 
         <!-- Filtro por día, semana o mes -->
-        <div class="flex flex-col md:flex-row items-center gap-4 mb-8">
+        <div class="flex flex-col md:flex-row items-center gap-4 mb-8" v-if="$page.props.user.roles[0] != 'trabajador'">
           <div class="w-full gap-2 flex flex-col items-center">
             <label for="filter" class="font-bold">Filtrar por:</label>
             <div class="flex gap-2">
@@ -42,16 +42,14 @@
               step="0.01"
               placeholder="Ingrese cantidad"
             />
-            <button @click="handleSaveInitialCash" 
+            <button @click="handleSaveInitialCash"
               :class="[
-                'px-4 py-2 rounded-md ',
-                !props?.corte && !props?.corte?.dinero_inicio ? 
-                'text-white hover:bg-orange-600 bg-orange-500'  
-                : props?.corte && props?.corte?.dinero_inicio ?
-                'bg-gray-500 text-gray-300 cursor-not-allowed':  '' 
-              ]" 
-              :disabled="props?.corte || props?.corte?.dinero_inicio">
-              Guardar
+                'px-4 py-2 rounded-md',
+                savingInitialCash ? 'bg-gray-500 text-gray-300' : 'text-white hover:bg-orange-600 bg-orange-500',
+                initialCashSaved ? 'cursor-not-allowed bg-gray-500 text-gray-300' : ''
+              ]"
+              :disabled="savingInitialCash || initialCashSaved">
+              {{ savingInitialCash ? 'Guardando...' : 'Guardar' }}
             </button>
           </div>
 
@@ -66,24 +64,53 @@
               step="0.01"
               placeholder="Ingrese cantidad"
             />
-            <button @click="handleSaveFinalCash" 
-            :class="[
-                'px-4 py-2 rounded-md ',
-                !props?.corte && !props?.corte?.dinero_final ? 
-                'text-white hover:bg-orange-600 bg-orange-500'  
-                : props?.corte && props?.corte?.dinero_final ?
-                'bg-gray-500 text-gray-300 cursor-not-allowed':  '' 
-              ]" 
-              :disabled="props?.corte || props?.corte?.dinero_final">
-              Guardar
+            <button @click="handleSaveFinalCash"
+              :class="[
+                'px-4 py-2 rounded-md',
+                savingFinalCash ? 'bg-gray-500 text-gray-300' : 'text-white hover:bg-orange-600 bg-orange-500',
+                finalCashSaved ? 'cursor-not-allowed bg-gray-500 text-gray-300' : ''
+              ]"
+              :disabled="savingFinalCash || finalCashSaved">
+              {{ savingFinalCash ? 'Guardando...' : 'Guardar' }}
             </button>
           </div>
+          <button
+            v-if="finalCashSaved && !savingFinalCash && !savingNewCorte"
+            @click="handleNewCorte"
+            :class="[
+              'mt-4 w-full px-4 py-2 rounded-md text-white',
+              savingNewCorte ? 'bg-gray-500' : 'hover:bg-green-600 bg-green-500'
+            ]"
+            :disabled="savingNewCorte">
+            {{ savingNewCorte ? 'Abriendo nuevo corte...' : 'Abrir nuevo corte' }}
+          </button>
         </div>
 
         <!-- Resumen financiero -->
         <div class="bg-gray-50 p-4 rounded-lg mb-6">
           <h2 class="text-xl font-semibold mb-4">Resumen Financiero</h2>
           <div class="grid grid-cols-2 gap-4">
+            <!-- Lista de cortes -->
+            <div v-if="props.cortes && props.cortes.length > 0" class="col-span-2 mb-4">
+              <h3 class="text-lg font-semibold mb-2">Cortes del día</h3>
+              <div class="grid grid-cols-3 gap-4">
+                <div v-for="(corte, index) in props.cortes" :key="corte.id"
+                     class="bg-white p-3 rounded shadow"
+                     :class="{ 'selected-corte': selectedCorteId === corte.id }"
+                     @click="filterVentasByCorte(corte.id, corte.fecha_inicio, corte.fecha_fin)">
+                  <h4 class="font-medium">Corte #{{ index + 1 }}</h4>
+                  <p class="text-sm text-gray-600">Inicial: ${{ safeToFixed(corte.dinero_inicio || 0) }}</p>
+                  <p class="text-sm text-gray-600">Final: ${{ safeToFixed(corte.dinero_final || 0) }}</p>
+                </div>
+                
+              </div>
+              <button class="no-print mt-2 text-sm rounded-lg shadow-lg px-3 py-2 bg-gray-500 text-white hover:bg-gray-600 mb-4" @click="resetCorteSelection">
+                Restablecer Selección
+              </button>
+            </div>
+
+            <!-- Botón para restablecer la selección de cortes -->
+
             <div v-if="selectedFilter === 'day'">
               <p class="text-sm text-gray-600">Dinero inicial:</p>
               <p class="font-medium">${{ safeToFixed(initialCash) }}</p>
@@ -143,10 +170,10 @@
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap overflow-auto text-sm text-gray-500">
                     <span class="print">
-                      {{ `${venta?.usuario?.name} 
-                          ${venta?.usuario?.apellido_p ? venta?.usuario?.apellido_p : ''} 
+                      {{ `${venta?.usuario?.name}
+                          ${venta?.usuario?.apellido_p ? venta?.usuario?.apellido_p : ''}
                           ${venta?.usuario?.apellido_m ? venta?.usuario?.apellido_m : ''}` }}
-                    </span> 
+                    </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                     {{ formatDate(venta.created_at) }}
@@ -157,11 +184,11 @@
                         <span>
                           {{ producto.cantidad }} × {{ producto.producto?.nombre || 'Producto desconocido' }}
                         </span>
-                        <span 
+                        <span
                           :class="[
-                            'font-semibold', 
+                            'font-semibold',
                             (!producto?.cantidadEditado || producto?.cantidadEditado === producto?.cantidad )
-                              ? 'text-gray-700'  
+                              ? 'text-gray-700'
                               : 'text-red-700'
                           ]">
                           ${{ (producto.producto?.precio ?? 0) * (producto.cantidad ?? 0) }}
@@ -202,7 +229,9 @@
 
   <Gastos  :gastos="gastos" />
 
-  <ChartCorte 
+  <Sobrantes :sobrantes="sobrantes" :categoriasInventario="categoriasInventario" />
+
+  <ChartCorte
       v-if="$page.props.user.roles[0] != 'trabajador'"
       :ventasProductos="ventasProductos"
       :inventario="inventario"
@@ -239,8 +268,12 @@ import { route } from '../../../vendor/tightenco/ziggy/src/js'
 import ChartCorte from './ChartCorte.vue'
 import Entradas from './Entradas.vue'
 import Gastos from './Gastos.vue'
+import Sobrantes from './Sobrantes.vue'
 
 const { props } = usePage()
+
+const sobrantes = ref(props.sobrantes)
+const categoriasInventario = ref(props.categoriasInventario)
 const selectedFilter = ref('day')
 const today = new Date();
 const selectedDate = ref(today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'))
@@ -259,6 +292,13 @@ const ventas = ref(props.ventas)
 const gastos = ref(props.gastos)
 const totalGastos = ref(props.totalGastos)
 
+// Estados para controlar el guardado de cantidades
+const savingInitialCash = ref(false)
+const savingFinalCash = ref(false)
+const initialCashSaved = ref(!!props?.corte?.dinero_inicio)
+const finalCashSaved = ref(!!props?.corte?.dinero_final)
+const savingNewCorte = ref(false)
+
 const tabTitles = ['ID Venta', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Total']
 
 const isToday = computed(() => {
@@ -272,53 +312,56 @@ const formatDate = (dateString) => {
   return date.toLocaleString('es-MX', {
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'America/Mexico_City' 
+    timeZone: 'America/Mexico_City'
   });
 }
 
 const registrosInventario = ref(props?.registrosInventario)
 
 const fetchFilteredData = () => {
-  isLoading.value = true
-  error.value = ''
+  isLoading.value = true;
+  error.value = '';
 
-  let filter = selectedFilter.value
-  let value = null
+  let filter = selectedFilter.value;
+  let value = null;
 
   if (filter === 'day') {
-    value = selectedDate.value
+    value = selectedDate.value;
   } else if (filter === 'week') {
-    value = selectedWeek.value
+    value = selectedWeek.value;
   } else if (filter === 'month') {
-    value = selectedMonth.value
+    value = selectedMonth.value;
   }
 
   router.post('/corte-caja', {
-    filter: filter, 
-    value: value 
+    filter: filter,
+    value: value
   }, {
     preserveScroll: true,
     onSuccess(response) {
-      cashPayments.value = response.props.cashPayments
-      cardPayments.value = response.props.cardPayments
-      productsUsed.value = response.props.productsUsed
-      ventas.value = response.props.ventas
-      initialCash.value = response.props.initialCash || 0
-      finalCash.value = response.props.finalCash || 0
-      isLoading.value = false
-      ventasProductos.value = response.props.ventasProductos || []
-      inventario.value = response.props.inventario || []
-      registrosInventario.value = response.props.registrosInventario || []
-      gastos.value = response.props.gastos || 0
-      totalGastos.value = response.props.totalGastos || 0
+      cashPayments.value = response.props.cashPayments;
+      cardPayments.value = response.props.cardPayments;
+      productsUsed.value = response.props.productsUsed;
+      ventas.value = response.props.ventas;
+      initialCash.value = response.props.initialCash || 0;
+      finalCash.value = response.props.finalCash || 0;
+      isLoading.value = false;
+      ventasProductos.value = response.props.ventasProductos || [];
+      inventario.value = response.props.inventario || [];
+      registrosInventario.value = response.props.registrosInventario || [];
+      gastos.value = response.props.gastos || 0;
+      totalGastos.value = response.props.totalGastos || 0;
+      props.cortes = response.props.cortes || [];
+      cantidadCortes.value = response.props.cantidadCortes || 0;
       showToast("success", "Filtro actualizado correctamente");
+      calculatePayments(); // Llamar a calculatePayments después de obtener los datos
     },
     onError(e) {
       showToast("error", e.props.flash.error || "Error al obtener datos con este filtro");
-      error.value = 'Ocurrió un error al obtener los datos. Inténtalo de nuevo.'
-      isLoading.value = false
+      error.value = 'Ocurrió un error al obtener los datos. Inténtalo de nuevo.';
+      isLoading.value = false;
     }
-  })
+  });
 }
 
 const resetFilters = () => {
@@ -334,9 +377,33 @@ const imprimir = () => {
 }
 
 const calculatePayments = () => {
-  cashPayments.value = props?.ventas?.reduce((total, venta) => venta.metodo_pago === 'efectivo' ? Number(total) + Number(venta.total) : Number(total), 0)
-  cardPayments.value = props?.ventas?.reduce((total, venta) => venta.metodo_pago === 'tarjeta' ? Number(total) + Number(venta.total) : Number(total), 0)
+  // Calcular el total de ventas seleccionadas por corte o todos
+  // Si hay ventas seleccionadas por corte, usar esas. Si no, usar todas las ventas disponibles
+  const ventasACalcular = ventas.value || props?.ventas || [];
+  cashPayments.value = ventasACalcular?.reduce((total, venta) => venta.metodo_pago === 'efectivo' ? Number(total) + Number(venta.total) : Number(total), 0)
+  cardPayments.value = ventasACalcular?.reduce((total, venta) => venta.metodo_pago === 'tarjeta' ? Number(total) + Number(venta.total) : Number(total), 0)
 }
+
+const selectedCorteId = ref(null);
+
+const filterVentasByCorte = (corteId, fechaInicio, fechaFin) => {
+  selectedCorteId.value = corteId;
+
+  // Filtrar las ventas que están dentro del rango de tiempo del corte
+  ventas.value = props.ventas.filter(venta => {
+    const ventaDate = new Date(venta.created_at);
+    return ventaDate >= new Date(fechaInicio) && ventaDate <= new Date(fechaFin);
+  });
+
+  // Actualizar los pagos en efectivo y con tarjeta
+  calculatePayments();
+};
+
+const resetCorteSelection = () => {
+  selectedCorteId.value = null;
+  ventas.value = props.ventas; // Mostrar todas las ventas
+  calculatePayments(); // Recalcular pagos
+};
 
 const showToast = (icon, title) => {
   Swal.mixin({
@@ -364,19 +431,27 @@ const handleSaveInitialCash = () => {
     dinero_inicio: initialCash.value
   };
 
+  savingInitialCash.value = true;
+
   try {
-    router.post(route('corte-caja.guardar-inicial'), data, { 
+    router.post(route('corte-caja.guardar-inicial'), data, {
       preserveScroll: true,
       onSuccess: (e) => {
         if(e.props.flash.success){
+          if (e.props.corte) {
+            initialCash.value = e.props.corte.dinero_inicio;
+            initialCashSaved.value = true;
+          }
           showToast("success", e.props.flash.success);
         }else{
           showToast("error", e.props.flash.error);
         }
+        savingInitialCash.value = false;
       }
-     });
+    });
   } catch (e) {
     showToast("error", e.error || "Error al guardar la cantidad inicial");
+    savingInitialCash.value = false;
   }
 };
 
@@ -388,18 +463,27 @@ const handleSaveFinalCash = () => {
     dinero_final: finalCash.value
   };
 
+  savingFinalCash.value = true;
+
   try {
-    router.post('/corte-caja/guardar-final', data, { preserveScroll: true, 
+    router.post('/corte-caja/guardar-final', data, { preserveScroll: true,
       onSuccess: (e) => {
         if(e.props.flash.success){
+          // Actualizar el corte en los datos locales
+          if (e.props.corte) {
+            finalCash.value = e.props.corte.dinero_final;
+            finalCashSaved.value = true;
+          }
           showToast("success", e.props.flash.success);
         }else{
           showToast("error", e.props.flash.error);
         }
+        savingFinalCash.value = false;
       },
     })
   } catch (e) {
     showToast("error", e.error || "Error al guardar la cantidad final");
+    savingFinalCash.value = false;
   }
 };
 
@@ -428,8 +512,8 @@ const editVenta = (ventaId) => {
   isEditing.value = true;
 };
 
-const saveEditedVenta = async () => {
-  
+const saveEditedVenta = () => {
+
   const data = {
     venta_id: editedVentaId.value,
     productos: editedProducts.value.map(producto => ({
@@ -441,7 +525,7 @@ const saveEditedVenta = async () => {
 
   console.log(data);
   try {
-    const response = await axios.post('/ventas/editar', data);
+    const response = axios.post('/ventas/editar', data);
     if (response.status === 200) {
       showToast("success", "Venta actualizada correctamente");
       fetchFilteredData(); // Recargar los datos para reflejar los cambios
@@ -454,6 +538,31 @@ const saveEditedVenta = async () => {
   }
 };
 
+const handleNewCorte = async () => {
+  savingNewCorte.value = true;
+  try {
+    const response =  await axios.post('/corte-caja/crear-corte', {
+      dinero_inicio: 0
+    });
+    console.log(response);
+    if (response.status === 200) {
+      showToast("success", "Nuevo corte creado correctamente");
+      console.log(response);
+      initialCash.value = 0;
+      finalCash.value = 0;
+      window.location.reload();
+    } else {
+      console.log(response);
+      showToast("error", response.data.error || "Error al crear nuevo corte");
+    }
+  } catch (error) {
+    console.log(error);
+    showToast("error", error.response || "Error al crear nuevo corte");
+  } finally {
+    savingNewCorte.value = false;
+  }
+}
+
 const cancelEdit = () => {
   isEditing.value = false
 }
@@ -462,6 +571,10 @@ const cancelEdit = () => {
 <style>
 .print {
     display: block !important;
+}
+
+.selected-corte {
+  border: 2px solid #3b82f6; /* Resaltar con un borde azul */
 }
 
 @media print {

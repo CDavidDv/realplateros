@@ -82,7 +82,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     
     Route::post('/corte-caja/guardar-inicial', [CorteCajaController::class, 'guardarInicial'])->name('corte-caja.guardar-inicial');
     Route::post('/corte-caja/guardar-final', [CorteCajaController::class, 'guardarFinal'])->name('corte-caja.guardar-final');
-    
+    Route::post('/corte-caja/crear-corte', [CorteCajaController::class, 'crearCorte'])->name('corte-caja.crear-corte');
+
     Route::post('/corte-caja', [CorteCajaController::class, 'filtro'])->name('corte-caja.filtro');
 
 
