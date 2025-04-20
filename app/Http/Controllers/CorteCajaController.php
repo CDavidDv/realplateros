@@ -129,7 +129,7 @@ class CorteCajaController extends Controller
             return back()->with('error', 'No existe un corte de caja para esta fecha. Debe guardar la cantidad inicial primero.');
         }
 
-        if (!is_null($ultimoCorte->dinero_final)) {
+        if ($ultimoCorte->dinero_final !== null) {
             return back()->with('error', 'Ya existe un dinero final para esta fecha y corte de caja.');
         }
 
@@ -138,29 +138,7 @@ class CorteCajaController extends Controller
         $ultimoCorte->save();
 
         return back()->with('success', 'Cantidad final guardada correctamente.');
-        // Verifica si ya existe un corte de caja para esa sucursal y fecha
-        $corteCaja = CorteCaja::where('sucursal_id', $usuario->sucursal_id)
-                            ->where('fecha', $request->fecha)
-                            ->first();
-
-        // Si no existe el corte de caja, devuelve un error
-        if (!$corteCaja) {
-            return back()->with('error', 'No existe un corte de caja para esta fecha. Debe guardar la cantidad inicial primero.');
-        } 
-        
-        // Si ya existe un corte final, muestra un mensaje de error
-        if (!is_null($corteCaja->dinero_final)) {
-            return back()->with('error', 'Ya existe un corte final registrado para esta fecha.');
-        }
-
-        // Si existe el corte de caja y no tiene corte final, actualiza el registro
-        $corteCaja->dinero_final = $request->dinero_final;
-        $corteCaja->usuario_id = $usuario->id; // Actualiza el usuario si es necesario
-        $corteCaja->save();
-
-        return back()->with('success', 'Cantidad final guardada correctamente.');
     }
-
 
 
     public function filtro(Request $request)
@@ -191,10 +169,18 @@ class CorteCajaController extends Controller
             ->whereBetween('created_at', [$startDate, $endDate])
             ->get();
 
+        //sumar 6 horas a cada venta
+        $ventas = $ventas->map(function ($venta) {
+            $venta->created_at = $venta->created_at->addHours(6);
+            $venta->updated_at = $venta->updated_at->addHours(6);
+            return $venta;
+        });
+
         // Cálculos adicionales
         $cashPayments = $ventas->where('metodo_pago', 'efectivo')->sum('total');
+        
         $cardPayments = $ventas->where('metodo_pago', 'tarjeta')->sum('total');
-
+    
         // Productos vendidos
         $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
             ->whereHas('venta', function ($query) use ($sucursalId, $startDate, $endDate) {
@@ -204,15 +190,18 @@ class CorteCajaController extends Controller
             ->groupBy('producto_id')
             ->with('producto')
             ->get();
+        
 
         // Caja inicial y final
         $initialCash = CorteCaja::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', $startDate)
             ->value('dinero_inicio');
 
+
         $finalCash = CorteCaja::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', $endDate)
             ->value('dinero_final');
+
 
         // Inventario
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
@@ -225,9 +214,17 @@ class CorteCajaController extends Controller
             })
             ->get();
 
+    
+
         $cortes = CorteCaja::where('sucursal_id', $sucursalId)
             ->whereBetween('created_at', [$startDate, $endDate])
             ->get();
+        //sumar 6 horas a cada corte
+        $cortes = $cortes->map(function ($corte) {
+            $corte->created_at = $corte->created_at->addHours(6);
+            $corte->updated_at = $corte->updated_at->addHours(6);
+            return $corte;
+        });
 
         $cantidadCortes = $cortes->count();
 
@@ -236,6 +233,13 @@ class CorteCajaController extends Controller
             ->with(['inventario', 'trabajador'])
             ->whereBetween('created_at', [$startDate, $endDate])
             ->get();
+
+        //sumar 6 horas a cada registro de inventario
+        $registrosInventario = $registrosInventario->map(function ($registroInventario) {
+            $registroInventario->created_at = $registroInventario->created_at->addHours(6);
+            $registroInventario->updated_at = $registroInventario->updated_at->addHours(6);
+            return $registroInventario;
+        });
 
         $gastos = Gastos::where('sucursal_id', $sucursalId)
             ->with('trabajador')
@@ -275,15 +279,36 @@ class CorteCajaController extends Controller
             ->whereDate('created_at', Carbon::today())
             ->get();
 
+        //sumar 6 horas a cada venta
+        $ventas = $ventas->map(function ($venta) {
+            $venta->created_at = $venta->created_at->addHours(6);
+            $venta->updated_at = $venta->updated_at->addHours(6);
+            return $venta;
+        });
+
         $ventasEfectivo = Venta::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
             ->where('metodo_pago', 'efectivo')
             ->get();
 
+        //sumar 6 horas a cada venta
+        $ventasEfectivo = $ventasEfectivo->map(function ($venta) {
+            $venta->created_at = $venta->created_at->addHours(6);
+            $venta->updated_at = $venta->updated_at->addHours(6);
+            return $venta;
+        });
+
         $ventasTarjeta = Venta::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
             ->where('metodo_pago', 'tarjeta')
             ->get();
+
+        //sumar 6 horas a cada venta
+        $ventasTarjeta = $ventasTarjeta->map(function ($venta) {
+            $venta->created_at = $venta->created_at->addHours(6);
+            $venta->updated_at = $venta->updated_at->addHours(6);
+            return $venta;
+        });
 
         // Obtener los productos vendidos de la sucursal, sumando las cantidades por producto
         $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
@@ -295,6 +320,13 @@ class CorteCajaController extends Controller
             ->whereDate('created_at', Carbon::today()) // Cambiar el nombre del modelo relacionado si es necesario
             ->get();
 
+        //sumar 6 horas a cada producto vendido
+        $productosVendidos = $productosVendidos->map(function ($producto) {
+            $producto->created_at = $producto->created_at->addHours(6);
+            $producto->updated_at = $producto->updated_at->addHours(6);
+            return $producto;
+        });
+
         // Obtener inventario de la sucursal
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
         //obtener el ultimo corte de caja de la sucursal
@@ -303,6 +335,13 @@ class CorteCajaController extends Controller
            ->whereDate('created_at', Carbon::today())
            ->latest('created_at')
            ->first();
+
+        //sumar 6 horas al corte si no es null 
+        if ($corte) {
+            $corte->created_at = $corte->created_at->addHours(6);
+            $corte->updated_at = $corte->updated_at->addHours(6);
+        }
+
         //contar los cortes de caja de la sucursal
         $cantidadDeCortes = CorteCaja::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())  
@@ -313,6 +352,13 @@ class CorteCajaController extends Controller
             ->whereDate('created_at', Carbon::today())
             ->get();
 
+        //sumar 6 horas a cada corte
+        $cortes = $cortes->map(function ($corte) {
+            $corte->created_at = $corte->created_at->addHours(6);
+            $corte->updated_at = $corte->updated_at->addHours(6);
+            return $corte;
+        });
+
         $estimaciones = Estimaciones::where('sucursal_id', $sucursalId)
            ->with('inventario') // Carga la relación Inventario
            ->get();
@@ -322,17 +368,37 @@ class CorteCajaController extends Controller
             ->where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
             ->get();
+
+        //sumar 6 horas a cada venta producto
+        $ventaProductos = $ventaProductos->map(function ($ventaProducto) {
+            $ventaProducto->created_at = $ventaProducto->created_at->addHours(6);
+            $ventaProducto->updated_at = $ventaProducto->updated_at->addHours(6);
+            return $ventaProducto;
+        }); 
            
         $registrosInventario = EntradasInventario::where('sucursal_id', $sucursalId)
             ->with(['inventario', 'trabajador' ])
             ->whereDate('created_at', Carbon::today())
             ->get(); 
 
+        //sumar 6 horas a cada registro de inventario
+        $registrosInventario = $registrosInventario->map(function ($registroInventario) {
+            $registroInventario->created_at = $registroInventario->created_at->addHours(6);
+            $registroInventario->updated_at = $registroInventario->updated_at->addHours(6);
+            return $registroInventario;
+        });
+
         $gastos = Gastos::where('sucursal_id', $sucursalId)
             ->with('trabajador')
             ->whereDate('created_at', Carbon::today())
             ->get();
 
+        //sumar 6 horas a cada gasto
+        $gastos = $gastos->map(function ($gasto) {
+            $gasto->created_at = $gasto->created_at->addHours(6);
+            $gasto->updated_at = $gasto->updated_at->addHours(6);
+            return $gasto;
+        });
         $totalGastos = $gastos->sum('costo');
     
         $sobrantes = Inventario::where('sucursal_id', $sucursalId)
@@ -377,3 +443,4 @@ class CorteCajaController extends Controller
         return response()->json(['corte' => $corteNuevo]);
     }
 }
+

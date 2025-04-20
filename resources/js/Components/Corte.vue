@@ -96,11 +96,12 @@
               <div class="grid grid-cols-3 gap-4">
                 <div v-for="(corte, index) in props.cortes" :key="corte.id"
                      class="bg-white p-3 rounded shadow"
-                     :class="{ 'selected-corte': selectedCorteId === corte.id }"
-                     @click="filterVentasByCorte(corte.id, corte.created_at, corte.updated_at)">
+                     >
                   <h4 class="font-medium">Corte #{{ index + 1 }}</h4>
                   <p class="text-sm text-gray-600">Inicial: ${{ safeToFixed(corte.dinero_inicio || 0) }}</p>
                   <p class="text-sm text-gray-600">Final: ${{ safeToFixed(corte.dinero_final || 0) }}</p>
+                  <p class="text-sm text-gray-600">Hora inicio: {{ formatDate(corte.created_at) }}</p>
+                  <p class="text-sm text-gray-600">Hora fin: {{ formatDate(corte.updated_at) }}</p>
                 </div>
                 
               </div>
@@ -395,6 +396,13 @@ const filterVentasByCorte = (corteId, createdAt, updatedAt) => {
   }
 
   console.log(createdAt, updatedAt)
+  //hora en mexico es 6 horas mas
+  const createdAtMexico = new Date(createdAt).getTime() + 6 * 60 * 60 * 1000;
+  const updatedAtMexico = new Date(updatedAt).getTime() + 6 * 60 * 60 * 1000;
+  console.log(createdAtMexico, updatedAtMexico)
+  const createdAtMexicoDate = new Date(createdAtMexico);
+  const updatedAtMexicoDate = new Date(updatedAtMexico);
+  console.log(createdAtMexicoDate, updatedAtMexicoDate)
 
   selectedCorteId.value = corteId;
 
@@ -418,8 +426,6 @@ const filterVentasByCorte = (corteId, createdAt, updatedAt) => {
   // Actualizar los pagos en efectivo y con tarjeta
   calculatePayments();
 };
-
-
 
 const resetCorteSelection = () => {
   selectedCorteId.value = null;
