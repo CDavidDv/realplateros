@@ -322,8 +322,12 @@ class CorteCajaController extends Controller
 
         //sumar 6 horas a cada producto vendido
         $productosVendidos = $productosVendidos->map(function ($producto) {
-            $producto->created_at = $producto->created_at->addHours(6);
-            $producto->updated_at = $producto->updated_at->addHours(6);
+            if($producto->created_at){
+                $producto->created_at = $producto->created_at->addHours(6);
+            }
+            if($producto->updated_at){
+                $producto->updated_at = $producto->updated_at->addHours(6);
+            }
             return $producto;
         });
 
