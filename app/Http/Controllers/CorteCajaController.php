@@ -318,7 +318,7 @@ class CorteCajaController extends Controller
             ->groupBy('producto_id')
             ->with('producto')
             ->whereDate('created_at', Carbon::today()) // Cambiar el nombre del modelo relacionado si es necesario
-            ->get();
+            ->get();  
 
         //sumar 6 horas a cada producto vendido
         $productosVendidos = $productosVendidos->map(function ($producto) {

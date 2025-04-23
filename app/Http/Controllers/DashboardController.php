@@ -8,6 +8,7 @@ use App\Models\Hornos;
 use App\Models\Inventario;
 use App\Models\Sucursal;
 use App\Models\User;
+use App\Models\Venta;
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -47,7 +48,8 @@ class DashboardController extends Controller
 
         // Filtra el inventario por sucursal_id
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
-        $ticketId = session('ticket_id');
+        $numeroTiketsPorSucursal = Venta::where('sucursal_id', $sucursalId)->count();
+        $ticketId = $numeroTiketsPorSucursal + 1;
 
         $categorias = Inventario::select('tipo')->distinct()->get();
         $sucursales = Sucursal::all();
