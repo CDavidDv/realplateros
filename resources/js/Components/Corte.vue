@@ -144,79 +144,110 @@
         </div>
 
         <!-- Ventas -->
-        <div class="mb-6 ">
+        <div class="mb-6">
           <div class="flex justify-between">
             <h2 class="text-xl font-semibold mb-4">Ventas</h2>
             <button @click="imprimir" class="no-print size-fit py-1 px-2 mr-8 rounded-md text-white hover:bg-purple-600 bg-purple-500">
               Imprimir
             </button>
           </div>
-          <div v-if="ventas.length <= 0" class="text-gray-500 ">No se han vendido productos en este período.</div>
-          <div v-else class="overflow-x-auto h-screen overflow-auto ventasR">
-            <table class="tabla min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th v-for="tab in tabTitles" :key="tab" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {{ tab }}
-                  </th>
-                  <th v-if="$page.props.user.roles[0] != 'trabajador'" class="no-print px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                <tr class="odd:bg-white even:bg-gray-100" v-for="venta in ventas" :key="venta.id">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
-                    {{ venta.id }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap overflow-auto text-sm text-gray-500">
-                    <span class="print">
-                      {{ `${venta?.usuario?.name}
-                          ${venta?.usuario?.apellido_p ? venta?.usuario?.apellido_p : ''}
-                          ${venta?.usuario?.apellido_m ? venta?.usuario?.apellido_m : ''}` }}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                    {{ formatDate(venta.created_at) }}
-                  </td>
-                  <td class="px-6 py-4 text-sm text-gray-500">
-                    <div class="flex flex-col space-y-1">
-                      <div v-for="producto in venta.detalles" :key="producto.id" class="flex justify-between">
-                        <span>
-                          {{ producto.cantidad }} × {{ producto.producto?.nombre || 'Producto desconocido' }}
-                        </span>
-                        <span
-                          :class="[
-                            'font-semibold',
-                            (!producto?.cantidadEditado || producto?.cantidadEditado === producto?.cantidad )
-                              ? 'text-gray-700'
-                              : 'text-red-700'
-                          ]">
-                          ${{ (producto.producto?.precio ?? 0) * (producto.cantidad ?? 0) }}
-                        </span>
+          
+          <div v-if="ventasPorCorte.length <= 0" class="text-gray-500">
+            No se han vendido productos en este período.
+          </div>
+          
+          <div v-else>
+            <div v-for="corte in ventasPorCorte" :key="corte.id" class="mb-8">
+              <div class="bg-gray-100 p-4 rounded-lg mb-4">
+                <h3 class="text-lg font-semibold">
+                  Corte #{{ corte.id }}
+                  <span class="text-sm text-gray-600">
+                    ({{ formatDate(corte.created_at) }} - {{ formatDate(corte.updated_at) }})
+                  </span>
+                </h3>
+                <div class="grid grid-cols-3 gap-4 mt-2">
+                  <div>
+                    <p class="text-sm text-gray-600">Efectivo:</p>
+                    <p class="font-medium">${{ safeToFixed(calcularTotalesPorCorte(corte.ventas).efectivo) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600">Tarjetas:</p>
+                    <p class="font-medium">${{ safeToFixed(calcularTotalesPorCorte(corte.ventas).tarjeta) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600">Total:</p>
+                    <p class="font-medium">${{ safeToFixed(calcularTotalesPorCorte(corte.ventas).total) }}</p>
+                  </div>
+                </div>
+              </div>
 
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 text-sm text-gray-500 capitalize text-center">
-                    {{ venta.metodo_pago }}
-                  </td>
-                  <td class="px-6 py-4 text-sm text-gray-900 font-semibold text-right">
-                    ${{ venta.total }}
-                  </td>
-                  <td v-if="$page.props.user.roles[0] != 'trabajador'" class="no-print px-6 py-4 text-center">
-                    <div class="flex justify-center gap-2">
-                      <button @click="editVenta(venta.id)" class="text-white rounded-md px-2 py-1 bg-orange-500 hover:bg-orange-700">
-                        Editar
-                      </button>
-                      <!-- <button @click="deleteVenta(venta.id)" class="text-white rounded-md px-2 py-1 bg-red-500 hover:bg-red-700">
-                        Eliminar
-                      </button> -->
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+              <div class="overflow-x-auto h-screen overflow-auto ventasR">
+                <table class="tabla min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th v-for="tab in tabTitles" :key="tab" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {{ tab }}
+                      </th>
+                      <th v-if="$page.props.user.roles[0] != 'trabajador'" class="no-print px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr class="odd:bg-white even:bg-gray-100" v-for="venta in corte.ventas" :key="venta.id">
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                        {{ venta.id }}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap overflow-auto text-sm text-gray-500">
+                        <span class="print">
+                          {{ `${venta?.usuario?.name}
+                              ${venta?.usuario?.apellido_p ? venta?.usuario?.apellido_p : ''}
+                              ${venta?.usuario?.apellido_m ? venta?.usuario?.apellido_m : ''}` }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                        {{ formatDate(venta.created_at) }}
+                      </td>
+                      <td class="px-6 py-4 text-sm text-gray-500">
+                        <div class="flex flex-col space-y-1">
+                          <div v-for="producto in venta.detalles" :key="producto.id" class="flex justify-between">
+                            <span>
+                              {{ producto.cantidad }} × {{ producto.producto?.nombre || 'Producto desconocido' }}
+                            </span>
+                            <span
+                              :class="[
+                                'font-semibold',
+                                (!producto?.cantidadEditado || producto?.cantidadEditado === producto?.cantidad )
+                                  ? 'text-gray-700'
+                                  : 'text-red-700'
+                              ]">
+                              ${{ (producto.producto?.precio ?? 0) * (producto.cantidad ?? 0) }}
+                            </span>
+
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 text-sm text-gray-500 capitalize text-center">
+                        {{ venta.metodo_pago }}
+                      </td>
+                      <td class="px-6 py-4 text-sm text-gray-900 font-semibold text-right">
+                        ${{ venta.total }}
+                      </td>
+                      <td v-if="$page.props.user.roles[0] != 'trabajador'" class="no-print px-6 py-4 text-center">
+                        <div class="flex justify-center gap-2">
+                          <button @click="editVenta(venta.id)" class="text-white rounded-md px-2 py-1 bg-orange-500 hover:bg-orange-700">
+                            Editar
+                          </button>
+                          <!-- <button @click="deleteVenta(venta.id)" class="text-white rounded-md px-2 py-1 bg-red-500 hover:bg-red-700">
+                            Eliminar
+                          </button> -->
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -320,6 +351,54 @@ const formatDate = (dateString) => {
     minute: '2-digit',
     timeZone: 'America/Mexico_City'
   });
+}
+
+const ventasPorCorte = ref([])
+
+//separar ventar por cada corte
+const SepararVentaPorCorte = () => {
+  ventasPorCorte.value = []
+  
+  // Si no hay cortes, mostrar todas las ventas en un solo grupo
+  if (!props.cortes || props.cortes.length === 0) {
+    ventasPorCorte.value = [{
+      id: 1,
+      ventas: ventas.value,
+      created_at: null,
+      updated_at: null
+    }]
+    return
+  }
+
+  // Agrupar ventas por corte
+  props.cortes.forEach((corte, index) => {
+    const ventasDelCorte = ventas.value.filter(venta => {
+      const ventaDate = new Date(venta.created_at)
+      const corteInicio = new Date(corte.created_at)
+      const corteFin = new Date(corte.updated_at)
+      return ventaDate >= corteInicio && ventaDate <= corteFin
+    })
+
+    ventasPorCorte.value.push({
+      id: corte.id,
+      ventas: ventasDelCorte,
+      created_at: corte.created_at,
+      updated_at: corte.updated_at,
+      dinero_inicio: corte.dinero_inicio,
+      dinero_final: corte.dinero_final
+    })
+  })
+}
+
+// Calcular totales por corte
+const calcularTotalesPorCorte = (ventas) => {
+  return {
+    efectivo: ventas.reduce((total, venta) => 
+      venta.metodo_pago === 'efectivo' ? total + Number(venta.total) : total, 0),
+    tarjeta: ventas.reduce((total, venta) => 
+      venta.metodo_pago === 'tarjeta' ? total + Number(venta.total) : total, 0),
+    total: ventas.reduce((total, venta) => total + Number(venta.total), 0)
+  }
 }
 
 const registrosInventario = ref(props?.registrosInventario)
@@ -528,6 +607,7 @@ const handleSaveFinalCash = () => {
 
 onMounted(() => {
   calculatePayments()
+  SepararVentaPorCorte() // Llamar a la función al montar el componente
 })
 
 const safeToFixed = (value) => {
