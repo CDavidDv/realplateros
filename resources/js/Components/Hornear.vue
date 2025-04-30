@@ -41,7 +41,8 @@
     <div class="mt-6">
       <SistemaHorneado />
       <PastesHorneados />
-      <EstimacionPastes />
+      <EstimacionPastes v-if="$page.props.auth.user.roles[0].name == 'admin'"
+       />
     </div>
   </div>
 </template>

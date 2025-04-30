@@ -229,7 +229,6 @@ const completeSale = () => {
     onSuccess: (a) => {
       
       printTicket(a.props.ticket_id)
-      printTicket(a.props.ticket_id)
       
       inventario.value = a.props.inventario;
       ticket.value = [];

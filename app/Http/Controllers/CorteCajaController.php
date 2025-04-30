@@ -281,8 +281,8 @@ class CorteCajaController extends Controller
 
         //sumar 6 horas a cada venta
         $ventas = $ventas->map(function ($venta) {
-            $venta->created_at = $venta->created_at->addHours(6);
-            $venta->updated_at = $venta->updated_at->addHours(6);
+            //$venta->created_at = $venta->created_at->addHours(6);
+            //$venta->updated_at = $venta->updated_at->addHours(6);
             return $venta;
         });
 
@@ -293,8 +293,8 @@ class CorteCajaController extends Controller
 
         //sumar 6 horas a cada venta
         $ventasEfectivo = $ventasEfectivo->map(function ($venta) {
-            $venta->created_at = $venta->created_at->addHours(6);
-            $venta->updated_at = $venta->updated_at->addHours(6);
+            //$venta->created_at = $venta->created_at->addHours(6);
+            //$venta->updated_at = $venta->updated_at->addHours(6);
             return $venta;
         });
 
@@ -305,8 +305,8 @@ class CorteCajaController extends Controller
 
         //sumar 6 horas a cada venta
         $ventasTarjeta = $ventasTarjeta->map(function ($venta) {
-            $venta->created_at = $venta->created_at->addHours(6);
-            $venta->updated_at = $venta->updated_at->addHours(6);
+            //$venta->created_at = $venta->created_at->addHours(6);
+            //$venta->updated_at = $venta->updated_at->addHours(6);
             return $venta;
         });
 
@@ -323,10 +323,10 @@ class CorteCajaController extends Controller
         //sumar 6 horas a cada producto vendido
         $productosVendidos = $productosVendidos->map(function ($producto) {
             if($producto->created_at){
-                $producto->created_at = $producto->created_at->addHours(6);
+                //$producto->created_at = $producto->created_at->addHours(6);
             }
             if($producto->updated_at){
-                $producto->updated_at = $producto->updated_at->addHours(6);
+                //$producto->updated_at = $producto->updated_at->addHours(6);
             }
             return $producto;
         });
@@ -358,8 +358,8 @@ class CorteCajaController extends Controller
 
         //sumar 6 horas a cada corte
         $cortes = $cortes->map(function ($corte) {
-            $corte->created_at = $corte->created_at->addHours(6);
-            $corte->updated_at = $corte->updated_at->addHours(6);
+            //$corte->created_at = $corte->created_at->addHours(6);
+            //$corte->updated_at = $corte->updated_at->addHours(6);
             return $corte;
         });
 
@@ -375,8 +375,8 @@ class CorteCajaController extends Controller
 
         //sumar 6 horas a cada venta producto
         $ventaProductos = $ventaProductos->map(function ($ventaProducto) {
-            $ventaProducto->created_at = $ventaProducto->created_at->addHours(6);
-            $ventaProducto->updated_at = $ventaProducto->updated_at->addHours(6);
+            //$ventaProducto->created_at = $ventaProducto->created_at->addHours(6);
+            //$ventaProducto->updated_at = $ventaProducto->updated_at->addHours(6);
             return $ventaProducto;
         }); 
            
