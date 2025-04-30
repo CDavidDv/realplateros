@@ -230,7 +230,9 @@
 
   <Gastos  :gastos="gastos" />
 
-  <Sobrantes :sobrantes="sobrantes" :categoriasInventario="categoriasInventario" />
+  <!--enviar numero de cortes-->
+
+  <Sobrantes  :cantidadDeCortes="cantidadDeCortes" :sobrantes="sobrantes" :categoriasInventario="categoriasInventario" :sobrantesInventario="sobrantesInventario" />
 
   <ChartCorte
       v-if="$page.props.user.roles[0] != 'trabajador'"
@@ -274,6 +276,8 @@ import Sobrantes from './Sobrantes.vue'
 const { props } = usePage()
 
 const sobrantes = ref(props.sobrantes)
+const sobrantesInventario = ref(props.sobrantesInventario)
+const cantidadDeCortes = ref(props?.cantidadDeCortes || 0)
 const categoriasInventario = ref(props?.categoriasInventario || [])
 const selectedFilter = ref('day')
 const today = new Date();
@@ -355,6 +359,13 @@ const fetchFilteredData = () => {
       totalGastos.value = response.props.totalGastos || 0;
       props.cortes = response.props.cortes || [];
       cantidadCortes.value = response?.props?.cantidadCortes || 0;
+      sobrantes.value = response.props.sobrantes || [];
+      sobrantesInventario.value = response.props.sobrantesInventario || [];
+      cantidadDeCortes.value = response.props.cantidadDeCortes || 0;
+      categoriasInventario.value = response.props.categoriasInventario || [];
+
+      console.log(response.props)
+
       showToast("success", "Filtro actualizado correctamente");
       calculatePayments(); // Llamar a calculatePayments después de obtener los datos
     },

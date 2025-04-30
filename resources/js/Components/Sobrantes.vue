@@ -4,12 +4,16 @@
             <h1 class="text-xl font-bold text-gray-800">Sobrantes</h1>
         </div>
 
-        <!-- Sobrantes agrupados por categoría -->
-        <div v-for="categoria in categoriasInventario" :key="categoria.tipo" class="mb-6">
-            <h2 class="text-lg font-semibold text-gray-700 mb-3 capitalize">{{ categoria.tipo }}</h2>
-            
-            <div class="overflow-x-auto">
+        <!-- Sobrantes agrupados por corte y tipo -->
+        <div v-for="(corteId, index) in Object.keys(sobrantesPorCorte).sort()" :key="corteId" class="mb-6">
+            <div class="mb-4 w-full bg-slate-300 p-4 rounded-lg text-center">
+                <h2 class="text-2xl font-semibold text-gray-700">Corte #{{ index + 1 }}</h2>
+            </div>
+
+            <!-- Tabla para cada tipo de producto -->
+            <div v-for="(sobrantes, tipo) in sobrantesPorCorte[corteId]" :key="tipo" class="overflow-x-auto mb-4">
                 <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-md">
+                    <caption class="text-base font-semibold text-gray-700 mb-2 capitalize">{{ tipo }}</caption>
                     <thead>
                         <tr class="bg-gray-50 border-b">
                             <th class="py-2 px-4 text-left text-sm font-medium text-gray-600">Producto</th>
@@ -18,34 +22,46 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="sobrante in sobrantes.filter(s => s.tipo === categoria.tipo)" 
-                            :key="sobrante.id" 
-                            class="border-b hover:bg-gray-50">
-                            <td class="py-2 px-4">{{ sobrante.nombre }}</td>
+                        <tr v-for="sobrante in sobrantes" :key="sobrante.id" class="border-b hover:bg-gray-50">
+                            <td class="py-2 px-4">{{ sobrante.inventario.nombre }}</td>
                             <td class="py-2 px-4">{{ sobrante.cantidad }}</td>
-                            <td class="py-2 px-4">{{ sobrante.detalle }}</td>
-                        </tr>
-                        <tr v-if="!sobrantes.some(s => s.tipo === categoria.tipo)" class="border-b">
-                            <td colspan="3" class="py-2 px-4 text-center text-gray-500">
-                                No hay sobrantes en esta categoría
-                            </td>
+                            <td class="py-2 px-4">{{ sobrante.inventario.detalle }}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <div v-if="categoriasInventario.length === 0" class="text-center py-4">
-            <p class="text-gray-500">No hay categorías definidas</p>
+        <div v-if="!props.sobrantes.length" class="text-center py-4">
+            <p class="text-gray-500">No hay sobrantes registrados</p>
         </div>
     </div>
 </template>
 
 <script setup>
+import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
     sobrantes: Array,
     categoriasInventario: Array,
+    sobrantesInventario: Array,
+    cantidadDeCortes: Number,
+});
+
+const sobrantesPorCorte = computed(() => {
+    return props.sobrantes.reduce((acc, sobrante) => {
+        const corteId = sobrante.corte_caja_id || 'sin_corte';
+        const tipo = sobrante.inventario?.tipo || 'sin_tipo';
+
+        if (!acc[corteId]) {
+            acc[corteId] = {};
+        }
+        if (!acc[corteId][tipo]) {
+            acc[corteId][tipo] = [];
+        }
+        acc[corteId][tipo].push(sobrante);
+        return acc;
+    }, {});
 });
 
 const formatDate = (dateString) => {
@@ -59,4 +75,6 @@ const formatDate = (dateString) => {
         timeZone: 'America/Mexico_City'
     });
 };
+
+console.log(props.sobrantes);
 </script>

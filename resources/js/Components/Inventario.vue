@@ -70,7 +70,7 @@
                             <label for="itemCategory" class="block text-sm font-medium text-gray-700">Categoría</label>
                             <select v-model="currentItem.tipo" id="itemCategory" required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50">
-                                <option v-for="categoria in categorias" class=" capitalize" :value="categoria.tipo">{{categoria.tipo}}</option>
+                                <option v-for="categoria in categorias" :key="categoria.id" class=" capitalize" :value="categoria.tipo">{{categoria.tipo}}</option>
                             </select>
                         </div>
                         <div>
@@ -204,7 +204,7 @@
                 <h2 class="text-xl font-semibold mb-4">Eliminar Categoría</h2>
                 
                 <select v-model="categoriaToDelete" class="w-full mb-4 px-3 py-2 border rounded-lg capitalize focus:outline-none focus:ring-2 focus:ring-orange-500">
-                    <option v-for="categoria in categorias"  :value="categoria" class=" capitalize">{{ categoria.tipo }}</option>
+                    <option v-for="categoria in categorias"  :key="categoria.id" :value="categoria" class=" capitalize">{{ categoria.tipo }}</option>
                 </select>
                 <div class="flex justify-end space-x-2">
                     <button

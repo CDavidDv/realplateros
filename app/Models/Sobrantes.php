@@ -13,6 +13,7 @@ class Sobrantes extends Model
         'inventario_id',
         'sucursal_id',
         'cantidad',
+        'corte_caja_id',
     ];
     public function inventario()
     {
@@ -21,5 +22,9 @@ class Sobrantes extends Model
     public function sucursal()
     {
         return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id');
+    }
+    public function corteCaja()
+    {
+        return $this->belongsTo(CorteCaja::class, 'corte_caja_id', 'id');
     }
 }

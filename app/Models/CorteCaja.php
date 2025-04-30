@@ -35,4 +35,10 @@ class CorteCaja extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    // Relación con la tabla Sobrantes
+    public function sobrantes()
+    {
+        return $this->hasMany(Sobrantes::class);
+    }
 }
