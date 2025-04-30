@@ -171,8 +171,8 @@ class CorteCajaController extends Controller
 
         //sumar 6 horas a cada venta
         $ventas = $ventas->map(function ($venta) {
-            $venta->created_at = $venta->created_at->addHours(6);
-            $venta->updated_at = $venta->updated_at->addHours(6);
+            //$venta->created_at = $venta->created_at->addHours(6);
+            //$venta->updated_at = $venta->updated_at->addHours(6);
             return $venta;
         });
 
@@ -221,8 +221,8 @@ class CorteCajaController extends Controller
             ->get();
         //sumar 6 horas a cada corte
         $cortes = $cortes->map(function ($corte) {
-            $corte->created_at = $corte->created_at->addHours(6);
-            $corte->updated_at = $corte->updated_at->addHours(6);
+            //$corte->created_at = $corte->created_at->addHours(6);
+            //$corte->updated_at = $corte->updated_at->addHours(6);
             return $corte;
         });
 
@@ -236,8 +236,8 @@ class CorteCajaController extends Controller
 
         //sumar 6 horas a cada registro de inventario
         $registrosInventario = $registrosInventario->map(function ($registroInventario) {
-            $registroInventario->created_at = $registroInventario->created_at->addHours(6);
-            $registroInventario->updated_at = $registroInventario->updated_at->addHours(6);
+            //$registroInventario->created_at = $registroInventario->created_at->addHours(6);
+            //$registroInventario->updated_at = $registroInventario->updated_at->addHours(6);
             return $registroInventario;
         });
 
@@ -342,8 +342,8 @@ class CorteCajaController extends Controller
 
         //sumar 6 horas al corte si no es null 
         if ($corte) {
-            $corte->created_at = $corte->created_at->addHours(6);
-            $corte->updated_at = $corte->updated_at->addHours(6);
+            //$corte->created_at = $corte->created_at->addHours(6);
+            //$corte->updated_at = $corte->updated_at->addHours(6);
         }
 
         //contar los cortes de caja de la sucursal
@@ -387,8 +387,8 @@ class CorteCajaController extends Controller
 
         //sumar 6 horas a cada registro de inventario
         $registrosInventario = $registrosInventario->map(function ($registroInventario) {
-            $registroInventario->created_at = $registroInventario->created_at->addHours(6);
-            $registroInventario->updated_at = $registroInventario->updated_at->addHours(6);
+            //$registroInventario->created_at = $registroInventario->created_at->addHours(6);
+            //$registroInventario->updated_at = $registroInventario->updated_at->addHours(6);
             return $registroInventario;
         });
 
