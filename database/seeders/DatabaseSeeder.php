@@ -18,7 +18,8 @@ class DatabaseSeeder extends Seeder
             SucursalSeeder::class,
             InventariosSeeder::class,
             RoleSeeder::class,
-            UserSeeder::class
+            UserSeeder::class,
+            HornoSeeder::class,
         ]);
     }
 }

@@ -12,18 +12,23 @@ class Hornos extends Model
     protected $table = 'horno';
 
     protected $fillable = [
-        'id',
+        'nombre',
         'sucursal_id',
+        'estado',
         'tiempo_inicio',
         'tiempo_fin',
-        'estado',
-        'created_at',
-        'updated_at',
         'pastesHorneando'
     ];
 
     protected $casts = [
+        'estado' => 'boolean',
         'pastesHorneando' => 'array',
+        'tiempo_inicio' => 'datetime',
+        'tiempo_fin' => 'datetime'
     ];
-    
+
+    public function sucursal()
+    {
+        return $this->belongsTo(Sucursal::class);
+    }
 }

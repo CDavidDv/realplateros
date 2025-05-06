@@ -50,32 +50,48 @@
   </div>
 
   <!-- Sección de Horneado -->
-  <div class="mt-8 bg-white shadow rounded-lg p-6">
-    <h2 class="text-xl font-semibold mb-4">Horno</h2>
-    <div v-if="horneando">
-      <p class="text-lg mb-2">Horneando grupo de pastes:</p>
-      <ul>
-        <li v-for="paste in pastesHorneando" :key="paste.nombre">
-          {{ paste.cantidad }} {{ paste.nombre }} - masa {{ paste.masa }}
-        </li>
-      </ul>
-      <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-4">
-        <div class="bg-orange-600 h-2.5 rounded-full transition-all duration-100"
-          :style="{ width: `${(tiempoTranscurrido / tiempoTotal) * 100}%` }"></div>
-          
+  <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div v-for="(horno, index) in hornosActivos" :key="horno.id" class="bg-white shadow rounded-lg p-6">
+      <div class="flex justify-between">
+        <h2 class="text-xl font-semibold mb-4">Horno {{ index + 1 }}</h2>
+        <button @click="deleteHorno(horno.id)" v-if="!horno.horneando && hornos.length > 1" 
+          class="flex items-center gap-2 bg-red-600 text-white hover:bg-red-800 rounded-lg px-2 py-1 focus:outline-none focus:underline">
+
+          <Trash2 class="w-4 h-4" />
+        </button>
       </div>
-      <p>Tiempo restante: {{ labeltime }}</p>
+
+      <div v-if="horno.horneando">
+        <p class="text-lg mb-2">Horneando grupo de pastes:</p>
+        <ul>
+          <li v-for="paste in horno.pastesHorneando" :key="paste.nombre">
+            {{ paste.cantidad }} {{ paste.nombre }} - masa {{ paste.masa }}
+          </li>
+        </ul>
+        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-4">
+          <div class="bg-orange-600 h-2.5 rounded-full transition-all duration-100"
+            :style="{ width: `${(horno.tiempoTranscurrido / tiempoTotal) * 100}%` }"></div>
+        </div>
+        <p>Tiempo restante: {{ horno.labeltime }}</p>
+      </div>
+      <div v-else>
+        <p class="text-lg mb-4">El horno está disponible</p>
+        <button @click="iniciarHorneado" :disabled="!pastesPorHornear.length"
+          class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
+          Iniciar Horneado de Grupo
+        </button>
+      </div>
     </div>
-    <div v-else>
-      
-      <p class="text-lg mb-4">El horno está disponible</p>
-      <button @click="iniciarHorneado" :disabled="!pastesPorHornear.length"
-        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
-        Iniciar Horneado de Grupo
+    <!-- Botón para crear nuevo horno solo cuando todos estén ocupados -->
+    <div class="mt-4 h-full flex justify-center items-center">
+      <button @click="crearHorno" 
+        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+        Crear Nuevo Horno
       </button>
     </div>
   </div>
-
+  
+  
   <!-- Lista de Pastes por Hornear -->
   <div class="mt-8 bg-white shadow rounded-lg p-6">
     <h2 class="text-xl font-semibold mb-4">Grupos de Pastes por Hornear</h2>
@@ -92,6 +108,7 @@
       </li>
     </ul>
   </div>
+  
 </template>
 
 <script setup>
@@ -99,54 +116,66 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { usePage, router } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import axios from 'axios';
+import { Trash, Trash2 } from 'lucide-vue-next';
 
 const { props } = usePage();
 const inventario = props.inventario;
+const hornos = ref(props.hornos || []);
 
-// Inicialización del estado del horno
-const horneando = ref(props?.horno?.estado || false);
-const pastesHorneando = ref(
-  horneando.value && props?.horno?.pastesHorneando
-    ? props.horno.pastesHorneando
-    : []
-);
+// Inicialización del estado de los hornos
+const hornosActivos = ref(hornos.value.map(horno => ({
+  ...horno,
+  horneando: horno.estado || false,
+  pastesHorneando: horno.pastesHorneando || [],
+  tiempoInicio: horno.tiempo_inicio ? new Date(horno.tiempo_inicio).getTime() : 0,
+  tiempoFin: horno.tiempo_fin ? new Date(horno.tiempo_fin).getTime() : 0,
+  tiempoTranscurrido: 0,
+  timer: null,
+  labeltime: '00:00'
+})));
+
 //tiempo horneado 15 min 15 * 60 * 10000
 //90000
-const tiempoTotal = ref(15 * 60 * 1000); 
-const tiempoTranscurrido = ref(0);
+const tiempoTotal = ref(10 * 1000); 
 const pastesPorHornear = ref([]);
-const tiempoInicio = ref(horneando.value ? new Date(props?.horno?.tiempo_inicio).getTime() : 0);
-const tiempoFin = ref(horneando.value ? new Date(props?.horno?.tiempo_fin).getTime() : 0);
-const timer = ref(null);
 
 // Función para iniciar el horneado
 const iniciarHorneado = () => {
-  if (pastesPorHornear.value.length === 0 || horneando.value) return;
+  if (pastesPorHornear.value.length === 0) return;
 
-  horneando.value = true;
-  pastesHorneando.value = [...pastesPorHornear.value];
-  pastesPorHornear.value = [];
+  // Buscar un horno disponible
+  const hornoDisponible = hornosActivos.value.find(h => !h.horneando);
+  
+  if (hornoDisponible) {
+    // Usar el horno disponible
+    hornoDisponible.horneando = true;
+    hornoDisponible.pastesHorneando = [...pastesPorHornear.value];
+    pastesPorHornear.value = [];
 
-  tiempoInicio.value = Date.now();
-  tiempoFin.value = tiempoInicio.value + tiempoTotal.value;
+    hornoDisponible.tiempoInicio = Date.now();
+    hornoDisponible.tiempoFin = hornoDisponible.tiempoInicio + tiempoTotal.value;
 
-  try {
-
-    axios.post('/iniciar-horneado', {
-      tiempo_inicio: tiempoInicio.value,
-      tiempo_fin: tiempoFin.value,
-      pastes_horneando: pastesHorneando.value,
-      estado: true,
-    }).then(response => {
-    }).catch(error => {
+    try {
+      axios.post('/iniciar-horneado', {
+        horno_id: hornoDisponible.id,
+        tiempo_inicio: hornoDisponible.tiempoInicio,
+        tiempo_fin: hornoDisponible.tiempoFin,
+        pastes_horneando: hornoDisponible.pastesHorneando,
+        estado: true,
+      }).then(response => {
+      }).catch(error => {
+        console.error('Error al iniciar el horneado:', error);
+      });
+      
+      Swal.fire({ icon: 'success', title: 'Horneando', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+      iniciarTemporizador(hornoDisponible.id);
+    } catch (error) {
       console.error('Error al iniciar el horneado:', error);
-    });
-    
-    Swal.fire({ icon: 'success', title: 'Horneando', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
-    iniciarTemporizador();
-  } catch (error) {
-    console.error('Error al iniciar el horneado:', error);
-    Swal.fire({ icon: 'error', title: 'Error al iniciar', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+      Swal.fire({ icon: 'error', title: 'Error al iniciar', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+    }
+  } else {
+    // Si no hay hornos disponibles, crear uno nuevo
+    crearHorno();
   }
 };
 
@@ -154,7 +183,7 @@ const Toast = Swal.mixin({
   toast: true,
   position: 'top-end',
   showConfirmButton: false,
-  timer: 3000,
+  timer: 1500,
   timerProgressBar: true,
   didOpen: (toast) => {
     toast.addEventListener('mouseenter', Swal.stopTimer);
@@ -163,42 +192,96 @@ const Toast = Swal.mixin({
 });
 
 // Función para finalizar el horneado
-const finalizarHorneado = () => {
+const finalizarHorneado = async (hornoId) => {
+  console.log(`Horno ${hornoId} - Iniciando finalización...`);
+  const horno = hornosActivos.value.find(h => h.id === hornoId);
+  if (!horno || !horno.horneando) {
+    console.log(`Horno ${hornoId} - No se puede finalizar:`, { 
+      existe: !!horno, 
+      horneando: horno?.horneando 
+    });
+    return;
+  }
 
-  if(checkEstado()) return;
-  clearInterval(timer.value);
+  try {
+    const estado = await checkEstado(horno);
+    
+    
+    if (estado) {
+      clearInterval(horno.timer);
+      
 
-  const pastesFinalizados = [...pastesHorneando.value];
-  horneando.value = false;
-  pastesHorneando.value = [];
-  tiempoTranscurrido.value = 0;
+      const pastesFinalizados = [...horno.pastesHorneando];
+      horno.horneando = false;
+      horno.pastesHorneando = [];
+      horno.tiempoTranscurrido = 0;
+      horno.labeltime = '00:00';
 
-  reproducirSonido();
+      
 
-  router.post('/hornear', { pastes: pastesFinalizados },  {
-    preserveScroll: true,
-    preserveState: false,
-    replace: true,
-    onSuccess: () => {
-      Toast.fire({ icon: 'success', title: 'Horneado finalizado' });
-    },
-    onError: (errors) => {
-      console.error('Error al registrar el horneado:', errors);
-      Toast.fire({ icon: 'error', title: 'Error al registrar el horneado' });
-    },
-  });
+      reproducirSonido();
+
+      // Registrar en control de producción
+      for (const paste of pastesFinalizados) {
+        // Buscar el ID del paste en el inventario
+        const pasteEnInventario = inventario.find(item => 
+          item.nombre.toLowerCase() === paste.nombre.toLowerCase() && 
+          (item.tipo === 'pastes' || item.tipo === 'empanadas saladas' || item.tipo === 'empanadas dulces')
+        );
+
+        if (pasteEnInventario) {
+          try {
+            await axios.post('/api/control-produccion/horneado', {
+              horno_id: hornoId,
+              paste_id: pasteEnInventario.id,
+              cantidad: paste.cantidad
+            });
+
+          } catch (error) {
+            console.error(`Horno ${hornoId} - Error al registrar producción para ${paste.nombre}:`, error);
+          }
+        } else {
+          console.error(`Horno ${hornoId} - No se encontró el paste ${paste.nombre} en el inventario`);
+        }
+      }
+
+      // Actualizar el estado del horno y registrar horneado
+      await router.post('/hornear', { 
+        horno_id: hornoId,
+        pastes: pastesFinalizados 
+      }, {
+        preserveScroll: true,
+        preserveState: false,
+        replace: true,
+        onSuccess: () => {
+          
+          Toast.fire({ icon: 'success', title: 'Horneado finalizado' });
+        },
+        onError: (errors) => {
+          console.error(`Horno ${hornoId} - Error al registrar el horneado:`, errors);
+          Toast.fire({ icon: 'error', title: 'Error al registrar el horneado' });
+        },
+      });
+    }
+  } catch (error) {
+    console.error(`Horno ${hornoId} - Error en finalizarHorneado:`, error);
+  }
 };
 
-const checkEstado = () => {
-  axios.post('/check-estado', { pastes: pastesHorneando.value })
-  .then(response => {
+const checkEstado = async (horno) => {
+  try {
+    const response = await axios.post('/check-estado', { 
+      horno_id: horno.id,
+      pastes: horno.pastesHorneando 
+    });
+    console.log(`Horno ${horno.id} - Respuesta de check-estado:`, response.data);
     return response.data.estado;
-  })
-  .catch(error => {
-    console.error('Error al obtener el estado del horno:', error);
+  } catch (error) {
+    console.error(`Horno ${horno.id} - Error al obtener el estado del horno:`, error);
     return false;
-  });
-}
+  }
+};
+
 // Función para reproducir sonido
 const reproducirSonido = () => {
   const audio = new Audio('/sound/videoplayback.mp3');
@@ -211,9 +294,9 @@ const rellenos = computed(() => inventario.filter(item => item.tipo === 'relleno
 
 const masasActualizadas = computed(() => {
   return masas.value.map(masa => {
-    const cantidadHorneando = pastesHorneando.value
-      .filter(paste => paste.masa === masa.nombre)
-      .reduce((acc, paste) => acc + paste.cantidad, 0);
+    const cantidadHorneando = hornosActivos.value
+      .filter(horno => horno.horneando && horno.pastesHorneando.some(paste => paste.masa === masa.nombre))
+      .reduce((acc, horno) => acc + horno.pastesHorneando.find(paste => paste.masa === masa.nombre).cantidad, 0);
 
     return {
       ...masa,
@@ -224,9 +307,9 @@ const masasActualizadas = computed(() => {
 
 const rellenosActualizados = computed(() => {
   return rellenos.value.map(relleno => {
-    const cantidadHorneando = pastesHorneando.value
-      .filter(paste => paste.nombre === relleno.nombre)
-      .reduce((acc, paste) => acc + paste.cantidad, 0);
+    const cantidadHorneando = hornosActivos.value
+      .filter(horno => horno.horneando && horno.pastesHorneando.some(paste => paste.nombre === relleno.nombre))
+      .reduce((acc, horno) => acc + horno.pastesHorneando.find(paste => paste.nombre === relleno.nombre).cantidad, 0);
 
     return {
       ...relleno,
@@ -320,98 +403,205 @@ const cancelarPaste = (id) => {
   pastesPorHornear.value = pastesPorHornear.value.filter(paste => paste.id !== id);
 };
 
-const finalizarContinueTimer = () => {
+const finalizarContinueTimer = (hornoId) => {
+  const horno = hornosActivos.value.find(h => h.id === hornoId);
+  if (!horno) return;
 
-if(checkEstado()) return;
-clearInterval(timer.value);
-clearInterval(continueTimer.value)
+  if(checkEstado(horno)) return;
+  clearInterval(horno.timer);
 
-horneando.value = false;
-pastesHorneando.value = [];
-tiempoTranscurrido.value = 0;
+  horno.horneando = false;
+  horno.pastesHorneando = [];
+  horno.tiempoTranscurrido = 0;
 
-reproducirSonido();
-Toast.fire({ icon: 'success', title: 'Horneado finalizado' });
+  reproducirSonido();
+  Toast.fire({ icon: 'success', title: 'Horneado finalizado' });
 };
 
+const iniciarTemporizador = (hornoId) => {
+  const horno = hornosActivos.value.find(h => h.id === hornoId);
+  if (!horno) return;
 
-const iniciarTemporizador = () => {
-  const tiempoFinMs = tiempoFin.value;
-
-  // Calcular el tiempo restante
+  const tiempoFinMs = horno.tiempoFin;
   const tiempoRestante = tiempoFinMs - Date.now();
   
-  // Si el tiempo restante es menor o igual a 0, finalizar el horneado
+  console.log(`Horno ${hornoId} - Iniciando temporizador:`, {
+    tiempoFin: new Date(tiempoFinMs).toLocaleTimeString(),
+    tiempoRestante: formatearTiempo(tiempoRestante),
+    estado: horno.horneando
+  });
+  
   if (tiempoRestante <= 0) {
-    finalizarHorneado();
+    console.log(`Horno ${hornoId} - Tiempo ya pasó, finalizando...`);
+    finalizarHorneado(hornoId);
     return;
   }
 
-  // Calcular el tiempo transcurrido correctamente
-  tiempoTranscurrido.value = tiempoTotal.value - tiempoRestante;
+  horno.tiempoTranscurrido = tiempoTotal.value - tiempoRestante;
+  horno.labeltime = formatearTiempo(tiempoRestante);
 
-  // Iniciar el temporizador
-  timer.value = setInterval(() => {
-    const tiempoRestante = tiempoFinMs - Date.now();
-    
-    // Actualizar el tiempo transcurrido
-    tiempoTranscurrido.value = tiempoTotal.value - tiempoRestante;
-    
-    labeltime.value = formatearTiempo(tiempoRestante);
-    console.log("tiempo transcurrido: ", labeltime.value)
-    // Si el tiempo restante es menor o igual a 0, finalizar el horneado
-    if (tiempoRestante <= 0) {
-      finalizarHorneado();
-    }
-  }, 1000);
-};
-
-const continuarTemporizador = () => {
-  const tiempoFinMs = tiempoFin.value;
-
-  // Calcular el tiempo restante
-  const tiempoRestante = tiempoFinMs - Date.now();
-  
-  // Si el tiempo restante es menor o igual a 0, finalizar el horneado
-  if (tiempoRestante <= 0) {
-    finalizarContinueTimer();
-    return;
+  if (horno.timer) {
+    clearInterval(horno.timer);
   }
 
-  // Calcular el tiempo transcurrido correctamente
-  tiempoTranscurrido.value = tiempoTotal.value - tiempoRestante;
-
-  // Iniciar el temporizador
-  continueTimer.value = setInterval(() => {
-    const tiempoRestante = tiempoFinMs - Date.now();
+  horno.timer = setInterval(() => {
+    const tiempoRestante = horno.tiempoFin - Date.now();
     
-    // Actualizar el tiempo transcurrido
-    tiempoTranscurrido.value = tiempoTotal.value - tiempoRestante;
+    console.log(`Horno ${hornoId} - Tick del temporizador:`, {
+      tiempoRestante: formatearTiempo(tiempoRestante),
+      labeltime: horno.labeltime,
+      estado: horno.horneando
+    });
     
-    labeltime.value = formatearTiempo(tiempoRestante);
-    console.log("tiempo transcurrido: ", labeltime.value)
-    // Si el tiempo restante es menor o igual a 0, finalizar el horneado
     if (tiempoRestante <= 0) {
-      finalizarContinueTimer();
+      console.log(`Horno ${hornoId} - Tiempo terminado, finalizando...`);
+      clearInterval(horno.timer);
+      finalizarHorneado(hornoId);
+      return;
     }
+
+    horno.tiempoTranscurrido = tiempoTotal.value - tiempoRestante;
+    horno.labeltime = formatearTiempo(tiempoRestante);
   }, 1000);
 };
 
-const continueTimer = ref(null);
+const continuarTemporizador = (hornoId) => {
+  const horno = hornosActivos.value.find(h => h.id === hornoId);
+  if (!horno) return;
+
+  const tiempoFinMs = horno.tiempoFin;
+  const tiempoRestante = tiempoFinMs - Date.now();
+  
+  // Si el tiempo ya pasó, finalizar inmediatamente
+  if (tiempoRestante <= 0) {
+    finalizarHorneado(hornoId);
+    return;
+  }
+  console.log(tiempoRestante)
+    
+  horno.tiempoTranscurrido = tiempoTotal.value - tiempoRestante;
+  horno.labeltime = formatearTiempo(tiempoRestante);
+
+  // Limpiar el temporizador existente si hay uno
+  if (horno.timer) {
+    clearInterval(horno.timer);
+  }
+
+  horno.timer = setInterval(() => {
+    const tiempoRestante = horno.tiempoFin - Date.now();
+    
+    // Si el tiempo ya pasó, finalizar inmediatamente
+    if (tiempoRestante <= 0) {
+      clearInterval(horno.timer);
+      finalizarHorneado(hornoId);
+      return;
+    }
+    console.log(tiempoRestante)
+
+    horno.tiempoTranscurrido = tiempoTotal.value - tiempoRestante;
+    horno.labeltime = formatearTiempo(tiempoRestante);
+  }, 1000);
+};
 
 onMounted(() => {
-  if (horneando.value) {
-    // Recalcula el tiempoFin en función del tiempo actual
-    const tiempoTranscurridoDesdeInicio = Date.now() - tiempoInicio.value;
-    tiempoFin.value = Date.now() + (tiempoTotal.value - tiempoTranscurridoDesdeInicio);
-    
-    // Inicia el temporizador
-    continuarTemporizador();
-  }
+  //limpiar todos los timers
+  hornosActivos.value.forEach(horno => {
+    if (horno.timer) {
+      clearInterval(horno.timer);
+    }
+  });
+
+  console.log('Componente montado - Hornos activos:', hornosActivos.value);
+  hornosActivos.value.forEach(horno => {
+    if (horno.estado) {
+      console.log(`Horno ${horno.id} - Iniciando en onMounted:`, {
+        estado: horno.estado,
+        tiempoInicio: new Date(horno.tiempo_inicio).toLocaleTimeString(),
+        tiempoFin: new Date(horno.tiempo_fin).toLocaleTimeString()
+      });
+
+      const tiempoTranscurridoDesdeInicio = Date.now() - new Date(horno.tiempo_inicio).getTime();
+      const tiempoRestante = tiempoTotal.value - tiempoTranscurridoDesdeInicio;
+      
+      if (tiempoRestante <= 0) {
+        console.log(`Horno ${horno.id} - Tiempo ya pasó en onMounted, finalizando...`);
+        finalizarHorneado(horno.id);
+        return;
+      }
+
+      horno.tiempoFin = Date.now() + tiempoRestante;
+      continuarTemporizador(horno.id);
+    }
+  });
 });
 
+/*
 onUnmounted(() => {
-  clearInterval(continueTimer.value)
-})
+  console.log('Componente desmontado - Limpiando timers');
+  hornosActivos.value.forEach(horno => {
+    if (horno.timer) {
+      clearInterval(horno.timer);
+      console.log(`Horno ${horno.id} - Timer limpiado en onUnmounted`);
+    }
+  });
+});
+*/
+const crearHorno = () => {
+  router.post('/crear-horno', {
+    estado: false,
+    pastesHorneando: [],
+  }, {
+    preserverScroll: true,
+    preserveState: false,
+    onSuccess: (response) => {
+
+      hornos.value = response?.props?.hornos;
+      pastesPorHornear.value = [];
+
+      hornosActivos.value = hornos.value.map(horno => ({
+        ...horno,
+        horneando: horno.estado || false,
+        pastesHorneando: horno.pastesHorneando || [],
+        tiempoInicio: horno.tiempo_inicio ? new Date(horno.tiempo_inicio).getTime() : 0,
+        tiempoFin: horno.tiempo_fin ? new Date(horno.tiempo_fin).getTime() : 0,
+        timer: null,
+        labeltime: '00:00'
+      }));
+
+      Swal.fire({ icon: 'success', title: 'Horno creado', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+    },
+    onError: (errors) => {
+      console.error('Error al crear el horno:', errors);
+      Swal.fire({ icon: 'error', title: 'Error al crear horno', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+    }
+  });
+};
+
+const deleteHorno = (id) => {
+  router.post('/eliminar-horno', {
+    horno_id: id
+  }, {
+    preserveScroll: true,
+    preserveState: false,
+    onSuccess: (response) => {
+      hornos.value = response?.props?.hornos;
+      hornosActivos.value = hornos.value.map(horno => ({
+        ...horno,
+        horneando: horno.estado || false,
+        pastesHorneando: horno.pastesHorneando || [],
+        tiempoInicio: horno.tiempo_inicio ? new Date(horno.tiempo_inicio).getTime() : 0,
+        tiempoFin: horno.tiempo_fin ? new Date(horno.tiempo_fin).getTime() : 0,
+        timer: null,
+        labeltime: '00:00'
+      }));
+      
+      Swal.fire({ icon: 'success', title: 'Horno eliminado', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+    },
+    onError: (errors) => {
+      console.error('Error al eliminar el horno:', errors);
+      Swal.fire({ icon: 'error', title: 'Error al eliminar horno', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+    }
+  });
+};
 
 </script>

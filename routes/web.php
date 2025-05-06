@@ -5,6 +5,7 @@ use App\Http\Controllers\CheckInCheckOutController;
 use App\Http\Controllers\CorteCajaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EstimacionesController;
+use App\Http\Controllers\HornoController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\PrintController;
 use App\Http\Controllers\RoleController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\SobrantesController;
 use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\ControlProduccionController;
 use Illuminate\Support\Facades\Route;
 use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 
@@ -27,10 +29,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/asignar', [VentaController::class, 'procesarTicket'])->name('ticket.procesar');
 
     Route::get('/hornear', [DashboardController::class, 'hornear'])->name("hornear");
-    Route::post('/hornear', [DashboardController::class, 'procesarPastesHorneados']);
-    Route::post('/iniciar-horneado', [DashboardController::class, 'iniciar_horneado']);
-    Route::post('/check-estado', [DashboardController::class, 'check_estado']);
-
+    Route::post('/hornear', [HornoController::class, 'procesarPastesHorneados']);
+    Route::post('/iniciar-horneado', [HornoController::class, 'iniciar_horneado']);
+    Route::post('/check-estado', [HornoController::class, 'check_estado']);
+    Route::post('/crear-horno', [HornoController::class, 'crear_horno']);
+    Route::post('/eliminar-horno', [HornoController::class, 'eliminar_horno']);
     Route::get('/tickets', [InventarioController::class, 'tickets'])->name("tickets");
     Route::post('/tickets/cancelar', [InventarioController::class, 'ticketsCancel'])->name("tickets.cancelar");
     Route::post('/tickets/buscar', [InventarioController::class, 'ticketsBuscar'])->name("tickets.buscar");
@@ -92,7 +95,15 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
     
     Route::get('/almacen', [AlmacenController::class, 'almacen'])->name("almacen");
+    
+    Route::get('/api/control-produccion', [ControlProduccionController::class, 'index']);
+    Route::post('/api/control-produccion/retiro', [ControlProduccionController::class, 'registrarRetiro']);
+    Route::post('/api/control-produccion/venta', [ControlProduccionController::class, 'registrarVenta']);
+    Route::post('/api/control-produccion/horneado', [ControlProduccionController::class, 'registrarHorneado']);
 });
+
+
+
 
 //si no se encuentra el link regresar a la pagina principal
 Route::fallback(function () {

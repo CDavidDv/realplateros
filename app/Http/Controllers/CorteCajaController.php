@@ -263,6 +263,11 @@ class CorteCajaController extends Controller
             ->distinct()
             ->get();
 
+        //ventaProdcutos
+        $ventaProductos = VentaProducto::with('producto')
+            ->where('sucursal_id', $sucursalId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
             
 
         return Inertia::render('Corte/index', [
@@ -386,6 +391,11 @@ class CorteCajaController extends Controller
             ->distinct()
             ->get();
 
+            //ventaProdcutos
+        $ventaProductos = VentaProducto::with('producto')
+            ->where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::today())
+            ->get();
         
 
         return Inertia::render('Corte/index', [
