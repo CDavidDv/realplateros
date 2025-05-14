@@ -12,8 +12,8 @@ import Swal from 'sweetalert2';
 // Estado
 const checkNotificationsInterval = ref(null);
 const lastNotificationTime = ref(Date.now());
-// 5 * 60 * 1000 = 5 minutos
-const NOTIFICATION_INTERVAL = 1 * 30 * 1000; // 5 minutos en milisegundos
+
+const NOTIFICATION_INTERVAL = 180000; // 50 segundos
 const UPDATE_INTERVAL = 30 * 1000; // 30 segundos para actualizar datos
 
 // Props y computed properties
@@ -24,7 +24,7 @@ const estimaciones = computed(() => props.estimacionesHoy || []);
 
 //estimaciones
 watch(estimaciones.value, (newEstimaciones) => {
-  console.log(newEstimaciones);
+  // console.log(newEstimaciones); // Comentado para reducir ruido, descomentar si es necesario
 });
 
 const notificaciones_guardadas = ref(props.notificaciones?.faltantes || []);
@@ -211,19 +211,51 @@ const actualizarNotificaciones = (nuevasNotificaciones) => {
   notificaciones_guardadas.value = nuevasNotificaciones;
 };
 
+// Función de utilidad para filtrar notificaciones considerando horneados
+const filterNotificationsForUI = (notificationsToFilter, horneadosList) => {
+  if (!notificationsToFilter || notificationsToFilter.length === 0) return [];
+  const horneados = horneadosList || []; // Asegurar que horneadosList sea un array
+
+  return notificationsToFilter
+    .map(notif => {
+      const pasteId = parseInt(notif.id.toString().split('-')[0]);
+      const horaOriginalNotif = notif.hora; // ej: "10:00 am"
+
+      const itemHorneado = horneados.find(h =>
+        h.paste_id === pasteId && h.hora_notificacion === horaOriginalNotif
+      );
+      const cantidadHorneada = itemHorneado ? (itemHorneado.cantidad_horneada || 0) : 0;
+      const totalConsiderado = notif.existente + cantidadHorneada;
+      const estimadoNumerico = Number(notif.estimado);
+      const porcentajeCubierto = estimadoNumerico > 0 ? (totalConsiderado / estimadoNumerico) : 1;
+
+      return { ...notif, cantidadHorneada, totalConsiderado, porcentajeCubierto, estimadoNumerico };
+    })
+    .filter(notif => notif.estimadoNumerico > 0 && notif.porcentajeCubierto < 0.7);
+};
+
 // Watch para detectar cambios de hora
 watch(() => currentTime.value.hour, (newHour) => {
   if (newHour !== lastHour.value) {
     lastHour.value = newHour;
     // Forzar actualización de notificaciones al cambiar de hora
-    const notificarFaltantes = notificacionesFaltantes.value;
-    if (notificarFaltantes.length > 0) {
-      reproducirSonido();
-      showNotificationsWithDelay(notificarFaltantes.map(notif => ({
-        tipo: 'warning',
-        mensaje: `${notif.nombre} para las ${notif.hora}: ${Math.round((notif.existente / notif.estimado) * 100)}% del inventario estimado (mínimo 70%)`
-      })));
-      lastNotificationTime.value = Date.now();
+    const notificarFaltantesValor = notificacionesFaltantes.value;
+
+    if (notificarFaltantesValor && notificarFaltantesValor.length > 0) {
+      const horneadosData = usePage().props.notificaciones?.horneados || [];
+      const notificacionesHoraUI = filterNotificationsForUI(notificarFaltantesValor, horneadosData);
+
+      console.log('Watcher Cambio Hora - Faltantes Originales (solo inventario vs estimado):', JSON.parse(JSON.stringify(notificarFaltantesValor)));
+      console.log('Watcher Cambio Hora - Faltantes Para UI (considerando horneados):', JSON.parse(JSON.stringify(notificacionesHoraUI)));
+
+      if (notificacionesHoraUI.length > 0) {
+        reproducirSonido();
+        showNotificationsWithDelay(notificacionesHoraUI.map(notif => ({
+          tipo: 'warning',
+          mensaje: `${notif.nombre} para las ${notif.hora}: ${Math.round(notif.porcentajeCubierto * 100)}% cubierto (inv. + horneando). Mínimo 70%.`
+        })));
+        lastNotificationTime.value = Date.now();
+      }
     }
   }
 });
@@ -237,23 +269,21 @@ onMounted(() => {
 
   // Verificar notificaciones cada 30 segundos
   checkNotificationsInterval.value = setInterval(() => {
-    const notificarFaltantes = notificacionesFaltantes.value;
-    const notificarExcedentes = notificacionesExcedentes.value;
-    const currentTime = Date.now();
+    const currentTimestamp = Date.now(); // Renombrado para claridad
+    console.log(currentTimestamp, lastNotificationTime.value)
+    if (currentTimestamp - lastNotificationTime.value >= NOTIFICATION_INTERVAL) {
 
-    // Solo mostrar notificaciones si han pasado 30 segundos desde la última vez
-    if (currentTime - lastNotificationTime.value >= NOTIFICATION_INTERVAL) {
-      reproducirSonido();
+      const faltantesActuales = notificacionesFaltantes.value; // Obtener valor una vez
 
-      if (notificarFaltantes.length > 0) {
-        // Procesar cada notificación individualmente
-        notificarFaltantes.forEach(async (notif) => {
+      if (faltantesActuales && faltantesActuales.length > 0) {
+        // Procesar cada notificación individualmente para actualización en BD
+        faltantesActuales.forEach(async (notif) => {
           const notificacionId = `${notif.id}`;
           const cantidad = notif.estimado - notif.existente;
 
           // Extraemos el ID del paste y la hora de la notificación actual
-          const pasteId = parseInt(notificacionId.split('-')[0]);
-          const horaNotificacion = notificacionId.split('-')[1];
+          const pasteId = parseInt(notificacionId.toString().split('-')[0]);
+          const horaNotificacion = notif.hora; // Usar notif.hora que tiene el formato "10:00 am"
 
           // Verificamos que tengamos notificaciones antes de buscar
           if (!notificaciones_guardadas.value || notificaciones_guardadas.value.length === 0) {
@@ -269,12 +299,12 @@ onMounted(() => {
                 }
               }
             });
-            return;
+            return; // Salir del forEach para esta iteración si se registra nuevo
           }
 
           // Buscamos en todas las notificaciones guardadas
           const notificacionExistente = notificaciones_guardadas.value.find(
-            notif => notif.paste_id === pasteId && notif.hora_notificacion === horaNotificacion
+            ng => ng.paste_id === pasteId && ng.hora_notificacion === horaNotificacion
           );
 
           if (notificacionExistente) {
@@ -310,13 +340,22 @@ onMounted(() => {
           }
         });
 
-        showNotificationsWithDelay(notificarFaltantes.map(notif => ({
-          tipo: 'warning',
-          mensaje: `${notif.nombre} para las ${notif.hora}: ${Math.round((notif.existente / notif.estimado) * 100)}% del inventario estimado (mínimo 70%)`
-        })));
+        // Lógica para filtrar notificaciones a mostrar en UI considerando horneados
+        const horneadosData = usePage().props.notificaciones?.horneados || [];
+        const notificacionesIntervaloUI = filterNotificationsForUI(faltantesActuales, horneadosData);
+        
+        console.log('CheckInterval - Faltantes Originales (solo inventario vs estimado):', JSON.parse(JSON.stringify(faltantesActuales)));
+        console.log('CheckInterval - Faltantes Para UI (considerando horneados):', JSON.parse(JSON.stringify(notificacionesIntervaloUI)));
 
-        // Actualizar el tiempo de la última notificación
-        lastNotificationTime.value = currentTime;
+        if (notificacionesIntervaloUI.length > 0) {
+          reproducirSonido(); // Reproducir sonido solo si hay notificaciones UI que mostrar
+          showNotificationsWithDelay(notificacionesIntervaloUI.map(notif => ({
+            tipo: 'warning',
+            mensaje: `${notif.nombre} para las ${notif.hora}: ${Math.round(notif.porcentajeCubierto * 100)}% cubierto (inv. + horneando). Mínimo 70%.`
+          })));
+          
+          lastNotificationTime.value = currentTimestamp; // Actualizar tiempo solo si se mostraron notificaciones UI
+        }
       }
     }
   }, UPDATE_INTERVAL); // Verificar cada 30 segundos
