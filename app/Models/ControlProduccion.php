@@ -11,14 +11,15 @@ class ControlProduccion extends Model
     protected $fillable = [
         'horno_id',
         'paste_id',
+        'sucursal_id',
         'cantidad',
         'tiempo_inicio_horneado',
-        'tiempo_fin_horneado',
-        'tiempo_retiro_horno',
-        'tiempo_ultima_venta',
+        'diferencia_notificacion_inicio',
+        'hora_ultima_venta',
         'cantidad_vendida',
         'estado',
-        'sucursal_id'
+        'hora_notificacion',
+        'dia_notificacion',
     ];
 
     protected $casts = [

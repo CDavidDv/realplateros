@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Banner from '@/Components/Banner.vue';
@@ -8,6 +8,7 @@ import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import Almacen from '@/Components/Almacen.vue';
+import GlobalToastNotifications from '@/Components/GlobalToastNotifications.vue';
 
 defineProps({
     title: String,
@@ -31,6 +32,7 @@ const { props } = usePage()
 
 const role = ref(props.user.roles[0]);
 const isAlmacen = role.value === 'almacen';
+
 </script>
 
 <template>
@@ -38,6 +40,7 @@ const isAlmacen = role.value === 'almacen';
         <Head :title="title" />
 
         <Banner />
+        <GlobalToastNotifications />
 
         <div >
 

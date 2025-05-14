@@ -135,8 +135,8 @@ const hornosActivos = ref(hornos.value.map(horno => ({
 })));
 
 //tiempo horneado 15 min 15 * 60 * 10000
-//90000
-const tiempoTotal = ref(10 * 1000); 
+//90000 == 15 min
+const tiempoTotal = ref(9000); 
 const pastesPorHornear = ref([]);
 
 // Función para iniciar el horneado
@@ -146,6 +146,7 @@ const iniciarHorneado = () => {
   // Buscar un horno disponible
   const hornoDisponible = hornosActivos.value.find(h => !h.horneando);
   
+
   if (hornoDisponible) {
     // Usar el horno disponible
     hornoDisponible.horneando = true;
@@ -163,6 +164,7 @@ const iniciarHorneado = () => {
         pastes_horneando: hornoDisponible.pastesHorneando,
         estado: true,
       }).then(response => {
+        console.log(response)
       }).catch(error => {
         console.error('Error al iniciar el horneado:', error);
       });
@@ -193,13 +195,10 @@ const Toast = Swal.mixin({
 
 // Función para finalizar el horneado
 const finalizarHorneado = async (hornoId) => {
-  console.log(`Horno ${hornoId} - Iniciando finalización...`);
+  
   const horno = hornosActivos.value.find(h => h.id === hornoId);
   if (!horno || !horno.horneando) {
-    console.log(`Horno ${hornoId} - No se puede finalizar:`, { 
-      existe: !!horno, 
-      horneando: horno?.horneando 
-    });
+   
     return;
   }
 
@@ -229,7 +228,8 @@ const finalizarHorneado = async (hornoId) => {
           (item.tipo === 'pastes' || item.tipo === 'empanadas saladas' || item.tipo === 'empanadas dulces')
         );
 
-        if (pasteEnInventario) {
+
+        if (pasteEnInventario ) {
           try {
             await axios.post('/api/control-produccion/horneado', {
               horno_id: hornoId,
@@ -274,13 +274,13 @@ const checkEstado = async (horno) => {
       horno_id: horno.id,
       pastes: horno.pastesHorneando 
     });
-    console.log(`Horno ${horno.id} - Respuesta de check-estado:`, response.data);
     return response.data.estado;
   } catch (error) {
     console.error(`Horno ${horno.id} - Error al obtener el estado del horno:`, error);
     return false;
   }
 };
+
 
 // Función para reproducir sonido
 const reproducirSonido = () => {
@@ -396,7 +396,20 @@ const formatearTiempo = (milisegundos) => {
 };
 
 const agregarPaste = (producto) => {
-  pastesPorHornear.value.push(producto);
+  // Buscar el paste en el inventario para obtener su ID
+  const pasteEnInventario = inventario.find(item => 
+    item.nombre.toLowerCase() === producto.nombre.toLowerCase() && 
+    (item.tipo === 'pastes' || item.tipo === 'empanadas saladas' || item.tipo === 'empanadas dulces')
+  );
+
+  if (pasteEnInventario) {
+    pastesPorHornear.value.push({
+      ...producto,
+      paste_id: pasteEnInventario.id // Agregar el ID del inventario
+    });
+  } else {
+    console.error(`No se encontró el paste ${producto.nombre} en el inventario`);
+  }
 };
 
 const cancelarPaste = (id) => {
@@ -425,14 +438,8 @@ const iniciarTemporizador = (hornoId) => {
   const tiempoFinMs = horno.tiempoFin;
   const tiempoRestante = tiempoFinMs - Date.now();
   
-  console.log(`Horno ${hornoId} - Iniciando temporizador:`, {
-    tiempoFin: new Date(tiempoFinMs).toLocaleTimeString(),
-    tiempoRestante: formatearTiempo(tiempoRestante),
-    estado: horno.horneando
-  });
   
   if (tiempoRestante <= 0) {
-    console.log(`Horno ${hornoId} - Tiempo ya pasó, finalizando...`);
     finalizarHorneado(hornoId);
     return;
   }
@@ -447,14 +454,9 @@ const iniciarTemporizador = (hornoId) => {
   horno.timer = setInterval(() => {
     const tiempoRestante = horno.tiempoFin - Date.now();
     
-    console.log(`Horno ${hornoId} - Tick del temporizador:`, {
-      tiempoRestante: formatearTiempo(tiempoRestante),
-      labeltime: horno.labeltime,
-      estado: horno.horneando
-    });
     
     if (tiempoRestante <= 0) {
-      console.log(`Horno ${hornoId} - Tiempo terminado, finalizando...`);
+      
       clearInterval(horno.timer);
       finalizarHorneado(hornoId);
       return;
@@ -477,7 +479,6 @@ const continuarTemporizador = (hornoId) => {
     finalizarHorneado(hornoId);
     return;
   }
-  console.log(tiempoRestante)
     
   horno.tiempoTranscurrido = tiempoTotal.value - tiempoRestante;
   horno.labeltime = formatearTiempo(tiempoRestante);
@@ -496,7 +497,6 @@ const continuarTemporizador = (hornoId) => {
       finalizarHorneado(hornoId);
       return;
     }
-    console.log(tiempoRestante)
 
     horno.tiempoTranscurrido = tiempoTotal.value - tiempoRestante;
     horno.labeltime = formatearTiempo(tiempoRestante);
@@ -511,20 +511,14 @@ onMounted(() => {
     }
   });
 
-  console.log('Componente montado - Hornos activos:', hornosActivos.value);
   hornosActivos.value.forEach(horno => {
     if (horno.estado) {
-      console.log(`Horno ${horno.id} - Iniciando en onMounted:`, {
-        estado: horno.estado,
-        tiempoInicio: new Date(horno.tiempo_inicio).toLocaleTimeString(),
-        tiempoFin: new Date(horno.tiempo_fin).toLocaleTimeString()
-      });
+    
 
       const tiempoTranscurridoDesdeInicio = Date.now() - new Date(horno.tiempo_inicio).getTime();
       const tiempoRestante = tiempoTotal.value - tiempoTranscurridoDesdeInicio;
       
       if (tiempoRestante <= 0) {
-        console.log(`Horno ${horno.id} - Tiempo ya pasó en onMounted, finalizando...`);
         finalizarHorneado(horno.id);
         return;
       }

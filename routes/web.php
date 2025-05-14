@@ -14,6 +14,7 @@ use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\ControlProduccionController;
+use App\Http\Controllers\NotificacionUmbralController;
 use Illuminate\Support\Facades\Route;
 use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 
@@ -100,10 +101,17 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/api/control-produccion/retiro', [ControlProduccionController::class, 'registrarRetiro']);
     Route::post('/api/control-produccion/venta', [ControlProduccionController::class, 'registrarVenta']);
     Route::post('/api/control-produccion/horneado', [ControlProduccionController::class, 'registrarHorneado']);
+
+    Route::post('/api/notificaciones/registrar', [NotificacionUmbralController::class, 'registrarNotificacion'])->name('notificaciones.registrar');
+    Route::post('/api/notificaciones/actualizar', [NotificacionUmbralController::class, 'actualizarNotificaciones'])->name('notificaciones.actualizar');
 });
 
-
-
+// Rutas para notificaciones de umbral
+Route::middleware(['auth'])->group(function () {
+    Route::get('/api/notificaciones', [NotificacionUmbralController::class, 'getNotificaciones']);
+    Route::post('/api/notificaciones/actualizar-tiempo-horneado', [NotificacionUmbralController::class, 'actualizarTiempoHorneado']);
+    Route::get('/api/inventario', [InventarioController::class, 'getInventario']);
+});
 
 //si no se encuentra el link regresar a la pagina principal
 Route::fallback(function () {

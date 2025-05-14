@@ -1,6 +1,9 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SalesPanel from '@/Components/SalesPanel.vue';
+
+
+
 </script>
 
 

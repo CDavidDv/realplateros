@@ -55,6 +55,11 @@ class DashboardController extends Controller
 
         $hornos = Hornos::where('sucursal_id', $sucursalId)->get();
 
+        $estimacionesHoy = Estimaciones::with('inventario')
+            ->where('sucursal_id', $sucursalId)
+            ->where('dia', Carbon::now()->locale('es')->dayName)
+            ->get();    
+
         return Inertia::render('Dashboard/index', [
             'inventario' => $inventario,
             'ticket_id' => $ticketId,
@@ -62,6 +67,7 @@ class DashboardController extends Controller
             'sucursales' => $sucursales,
             'trabajadores' => $trabajadores,
             'hornos' => $hornos,
+            'estimacionesHoy' => $estimacionesHoy
         ]);
     }
 
@@ -89,13 +95,13 @@ class DashboardController extends Controller
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
 
-        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
-
+        
         $pastesHorneados = Horneados::where('sucursal_id', $sucursalId)
             ->with('responsable')
             ->whereDate('created_at', Carbon::now()->toDateString())
             ->get();
-
+        
+        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
         $diaHoy = Carbon::now()->locale('es')->dayName;
 
         $estimacionesHoy = Estimaciones::where('sucursal_id', $sucursalId)

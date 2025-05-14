@@ -166,6 +166,11 @@ const trabajadores = ref(
   props.trabajadores
 );
 
+const estimacionesHoy = ref(
+  props.estimacionesHoy
+);
+
+
 
 if(isAlmacen.value){
   categories.value = props.categorias.map(item => item.tipo)
@@ -228,8 +233,9 @@ const completeSale = () => {
     preserveScroll: true,
     onSuccess: (a) => {
       
-      printTicket(a.props.ticket_id)
+      console.log(a.props) 
       
+      printTicket(a.props.ticket_id)
       inventario.value = a.props.inventario;
       ticket.value = [];
       searchTerm.value = '';

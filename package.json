@@ -22,6 +22,7 @@
         "@heroicons/vue": "^2.1.5",
         "chart.js": "^4.4.6",
         "lucide-vue-next": "^0.473.0",
+        "mitt": "^3.0.1",
         "pinia": "^2.2.4",
         "sweetalert2": "^11.14.1"
     }

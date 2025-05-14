@@ -148,18 +148,20 @@ class ControlProduccionController extends Controller
     public function registrarHorneado(Request $request)
     {
         $request->validate([
-            'horno_id' => 'required|exists:hornos,id',
-            'paste_id' => 'required|exists:inventario,id',
+            'horno_id' => 'required|exists:horno,id',
+            'paste_id' => 'required|exists:inventarios,id',
             'cantidad' => 'required|integer|min:1'
         ]);
+
+        $sucursalId = Auth::user()->sucursal_id;
+
+        $produccion = ControlProduccion::where('sucursal_id', $sucursalId)
+            ->where('paste_id', $request->paste_id)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        $produccion->estado = 'en_espera';
         
-        $produccion = ControlProduccion::create([
-            'sucursal_id' => Auth::user()->sucursal_id,
-            'paste_id' => $request->paste_id,
-            'cantidad' => $request->cantidad,
-            'estado' => 'horneando',
-            'tiempo_horneado' => now()
-        ]);
 
         return response()->json([
             'message' => 'Horneado registrado correctamente',
@@ -171,8 +173,8 @@ class ControlProduccionController extends Controller
     {
         try {
             $request->validate([
-                'horno_id' => 'required|exists:hornos,id',
-                'paste_id' => 'required|exists:inventario,id',
+                'horno_id' => 'required|exists:horno,id',
+                'paste_id' => 'required|exists:inventarios,id',
                 'cantidad' => 'required|integer|min:1'
             ]);
 

@@ -370,14 +370,39 @@ const SepararVentaPorCorte = () => {
     return
   }
 
-  // Agrupar ventas por corte
-  props.cortes.forEach((corte, index) => {
-    const ventasDelCorte = ventas.value.filter(venta => {
-      const ventaDate = new Date(venta.created_at)
-      const corteInicio = new Date(corte.created_at)
-      const corteFin = new Date(corte.updated_at)
-      return ventaDate >= corteInicio && ventaDate <= corteFin
-    })
+  // Ordenar los cortes por fecha de creación
+  const cortesOrdenados = [...props.cortes].sort((a, b) => 
+    new Date(a.created_at) - new Date(b.created_at)
+  )
+
+  // Procesar cada corte
+  cortesOrdenados.forEach((corte, index) => {
+    const corteInicio = new Date(corte.created_at)
+    const corteFin = corte.updated_at ? new Date(corte.updated_at) : null
+    const corteAnterior = index > 0 ? cortesOrdenados[index - 1] : null
+    const corteAnteriorFin = corteAnterior?.updated_at ? new Date(corteAnterior.updated_at) : null
+
+    let ventasDelCorte = []
+
+    if (index === 0) {
+      // Primer corte: incluir todas las ventas desde el inicio del día hasta el final del primer corte
+      ventasDelCorte = ventas.value.filter(venta => {
+        const ventaDate = new Date(venta.created_at)
+        return ventaDate <= (corteFin || new Date())
+      })
+    } else if (corteFin) {
+      // Corte intermedio con hora de finalización: incluir ventas desde el final del corte anterior hasta el final de este corte
+      ventasDelCorte = ventas.value.filter(venta => {
+        const ventaDate = new Date(venta.created_at)
+        return ventaDate > corteAnteriorFin && ventaDate <= corteFin
+      })
+    } else {
+      // Último corte sin hora de finalización: incluir todas las ventas después del final del corte anterior
+      ventasDelCorte = ventas.value.filter(venta => {
+        const ventaDate = new Date(venta.created_at)
+        return ventaDate > corteAnteriorFin
+      })
+    }
 
     ventasPorCorte.value.push({
       id: corte.id,

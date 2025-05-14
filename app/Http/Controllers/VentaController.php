@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ControlProduccion;
 use App\Models\CorteCaja;
 use App\Models\Inventario;
 use App\Models\Ticket;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use PhpParser\Node\Stmt\Return_;
+use App\Models\Estimaciones;
 
 class VentaController extends Controller
 {
@@ -180,7 +182,7 @@ class VentaController extends Controller
             // Crear el registro de la venta
             $venta = new Venta();
             $venta->usuario_id = auth()->id();
-            $venta->sucursal_id = auth()->user()->sucursal_id; // Acceder al sucursal_id del usuario
+            $venta->sucursal_id = auth()->user()->sucursal_id;
             $venta->total = $total;
             $venta->metodo_pago = $metodoPago;
             $venta->save();
@@ -195,10 +197,31 @@ class VentaController extends Controller
                     $detalleVenta = new VentaProducto();
                     $detalleVenta->venta_id = $venta->id;
                     $detalleVenta->producto_id = $item->id;
-                    $detalleVenta->sucursal_id = auth()->user()->sucursal_id; // Acceder al sucursal_id del usuario
+                    $detalleVenta->sucursal_id = auth()->user()->sucursal_id;
                     $detalleVenta->cantidad = $producto['ticketQuantity'];
                     $detalleVenta->precio_unitario = $item->precio;
                     $detalleVenta->save();
+
+                    $control = ControlProduccion::where('sucursal_id', auth()->user()->sucursal_id)
+                        ->where('paste_id', $item->id)
+                        ->whereIn('estado', ['en_espera'])
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+
+                    if ($control) {
+                        if($control->cantidad_vendida + $producto['ticketQuantity'] >= $control->cantidad_horneada){
+                            $control->estado = 'vendido';
+                            $control->cantidad_vendida += $producto['ticketQuantity'];
+                            $control->hora_ultima_venta = Carbon::now();
+                            $control->save();
+                        }else{
+                            $control->cantidad_vendida += $producto['ticketQuantity'];
+                            $control->hora_ultima_venta = Carbon::now();
+                            $control->save();
+                        }
+                    }
+
+                    
                 }
             }
 
@@ -210,12 +233,59 @@ class VentaController extends Controller
                 'sucursal_id' => auth()->user()->sucursal_id, 
                 'metodo_pago' => $request->metodo_pago,
             ]);
+
+            // Evaluar notificaciones después de la venta
+            $sucursalId = auth()->user()->sucursal_id;
+            $now = Carbon::now();
+            $currentDay = strtolower($now->locale('es')->dayName);
+            $currentHour = $now->hour;
+
+            // Obtener estimaciones para la hora actual y la siguiente hora
+            $estimaciones = Estimaciones::where('sucursal_id', $sucursalId)
+                ->where('dia', $currentDay)
+                ->where(function($query) use ($currentHour) {
+                    $query->where('hora', 'like', $currentHour . ':%')
+                          ->orWhere('hora', 'like', ($currentHour + 1) . ':%');
+                })
+                ->with('inventario')
+                ->get();
+
+            // Obtener inventario actual
+            $inventario = Inventario::where('sucursal_id', $sucursalId)
+                ->whereIn('tipo', ['pastes', 'empanadas dulces', 'empanadas saladas'])
+                ->get();
+
+            // Evaluar faltantes y excedentes
+            $notificaciones = [];
+            foreach ($estimaciones as $estimacion) {
+                $producto = $inventario->firstWhere('id', $estimacion->inventario_id);
+                if ($producto) {
+                    $diferencia = $producto->cantidad - $estimacion->cantidad;
+                    
+                    if ($diferencia < 0) {
+                        $notificaciones[] = [
+                            'tipo' => 'warning',
+                            'mensaje' => "Faltan " . abs($diferencia) . " unidades de " . $producto->nombre . " para las " . $estimacion->hora
+                        ];
+                    } elseif ($diferencia > 0) {
+                        $notificaciones[] = [
+                            'tipo' => 'info',
+                            'mensaje' => "Hay " . $diferencia . " unidades extra de " . $producto->nombre . " para las " . $estimacion->hora
+                        ];
+                    }
+                }
+            }
+
+
+
+            // Asegurarnos de que las notificaciones se envíen en la sesión
+            session()->flash('notificaciones', $notificaciones);
         
-            
-            // Retornar una respuesta JSON
+            // Retornar una respuesta JSON con las notificaciones
             return redirect()->route('dashboard')->with([
                 'mensaje' => 'Venta procesada correctamente',
                 'ticket_id' => $ticket->id,
+                'notificaciones' => $notificaciones
             ]);
         } catch (\Exception $e) {
             // Redirigir a la vista con un mensaje de error

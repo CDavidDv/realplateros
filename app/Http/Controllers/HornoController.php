@@ -17,7 +17,7 @@ class HornoController extends Controller
     {
         try {
             $request->validate([
-                'horno_id' => 'required|integer',
+                'horno_id' => 'required|exists:horno,id',
                 'pastes' => 'nullable|array'
             ]);
 
@@ -65,6 +65,14 @@ class HornoController extends Controller
 
     public function iniciar_horneado(Request $request)
     {
+        $request->validate([
+            'horno_id' => 'required|exists:horno,id',
+            'pastes_horneando' => 'required|array',
+            'tiempo_inicio' => 'required|numeric',
+            'tiempo_fin' => 'required|numeric',
+            'estado' => 'required|boolean'
+        ]);
+
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
         $pastesHorneados = $request->input('pastes_horneando');
@@ -93,20 +101,91 @@ class HornoController extends Controller
             ]);
         }
 
-        //crear registro de control de horneado
-        ControlProduccion::create([
-            'sucursal_id' => $sucursalId,
-            'pastesHorneando' => $pastesHorneados,
-            'estado' => $estado,
-            'responsable_id' => $user->id,
-            'created_at' => Carbon::now(),
-        ]);
+        $control_produccion = [];
 
-        return redirect()->route('hornear')->with('success', 'Horno iniciado correctamente');
+        foreach ($pastesHorneados as $paste) {
+            Log::info('Procesando paste:', [
+                'paste_id' => $paste['paste_id'],
+                'cantidad' => $paste['cantidad'],
+                'datos_completos' => $paste
+            ]);
+
+            $control = ControlProduccion::where('sucursal_id', $sucursalId)
+                ->where('paste_id', $paste['paste_id'])
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            Log::info('Control encontrado:', [
+                'control_id' => $control ? $control->id : 'no encontrado',
+                'estado' => $control ? $control->estado : 'no encontrado',
+                'cantidad_horneada_actual' => $control ? $control->cantidad_horneada : 'no encontrado'
+            ]);
+
+            if(isset($control->estado) && $control->estado === 'pendiente'){
+                $control->diferencia_notificacion_inicio = Carbon::now();
+                $control->save();
+                
+                Log::info('Guardado diferencia_notificacion_inicio');
+            }
+            
+            if ($control) {
+                $control->estado = 'horneando';
+                
+                // Obtener valores actuales
+                $cantidadActual = is_numeric($control->cantidad_horneada) ? (int)$control->cantidad_horneada : 0;
+                $cantidadNueva = is_numeric($paste['cantidad']) ? (int)$paste['cantidad'] : 0;
+                
+                Log::info('Valores antes de la suma:', [
+                    'control_id' => $control->id,
+                    'cantidad_actual' => $cantidadActual,
+                    'cantidad_nueva' => $cantidadNueva,
+                    'tipo_cantidad_actual' => gettype($cantidadActual),
+                    'tipo_cantidad_nueva' => gettype($cantidadNueva)
+                ]);
+                
+                // Realizar la suma
+                $control->cantidad_horneada = $cantidadActual + $cantidadNueva;
+                
+                
+                Log::info('Después de la suma:', [
+                    'control_id' => $control->id,
+                    'cantidad_total' => $control->cantidad_horneada,
+                    'tipo_cantidad_total' => gettype($control->cantidad_horneada)
+                ]);
+                
+                $control->tiempo_inicio_horneado = $tiempo_inicio;
+                
+                try {
+                    $control->save();
+                    Log::info('Control guardado exitosamente');
+                } catch (\Exception $e) {
+                    Log::error('Error al guardar el control:', [
+                        'error' => $e->getMessage(),
+                        'control_id' => $control->id
+                    ]);
+                }
+                
+                $control_produccion[] = $control;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Horneado iniciado correctamente',
+            'request' => $request,
+            'pastesHorneados' => $pastesHorneados,
+            'control_produccion' => $control_produccion,
+            'pasteCantidad' => $paste['cantidad']
+        ]);
     }
 
     public function crear_horno(Request $request)
     {
+        $request->validate([
+            'estado' => 'required|boolean',
+            'pastesHorneando' => 'nullable|array'
+        ]);
+
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
 
@@ -121,6 +200,10 @@ class HornoController extends Controller
 
     public function eliminar_horno(Request $request)
     {
+        $request->validate([
+            'horno_id' => 'required|exists:horno,id'
+        ]);
+
         $hornoId = $request->input('horno_id');
         $horno = Hornos::where('id', $hornoId)->first();
         $horno->delete();
@@ -129,6 +212,11 @@ class HornoController extends Controller
 
     public function procesarPastesHorneados(Request $request)
     {
+        $request->validate([
+            'horno_id' => 'required|exists:horno,id',
+            'pastes' => 'required|array'
+        ]);
+
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
         $pastesHorneados = $request->input('pastes');
@@ -147,6 +235,17 @@ class HornoController extends Controller
                     'responsable_id' => $user->id,
                     'piezas' => $paste['cantidad']
                 ]);
+
+                $control = ControlProduccion::where('sucursal_id', $sucursalId)
+                    ->where('paste_id', $paste['paste_id'])
+                    ->orderBy('created_at', 'desc')
+                    ->where('estado', 'horneando')
+                    ->first();
+
+                if ($control) {
+                    $control->estado = 'en_espera';
+                    $control->save();
+                }
 
                 // Actualizar inventario
                 $inventarioPaste = Inventario::where('nombre', $paste['nombre'])

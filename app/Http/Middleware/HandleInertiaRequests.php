@@ -3,6 +3,10 @@
 namespace App\Http\Middleware;
 
 use App\Models\Hornos;
+use App\Models\ControlProduccion;
+use App\Models\Inventario;
+use App\Models\Estimaciones;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,10 +45,18 @@ class HandleInertiaRequests extends Middleware
         if ($request->user()) {
             $sucursal_id = $request->user()->sucursal_id;
             $horno = Hornos::where('sucursal_id', $sucursal_id)->first();
-        }else{
+            
+            // Obtener inventario y estimaciones para las notificaciones globales
+            $inventario = Inventario::where('sucursal_id', $sucursal_id)->get();
+            $diaHoy = Carbon::now()->locale('es')->dayName;
+            $estimacionesHoy = Estimaciones::where('sucursal_id', $sucursal_id)
+                ->where('dia', $diaHoy)
+                ->get();
+        } else {
             $horno = null;
+            $inventario = collect([]);
+            $estimacionesHoy = collect([]);
         }
-
 
         return array_merge(parent::share($request), [
             'user.roles' => $request->user() ? $request->user()->roles->pluck('name') : [],
@@ -52,8 +64,25 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => session('success'),
                 'error' => session('error'),
+                'message' => fn () => $request->session()->get('message')
             ],
-            'horno' => $horno ? $horno->id : null
+            'horno' => $horno ? $horno->id : null,
+            'auth' => [
+                'user' => $request->user(),
+            ],
+            'notificaciones' => [
+                'faltantes' => $request->user() ? ControlProduccion::with(['horno', 'paste'])
+                    ->where('sucursal_id', $request->user()->sucursal_id)
+                    ->where('dia_notificacion', Carbon::now()->locale('es')->dayName)                    
+                    ->get() : [],
+                'horneados' => $request->user() ? ControlProduccion::with(['horno', 'paste'])
+                    ->where('sucursal_id', $request->user()->sucursal_id)
+                    ->whereIn('estado', ['horneando', 'en_espera'])
+                    ->where('dia_notificacion', Carbon::now()->locale('es')->dayName)                    
+                    ->get() : []
+            ],
+            'inventario' => $inventario,
+            'estimacionesHoy' => $estimacionesHoy
         ]);
     }
 }

@@ -27,6 +27,12 @@
           {{ type === 'warning' ? 'Faltan' : 'Hay' }}
           {{ type === 'warning' ? Math.abs(notif.diferencia) : notif.diferencia }}
           unidades para las {{ notif.hora }}
+          <span class="text-sm" :class="{
+            'text-red-600': type === 'warning',
+            'text-green-600': type === 'info'
+          }">
+            ({{ notif.porcentaje }}% del estimado)
+          </span>
         </span>
       </li>
     </ul>
