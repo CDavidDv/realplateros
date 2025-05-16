@@ -136,73 +136,79 @@ class DashboardController extends Controller
 
         if ($horno && $horno->estado) {
             foreach ($pastesHorneados as $paste) {
-                Horneados::create([
+                $existe = Horneados::firstOrCreate([
                     'sucursal_id' => $sucursalId,
                     'relleno' => $paste['nombre'],
                     'created_at' => Carbon::now(),
+                ], [
                     'responsable_id' => $user->id,
                     'piezas' => $paste['cantidad']
                 ]);
 
-                // Actualizar inventario
-                $inventarioPaste = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'pastes')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
+                if ($existe) {
 
-                $inventarioEmpanadaSalada = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'empanadas saladas')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
 
-                $inventarioEmpanadaDulce = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'empanadas dulces')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
+                    // 1. Aumentar la cantidad de pastes en el inventario
+                    $inventarioPaste = Inventario::where('nombre', $paste['nombre'])
+                        ->where('tipo', 'pastes')
+                        ->where('sucursal_id', $sucursalId)
+                        ->first();
 
-                if ($inventarioPaste) {
-                    $inventarioPaste->cantidad += $paste['cantidad'];
-                    $inventarioPaste->save();
-                } else if ($inventarioEmpanadaSalada) {
-                    $inventarioEmpanadaSalada->cantidad += $paste['cantidad'];
-                    $inventarioEmpanadaSalada->save();
-                } else if ($inventarioEmpanadaDulce) {
-                    $inventarioEmpanadaDulce->cantidad += $paste['cantidad'];
-                    $inventarioEmpanadaDulce->save();
-                } else {
-                    Inventario::create([
-                        'sucursal_id' => $sucursalId,
-                        'nombre' => $paste['nombre'],
-                        'tipo' => 'pastes',
-                        'cantidad' => $paste['cantidad'],
-                    ]);
-                }
+                    $inventarioEmpanadaSalada = Inventario::where('nombre', $paste['nombre'])
+                        ->where('tipo', 'empanadas saladas')
+                        ->where('sucursal_id', $sucursalId)
+                        ->first();
 
-                // Restar masa y relleno
-                $inventarioMasa = Inventario::where('nombre', $paste['masa'])
-                    ->where('tipo', 'masa')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
+                    $inventarioEmpanadaDulce = Inventario::where('nombre', $paste['nombre'])
+                        ->where('tipo', 'empanadas dulces')
+                        ->where('sucursal_id', $sucursalId)
+                        ->first();
 
-                if ($inventarioMasa) {
-                    $inventarioMasa->cantidad -= $paste['cantidad'];
-                    if ($inventarioMasa->cantidad < 0) {
-                        $inventarioMasa->cantidad = 0;
+                    if ($inventarioPaste) {
+                        $inventarioPaste->cantidad += $paste['cantidad']; // Aumenta la cantidad de pastes horneados
+                        $inventarioPaste->save();
+                    } else if ($inventarioEmpanadaSalada) {
+                        $inventarioEmpanadaSalada->cantidad += $paste['cantidad']; // Aumenta la cantidad de pastes horneados
+                        $inventarioEmpanadaSalada->save();
+                    } else if ($inventarioEmpanadaDulce) {
+                        $inventarioEmpanadaDulce->cantidad += $paste['cantidad']; // Aumenta la cantidad de pastes horneados
+                        $inventarioEmpanadaDulce->save();
+                    } else {
+                        Inventario::create([
+                            'sucursal_id' => $sucursalId,
+                            'nombre' => $paste['nombre'],
+                            'tipo' => 'pastes',
+                            'cantidad' => $paste['cantidad'],
+                        ]);
                     }
-                    $inventarioMasa->save();
-                }
 
-                $inventarioRelleno = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'relleno')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
+                    // 2. Restar la cantidad de masa utilizada
+                    $inventarioMasa = Inventario::where('nombre', $paste['masa'])
+                        ->where('tipo', 'masa')
+                        ->where('sucursal_id', $sucursalId)
+                        ->first();
 
-                if ($inventarioRelleno) {
-                    $inventarioRelleno->cantidad -= $paste['cantidad'];
-                    if ($inventarioRelleno->cantidad < 0) {
-                        $inventarioRelleno->cantidad = 0;
+                    if ($inventarioMasa) {
+                        $inventarioMasa->cantidad -= ($paste['cantidad']); // Suponemos que cada paste usa 0.1 kg de masa
+                        if ($inventarioMasa->cantidad < 0) {
+                            $inventarioMasa->cantidad = 0; // Evitar cantidades negativas
+                        }
+                        $inventarioMasa->save();
                     }
-                    $inventarioRelleno->save();
+
+                    // 3. Restar la cantidad de relleno utilizado
+                    $inventarioRelleno = Inventario::where('nombre', $paste['nombre'])
+                        ->where('tipo', 'relleno')
+                        ->where('sucursal_id', $sucursalId)
+                        ->first();
+
+                    if ($inventarioRelleno) {
+                        $inventarioRelleno->cantidad -= ($paste['cantidad']); // Suponemos que cada paste usa 0.2 kg de relleno
+                        if ($inventarioRelleno->cantidad < 0) {
+                            $inventarioRelleno->cantidad = 0; // Evitar cantidades negativas
+                        }
+                        $inventarioRelleno->save();
+                    }
                 }
             }
         }
