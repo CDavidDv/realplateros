@@ -223,7 +223,7 @@ class DashboardController extends Controller
         $horno->estado = 0;
         $horno->save();
 
-        return redirect()->route('hornear');
+        return back()->with('success', 'Pastes horneados procesados correctamente');
     }
 
     public function check_estado(Request $request)
