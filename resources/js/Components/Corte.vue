@@ -345,10 +345,13 @@ const isToday = computed(() => {
 });
 
 const formatDate = (dateString) => {
+  if (!dateString) return '-';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '-';
   return date.toLocaleString('es-MX', {
     hour: '2-digit',
     minute: '2-digit',
+    hour12: true,
     timeZone: 'America/Mexico_City'
   });
 }
