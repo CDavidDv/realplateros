@@ -14,7 +14,7 @@ const checkNotificationsInterval = ref(null);
 const lastNotificationTime = ref(Date.now());
 
 const NOTIFICATION_INTERVAL = 180000; // 50 segundos
-const UPDATE_INTERVAL = 30 * 1000; // 30 segundos para actualizar datos
+const UPDATE_INTERVAL = 5 * 1000; // 5 segundos para actualizar datos
 
 // Props y computed properties
 const { props } = usePage();
