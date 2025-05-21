@@ -1,5 +1,5 @@
 <template>
-  <div class="mt-8 bg-white shadow rounded-lg p-6">
+  <div class="mt-8 bg-white shadow rounded-lg p-6" v-if="isAdmin">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-semibold">Control de Producción</h2>
       <div class="flex items-center space-x-4">
@@ -103,7 +103,7 @@
 
 
     <!-- Tabla de Control de Tiempo (Solo para Administrador) -->
-    <div v-if="isAdmin" class="mt-8">
+    <div  class="mt-8">
       <h3 class="text-lg font-medium mb-2">Control de Tiempo de Producción</h3>
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
@@ -149,6 +149,8 @@ const recomendaciones = ref([]);
 const tiemposProduccion = ref([]);
 
 const isAdmin = computed(() => props.auth.user.roles[0].name === 'admin');
+
+console.log(isAdmin.value);
 
 const fechaSeleccionada = ref(new Date().toISOString().split('T')[0]);
 const horaSeleccionada = ref('actual');
