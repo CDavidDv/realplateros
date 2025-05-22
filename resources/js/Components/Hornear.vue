@@ -159,16 +159,17 @@ const itemsDelDia = computed(() => {
 
 const notificacionesActuales = computed(() => {
   const currentHour = currentTime.value.hour;
+  const nextHour = (currentHour + 1) % 24; // Obtener la siguiente hora
 
-  // Obtenemos los productos relevantes para la hora actual
-  const productosHoraActual = itemsDelDia.value.filter(item => item.horaEnNumero === currentHour);
+  // Obtenemos los productos relevantes para la siguiente hora
+  const productosHoraSiguiente = itemsDelDia.value.filter(item => item.horaEnNumero === nextHour);
   
-  // Creamos un mapa de productos existentes para la hora actual
+  // Creamos un mapa de productos existentes para la siguiente hora
   const productosExistentes = new Map(
-    productosHoraActual.map(item => [item.nombre, item])
+    productosHoraSiguiente.map(item => [item.nombre, item])
   );
 
-  // Para cada producto relevante, verificamos si existe en la hora actual
+  // Para cada producto relevante, verificamos si existe en la siguiente hora
   const notificaciones = relevantProducts.value.map(producto => {
     const productoExistente = productosExistentes.get(producto.nombre);
     
@@ -177,14 +178,14 @@ const notificacionesActuales = computed(() => {
     } else {
       // Si no existe estimación, creamos un registro con la cantidad actual
       const nuevoRegistro = {
-        id: `${producto.id}-${currentHour}:00`,
+        id: `${producto.id}-${nextHour}:00`,
         nombre: producto.nombre,
         estimado: 0,
         existente: producto.cantidad,
         diferencia: producto.cantidad, // La diferencia será positiva si hay existencias
-        hora: `${currentHour}:00`,
+        hora: `${nextHour}:00`,
         dia: currentTime.value.day,
-        horaEnNumero: currentHour,
+        horaEnNumero: nextHour,
         tipo: producto.tipo
       };
       return nuevoRegistro;

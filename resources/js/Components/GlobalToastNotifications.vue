@@ -13,8 +13,8 @@ import Swal from 'sweetalert2';
 const checkNotificationsInterval = ref(null);
 const lastNotificationTime = ref(Date.now());
 
-const NOTIFICATION_INTERVAL = 180000; // 50 segundos
-const UPDATE_INTERVAL = 5 * 1000; // 5 segundos para actualizar datos
+const NOTIFICATION_INTERVAL = 180000; // 3 minutos
+const UPDATE_INTERVAL = 5000; // 5 segundos para actualizar datos
 
 // Props y computed properties
 const { props } = usePage();
@@ -102,20 +102,20 @@ const itemsDelDia = computed(() => {
 
 const notificacionesActuales = computed(() => {
   const currentHour = currentTime.value.hour;
+  const nextHour = (currentHour + 1) % 24; // Obtener la siguiente hora
   
-  // Obtenemos los productos relevantes para la hora actual
-  const productosHoraActual = itemsDelDia.value.filter(item => {
+  // Obtenemos los productos relevantes para la siguiente hora
+  const productosHoraSiguiente = itemsDelDia.value.filter(item => {
     // Convertimos la hora del item a formato 24 horas si es necesario
     const horaItem = item.horaEnNumero || convertTo24Hour(item.hora);
-    return horaItem === currentHour;
+    return horaItem === nextHour;
   });
   
-  
   const productosExistentes = new Map(
-    productosHoraActual.map(item => [item.nombre, item])
+    productosHoraSiguiente.map(item => [item.nombre, item])
   );
 
-  // Si no hay productos para la hora actual, usamos todos los productos relevantes
+  // Si no hay productos para la siguiente hora, usamos todos los productos relevantes
   const notificaciones = relevantProducts.value.map(producto => {
     const productoExistente = productosExistentes.get(producto.nombre);
     
@@ -123,20 +123,19 @@ const notificacionesActuales = computed(() => {
       return productoExistente;
     } else {
       return {
-        id: `${producto.id}-${currentHour}:00`,
+        id: `${producto.id}-${nextHour}:00`,
         nombre: producto.nombre,
         estimado: 0,
         existente: producto.cantidad,
         diferencia: producto.cantidad,
-        hora: `${currentHour}:00`,
+        hora: `${nextHour}:00`,
         dia: currentTime.value.day,
-        horaEnNumero: currentHour,
+        horaEnNumero: nextHour,
         tipo: producto.tipo
       };
     }
   });
 
-  
   return notificaciones;
 });
 
@@ -267,65 +266,46 @@ onMounted(() => {
     currentTime.value = getCurrentDayAndTime();
   }, 1000);
 
-  // Verificar notificaciones cada 30 segundos
-  checkNotificationsInterval.value = setInterval(() => {
-    const currentTimestamp = Date.now(); // Renombrado para claridad
-    console.log(currentTimestamp, lastNotificationTime.value)
-    if (currentTimestamp - lastNotificationTime.value >= NOTIFICATION_INTERVAL) {
+  // Función para mostrar notificaciones
+  const mostrarNotificaciones = () => {
+    const faltantesActuales = notificacionesFaltantes.value;
 
-      const faltantesActuales = notificacionesFaltantes.value; // Obtener valor una vez
+    if (faltantesActuales && faltantesActuales.length > 0) {
+      // Procesar cada notificación individualmente para actualización en BD
+      faltantesActuales.forEach(async (notif) => {
+        const notificacionId = `${notif.id}`;
+        const cantidad = notif.estimado - notif.existente;
 
-      if (faltantesActuales && faltantesActuales.length > 0) {
-        // Procesar cada notificación individualmente para actualización en BD
-        faltantesActuales.forEach(async (notif) => {
-          const notificacionId = `${notif.id}`;
-          const cantidad = notif.estimado - notif.existente;
+        // Extraemos el ID del paste y la hora de la notificación actual
+        const pasteId = parseInt(notificacionId.toString().split('-')[0]);
+        const horaNotificacion = notif.hora;
 
-          // Extraemos el ID del paste y la hora de la notificación actual
-          const pasteId = parseInt(notificacionId.toString().split('-')[0]);
-          const horaNotificacion = notif.hora; // Usar notif.hora que tiene el formato "10:00 am"
-
-          // Verificamos que tengamos notificaciones antes de buscar
-          if (!notificaciones_guardadas.value || notificaciones_guardadas.value.length === 0) {
-            router.post(route('notificaciones.registrar'), {
-              sucursal_id: usePage().props.auth.user.sucursal_id,
-              notificacion_id: notificacionId,
-              cantidad: cantidad
-            }, {
-              preserveScroll: true,
-              onSuccess: (response) => {
-                if (response.props.notificaciones?.faltantes) {
-                  actualizarNotificaciones(response.props.notificaciones.faltantes);
-                }
+        // Verificamos que tengamos notificaciones antes de buscar
+        if (!notificaciones_guardadas.value || notificaciones_guardadas.value.length === 0) {
+          router.post(route('notificaciones.registrar'), {
+            sucursal_id: usePage().props.auth.user.sucursal_id,
+            notificacion_id: notificacionId,
+            cantidad: cantidad
+          }, {
+            preserveScroll: true,
+            onSuccess: (response) => {
+              if (response.props.notificaciones?.faltantes) {
+                actualizarNotificaciones(response.props.notificaciones.faltantes);
               }
-            });
-            return; // Salir del forEach para esta iteración si se registra nuevo
-          }
-
-          // Buscamos en todas las notificaciones guardadas
-          const notificacionExistente = notificaciones_guardadas.value.find(
-            ng => ng.paste_id === pasteId && ng.hora_notificacion === horaNotificacion
-          );
-
-          if (notificacionExistente) {
-            // Si existe y la cantidad es diferente, actualizamos
-            if (notificacionExistente.cantidad !== cantidad) {
-              router.post(route('notificaciones.actualizar'), {
-                sucursal_id: usePage().props.auth.user.sucursal_id,
-                notificacion_id: notificacionId,
-                cantidad: cantidad
-              }, {
-                preserveScroll: true,
-                onSuccess: (response) => {
-                  if (response.props.notificaciones?.faltantes) {
-                    actualizarNotificaciones(response.props.notificaciones.faltantes);
-                  }
-                }
-              });
             }
-          } else {
-            // Si no existe, creamos una nueva notificación
-            router.post(route('notificaciones.registrar'), {
+          });
+          return;
+        }
+
+        // Buscamos en todas las notificaciones guardadas
+        const notificacionExistente = notificaciones_guardadas.value.find(
+          ng => ng.paste_id === pasteId && ng.hora_notificacion === horaNotificacion
+        );
+
+        if (notificacionExistente) {
+          // Si existe y la cantidad es diferente, actualizamos
+          if (notificacionExistente.cantidad !== cantidad) {
+            router.post(route('notificaciones.actualizar'), {
               sucursal_id: usePage().props.auth.user.sucursal_id,
               notificacion_id: notificacionId,
               cantidad: cantidad
@@ -338,27 +318,49 @@ onMounted(() => {
               }
             });
           }
-        });
-
-        // Lógica para filtrar notificaciones a mostrar en UI considerando horneados
-        const horneadosData = usePage().props.notificaciones?.horneados || [];
-        const notificacionesIntervaloUI = filterNotificationsForUI(faltantesActuales, horneadosData);
-        
-        console.log('CheckInterval - Faltantes Originales (solo inventario vs estimado):', JSON.parse(JSON.stringify(faltantesActuales)));
-        console.log('CheckInterval - Faltantes Para UI (considerando horneados):', JSON.parse(JSON.stringify(notificacionesIntervaloUI)));
-
-        if (notificacionesIntervaloUI.length > 0) {
-          reproducirSonido(); // Reproducir sonido solo si hay notificaciones UI que mostrar
-          showNotificationsWithDelay(notificacionesIntervaloUI.map(notif => ({
-            tipo: 'warning',
-            mensaje: `${notif.nombre} para las ${notif.hora}: ${Math.round(notif.porcentajeCubierto * 100)}% cubierto (inv. + horneando). Mínimo 70%.`
-          })));
-          
-          lastNotificationTime.value = currentTimestamp; // Actualizar tiempo solo si se mostraron notificaciones UI
+        } else {
+          // Si no existe, creamos una nueva notificación
+          router.post(route('notificaciones.registrar'), {
+            sucursal_id: usePage().props.auth.user.sucursal_id,
+            notificacion_id: notificacionId,
+            cantidad: cantidad
+          }, {
+            preserveScroll: true,
+            onSuccess: (response) => {
+              if (response.props.notificaciones?.faltantes) {
+                actualizarNotificaciones(response.props.notificaciones.faltantes);
+              }
+            }
+          });
         }
+      });
+
+      // Lógica para filtrar notificaciones a mostrar en UI considerando horneados
+      const horneadosData = usePage().props.notificaciones?.horneados || [];
+      const notificacionesIntervaloUI = filterNotificationsForUI(faltantesActuales, horneadosData);
+      
+      if (notificacionesIntervaloUI.length > 0) {
+        reproducirSonido();
+        showNotificationsWithDelay(notificacionesIntervaloUI.map(notif => ({
+          tipo: 'warning',
+          mensaje: `${notif.nombre} para las ${notif.hora}: ${Math.round(notif.porcentajeCubierto * 100)}% cubierto (inv. + horneando). Mínimo 70%.`
+        })));
+        
+        lastNotificationTime.value = Date.now();
       }
     }
-  }, UPDATE_INTERVAL); // Verificar cada 30 segundos
+  };
+
+  // Mostrar notificaciones inmediatamente al cargar el componente
+  mostrarNotificaciones();
+
+  // Verificar notificaciones cada 3 minutos
+  checkNotificationsInterval.value = setInterval(() => {
+    const currentTimestamp = Date.now();
+    if (currentTimestamp - lastNotificationTime.value >= NOTIFICATION_INTERVAL) {
+      mostrarNotificaciones();
+    }
+  }, UPDATE_INTERVAL);
 
   onUnmounted(() => {
     clearInterval(timeInterval);
