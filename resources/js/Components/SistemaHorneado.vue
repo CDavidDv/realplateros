@@ -136,7 +136,7 @@ const hornosActivos = ref(hornos.value.map(horno => ({
 
 //tiempo horneado 15 min 15 * 60 * 10000
 //90000 == 15 min
-const tiempoTotal = ref(900000); 
+const tiempoTotal = ref(9000000); 
 const pastesPorHornear = ref([]);
 
 // Función para iniciar el horneado
