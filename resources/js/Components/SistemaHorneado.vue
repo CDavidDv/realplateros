@@ -194,7 +194,7 @@ const Toast = Swal.mixin({
 });
 
 // Función para finalizar el horneado
-const finalizarHorneado = async (hornoId) => {
+const finalizarHorneado =  (hornoId) => {
   
   const horno = hornosActivos.value.find(h => h.id === hornoId);
   if (!horno || !horno.horneando) {
@@ -203,7 +203,7 @@ const finalizarHorneado = async (hornoId) => {
   }
 
   try {
-    const estado = await checkEstado(horno);
+    const estado = checkEstado(horno);
     
     
     if (estado) {
@@ -231,7 +231,7 @@ const finalizarHorneado = async (hornoId) => {
 
         if (pasteEnInventario ) {
           try {
-            await axios.post('/api/control-produccion/horneado', {
+             axios.post('/api/control-produccion/horneado', {
               horno_id: hornoId,
               paste_id: pasteEnInventario.id,
               cantidad: paste.cantidad
@@ -246,7 +246,7 @@ const finalizarHorneado = async (hornoId) => {
       }
 
       // Actualizar el estado del horno y registrar horneado
-      await router.post('/hornear', { 
+      router.post('/hornear', { 
         horno_id: hornoId,
         pastes: pastesFinalizados 
       }, {
@@ -268,9 +268,9 @@ const finalizarHorneado = async (hornoId) => {
   }
 };
 
-const checkEstado = async (horno) => {
+const checkEstado =  (horno) => {
   try {
-    const response = await axios.post('/check-estado', { 
+    const response =  axios.post('/check-estado', { 
       horno_id: horno.id,
       pastes: horno.pastesHorneando 
     });
