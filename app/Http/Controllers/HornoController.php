@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class HornoController extends Controller
 {
@@ -222,97 +223,133 @@ class HornoController extends Controller
         $pastesHorneados = $request->input('pastes');
         $hornoId = $request->input('horno_id');
 
-        $horno = Hornos::where('id', $hornoId)
-            ->where('sucursal_id', $sucursalId)
-            ->first();
+        // Usar un bloqueo de base de datos para este horno específico
+        return DB::transaction(function () use ($hornoId, $sucursalId, $pastesHorneados, $user) {
+            // Obtener el horno con bloqueo
+            $horno = Hornos::where('id', $hornoId)
+                ->where('sucursal_id', $sucursalId)
+                ->lockForUpdate()
+                ->first();
 
-        if ($horno && $horno->estado) {
+            // Verificar si el horno existe y está en estado de horneado
+            if (!$horno || !$horno->estado) {
+                return redirect()->route('hornear');
+            }
+
+            // Verificar si ya existe un registro de horneado para este grupo
+            $horneadoExistente = Horneados::where('sucursal_id', $sucursalId)
+                ->where('created_at', '>=', now()->subMinutes(5))
+                ->where('responsable_id', $user->id)
+                ->whereIn('relleno', collect($pastesHorneados)->pluck('nombre'))
+                ->exists();
+
+            if ($horneadoExistente) {
+                // Si ya existe un registro reciente, solo actualizar el estado del horno
+                $horno->estado = 0;
+                $horno->save();
+                return redirect()->route('hornear');
+            }
+
             foreach ($pastesHorneados as $paste) {
-                Horneados::create([
-                    'sucursal_id' => $sucursalId,
-                    'relleno' => $paste['nombre'],
-                    'created_at' => Carbon::now(),
-                    'responsable_id' => $user->id,
-                    'piezas' => $paste['cantidad']
-                ]);
+                // Verificar si ya existe un registro de horneado para este paste específico
+                $pasteHorneadoExistente = Horneados::where('sucursal_id', $sucursalId)
+                    ->where('created_at', '>=', now()->subMinutes(5))
+                    ->where('relleno', $paste['nombre'])
+                    ->where('piezas', $paste['cantidad'])
+                    ->exists();
 
-                $control = ControlProduccion::where('sucursal_id', $sucursalId)
-                    ->where('paste_id', $paste['paste_id'])
-                    ->orderBy('created_at', 'desc')
-                    ->where('estado', 'horneando')
-                    ->first();
-
-                if ($control) {
-                    $control->estado = 'en_espera';
-                    $control->save();
-                }
-
-                // Actualizar inventario
-                $inventarioPaste = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'pastes')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
-
-                $inventarioEmpanadaSalada = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'empanadas saladas')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
-
-                $inventarioEmpanadaDulce = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'empanadas dulces')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
-
-                if ($inventarioPaste) {
-                    $inventarioPaste->cantidad += $paste['cantidad'];
-                    $inventarioPaste->save();
-                } else if ($inventarioEmpanadaSalada) {
-                    $inventarioEmpanadaSalada->cantidad += $paste['cantidad'];
-                    $inventarioEmpanadaSalada->save();
-                } else if ($inventarioEmpanadaDulce) {
-                    $inventarioEmpanadaDulce->cantidad += $paste['cantidad'];
-                    $inventarioEmpanadaDulce->save();
-                } else {
-                    Inventario::create([
+                if (!$pasteHorneadoExistente) {
+                    Horneados::create([
                         'sucursal_id' => $sucursalId,
-                        'nombre' => $paste['nombre'],
-                        'tipo' => 'pastes',
-                        'cantidad' => $paste['cantidad'],
+                        'relleno' => $paste['nombre'],
+                        'created_at' => Carbon::now(),
+                        'responsable_id' => $user->id,
+                        'piezas' => $paste['cantidad']
                     ]);
-                }
 
-                // Restar masa y relleno
-                $inventarioMasa = Inventario::where('nombre', $paste['masa'])
-                    ->where('tipo', 'masa')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
+                    $control = ControlProduccion::where('sucursal_id', $sucursalId)
+                        ->where('paste_id', $paste['paste_id'])
+                        ->orderBy('created_at', 'desc')
+                        ->where('estado', 'horneando')
+                        ->first();
 
-                if ($inventarioMasa) {
-                    $inventarioMasa->cantidad -= $paste['cantidad'];
-                    if ($inventarioMasa->cantidad < 0) {
-                        $inventarioMasa->cantidad = 0;
+                    if ($control) {
+                        $control->estado = 'en_espera';
+                        $control->save();
                     }
-                    $inventarioMasa->save();
-                }
 
-                $inventarioRelleno = Inventario::where('nombre', $paste['nombre'])
-                    ->where('tipo', 'relleno')
-                    ->where('sucursal_id', $sucursalId)
-                    ->first();
+                    // Actualizar inventario con bloqueo
+                    $inventarioPaste = Inventario::where('nombre', $paste['nombre'])
+                        ->where('tipo', 'pastes')
+                        ->where('sucursal_id', $sucursalId)
+                        ->lockForUpdate()
+                        ->first();
 
-                if ($inventarioRelleno) {
-                    $inventarioRelleno->cantidad -= $paste['cantidad'];
-                    if ($inventarioRelleno->cantidad < 0) {
-                        $inventarioRelleno->cantidad = 0;
+                    $inventarioEmpanadaSalada = Inventario::where('nombre', $paste['nombre'])
+                        ->where('tipo', 'empanadas saladas')
+                        ->where('sucursal_id', $sucursalId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    $inventarioEmpanadaDulce = Inventario::where('nombre', $paste['nombre'])
+                        ->where('tipo', 'empanadas dulces')
+                        ->where('sucursal_id', $sucursalId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($inventarioPaste) {
+                        $inventarioPaste->cantidad += $paste['cantidad'];
+                        $inventarioPaste->save();
+                    } else if ($inventarioEmpanadaSalada) {
+                        $inventarioEmpanadaSalada->cantidad += $paste['cantidad'];
+                        $inventarioEmpanadaSalada->save();
+                    } else if ($inventarioEmpanadaDulce) {
+                        $inventarioEmpanadaDulce->cantidad += $paste['cantidad'];
+                        $inventarioEmpanadaDulce->save();
+                    } else {
+                        Inventario::create([
+                            'sucursal_id' => $sucursalId,
+                            'nombre' => $paste['nombre'],
+                            'tipo' => 'pastes',
+                            'cantidad' => $paste['cantidad'],
+                        ]);
                     }
-                    $inventarioRelleno->save();
+
+                    // Restar masa y relleno con bloqueo
+                    $inventarioMasa = Inventario::where('nombre', $paste['masa'])
+                        ->where('tipo', 'masa')
+                        ->where('sucursal_id', $sucursalId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($inventarioMasa) {
+                        $inventarioMasa->cantidad -= $paste['cantidad'];
+                        if ($inventarioMasa->cantidad < 0) {
+                            $inventarioMasa->cantidad = 0;
+                        }
+                        $inventarioMasa->save();
+                    }
+
+                    $inventarioRelleno = Inventario::where('nombre', $paste['nombre'])
+                        ->where('tipo', 'relleno')
+                        ->where('sucursal_id', $sucursalId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($inventarioRelleno) {
+                        $inventarioRelleno->cantidad -= $paste['cantidad'];
+                        if ($inventarioRelleno->cantidad < 0) {
+                            $inventarioRelleno->cantidad = 0;
+                        }
+                        $inventarioRelleno->save();
+                    }
                 }
             }
-        }
 
-        $horno->estado = 0;
-        $horno->save();
+            $horno->estado = 0;
+            $horno->save();
 
-        return redirect()->route('hornear');
+            return redirect()->route('hornear');
+        });
     }
 } 
