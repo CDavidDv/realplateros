@@ -33,7 +33,7 @@
                 </tbody>
             </table>
             <div v-else class="text-center py-4">
-                <p class="text-gray-500">No hay gastos de gastos.</p>
+                <p class="text-gray-500">No hay gastos registrados.</p>
             </div>
         </div>
     </div>

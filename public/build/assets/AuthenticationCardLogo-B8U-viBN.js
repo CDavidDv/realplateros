@@ -1,1 +1,0 @@
-import{o as a,c as s,w as l,a as o,u as t,m as r}from"./app-BpD1maa0.js";const f={__name:"AuthenticationCardLogo",setup(n){return(u,e)=>(a(),s(t(r),{href:"/",class:"justify-center flex w-full"},{default:l(()=>e[0]||(e[0]=[o("img",{src:"images/logo.png",alt:"Real de plateros logo",class:"rounded-full md:w-full w-10/12"},null,-1)])),_:1}))}};export{f as _};
