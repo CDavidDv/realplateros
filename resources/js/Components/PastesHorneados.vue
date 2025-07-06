@@ -11,26 +11,23 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Día</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Piezas Horneadas</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total del día</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="(item, index) in bakedGoodsWithTotals" :key="index">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item?.responsable?.name }} {{ item?.responsable?.apellido_p || '' }} {{ item?.responsable?.apellido_m || '' }}</td>
+            <tr v-for="(item, index) in pastesHorneados" :key="index">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                {{ item?.responsable?.name || 'N/A' }} {{ item?.responsable?.apellido_p || '' }} {{ item?.responsable?.apellido_m || '' }}
+              </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.relleno }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(item.updated_at) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDay(item.updated_at) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.piezas }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <span v-if="item.isFirst">{{ item.totalPiezas }}</span>
-              </td>
             </tr>
           </tbody>
           <tfoot class="bg-gray-50">
             <tr>
-              <td colspan="3" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Total de piezas horneadas:</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ grandTotalPiezas }}</td>
-              <td></td>
+              <td colspan="4" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Total de piezas horneadas:</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ totalPiezasHorneadas }}</td>
             </tr>
           </tfoot>
         </table>
@@ -41,45 +38,17 @@
 
 <script setup>
 import { usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
-import { computed } from 'vue'
+import { ref, computed } from 'vue';
 
 const { props } = usePage();
 const pastesHorneados = ref(props.pastesHorneados);
-console.log(pastesHorneados.value)
-// Group items by relleno and add a total field for each type
-const bakedGoodsWithTotals = computed(() => {
-  const grouped = {}
-  
-  // Group by relleno and sum piezas for each type
-  props.pastesHorneados.forEach(item => {
-    if (!grouped[item.relleno]) {
-      grouped[item.relleno] = { totalPiezas: 0, items: [] }
-    }
-    grouped[item.relleno].totalPiezas += Number(item.piezas)
-    grouped[item.relleno].items.push(item)
-  })
 
-  // Flatten the grouped data and mark the first item of each relleno to display the total
-  const result = []
-  Object.keys(grouped).forEach(relleno => {
-    grouped[relleno].items.forEach((item, index) => {
-      result.push({
-        ...item,
-        totalPiezas: grouped[relleno].totalPiezas,
-        isFirst: index === 0 // Mark the first item to display the total
-      })
-    })
-  })
-
-  return result
-})
-
-// Calcula el total general de piezas horneadas como número
-const grandTotalPiezas = computed(() => {
-  return bakedGoodsWithTotals.value.reduce((sum, item) => Number(sum) + (item.isFirst ? Number(item.totalPiezas) : 0), 0)
-})
-
+// Calcula el total general de piezas horneadas
+const totalPiezasHorneadas = computed(() => {
+  return pastesHorneados.value.reduce((total, item) => {
+    return total + Number(item.piezas || 0);
+  }, 0);
+});
 
 const formatDate = (dateString) => {
   const date = new Date(dateString);
