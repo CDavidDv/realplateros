@@ -84,7 +84,7 @@ const isAlmacen = role.value === 'almacen';
                                 </NavLink>
                             </div>
                             
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="props.user.roles[0] !== 'trabajador' && !isAlmacen">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="props.user.roles[0] !== 'trabajador' && !isAlmacen && props.user.roles[0] !== 'supervisor'">
                                 <NavLink :href="route('personal')" :active="route().current('personal')">
                                     Personal
                                 </NavLink>

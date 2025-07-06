@@ -241,7 +241,7 @@ const singularTabTitle = computed(() => currentTab.value === 'users' ? 'Usuario'
 const errors = ref({}); 
 const currentItems = computed(() => currentTab.value === 'users' ? props.users : props.sucursales.filter(sucursal => sucursal.id !== 0));
 
-const availableRoles = computed(() => props.roles.filter(role => ['admin', 'trabajador'].includes(role.name)));
+const availableRoles = computed(() => props.roles.filter(role => ['admin', 'trabajador', 'supervisor'].includes(role.name)));
 
 const itemName = (item) => item.name || item.email || item.nombre;
 

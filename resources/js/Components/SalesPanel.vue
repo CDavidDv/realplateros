@@ -21,7 +21,7 @@
                 <th class="text-left">Nombre</th>
                 <th class="text-left" v-if="!isAlmacen">Precio</th>
                 <th class="text-left hidden sm:block">Disponible</th>
-                <th class="text-left">Acción</th>
+                <th class="text-left" v-if="props.user.roles[0] !== 'supervisor'">Acción</th>
               </tr>
             </thead>
             <tbody>
@@ -32,7 +32,7 @@
                 </td>
                 <td v-if="!isAlmacen">${{ item.precio }}</td>
                 <td class="hidden sm:block">{{ item.cantidad }}</td>
-                <td>
+                <td v-if="props.user.roles[0] !== 'supervisor'">
                   <button
                     @click="addToTicket(item)"
                     :disabled="item.cantidad === 0"
@@ -56,7 +56,7 @@
         </div>
       </div>
       <!-- Ticket de Venta -->
-      <div class="bg-white w-full shadow rounded-lg p-6">
+      <div class="bg-white w-full shadow rounded-lg p-6" v-if="props.user.roles[0] !== 'supervisor'">
         <h2 class="text-xl font-semibold mb-4" v-if="isAlmacen">Ticket de Asignación</h2>
         <h2 class="text-xl font-semibold mb-4" v-else>Ticket de Venta</h2>
         <div class="w-full flex flex-col gap-2 py-5" v-if="isAlmacen">

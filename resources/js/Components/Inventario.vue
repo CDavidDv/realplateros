@@ -53,8 +53,8 @@
 
        
 
-        <div class="no-print flex flex-col md:flex-row gap-10 w-full" v-if="props.user.roles[0] ==='admin' || props.user.roles[0] === 'sucursal' || props.user.roles[0] === 'almacen'">
-            <div class="md:w-4/12 w-full">
+        <div class="no-print flex flex-col md:flex-row gap-10 w-full" v-if="props.user.roles[0] ==='admin' || props.user.roles[0] === 'sucursal' || props.user.roles[0] === 'almacen' || props.user.roles[0] === 'supervisor'">
+            <div class="md:w-4/12 w-full" v-if="props.user.roles[0] !== 'supervisor'">
                 <!-- Formulario para agregar/editar item -->
                  
                 <div class="bg-white shadow rounded-lg p-6 mb-6">
@@ -117,7 +117,7 @@
                  </div>
             </div>
             
-            <div class="md:w-8/12 w-full">
+            <div :class="[props.user.roles[0] === 'supervisor' ? 'w-full' : 'md:w-8/12 w-full']" >
                 <!-- Buscador -->
                 <div class="mb-4">
                     <input v-model="searchTerm" type="text" placeholder="Buscar en el inventario..."
@@ -146,7 +146,8 @@
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Precio</th>
                                 <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                    v-if="props.user.roles[0] !== 'supervisor'">
                                     Acciones</th>
                             </tr>
                         </thead>
@@ -157,7 +158,8 @@
                                 <td class="py-1 px-2 whitespace bg-gray-50">{{ item.detalle }}</td>
                                 <td class="py-1 px-2 whitespace-nowrap">{{ item.cantidad }}</td>
                                 <td class="py-1 px-2 whitespace-nowrap bg-gray-50">${{ item.precio }}</td>
-                                <td class="py-1 px-2 whitespace-nowrap text-sm font-medium flex flex-col gap-1 place-items-center">
+                                <td class="py-1 px-2 whitespace-nowrap text-sm font-medium flex flex-col gap-1 place-items-center"
+                                    v-if="props.user.roles[0] !== 'supervisor'">
                                     <button @click="editItem(item)" class="bg-orange-600 py-1 px-2 text-white rounded-lg    hover:bg-orange-900 mr-2">Editar</button>
                                     <button @click="deleteItem(item.id)" class="bg-red-600 py-1 px-2 text-white rounded-lg  hover:bg-red-900">Eliminar</button>
                                 </td>

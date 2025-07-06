@@ -16,7 +16,7 @@ class UsuarioController extends Controller
     // Listar todos los usuarios
     public function index()
     {
-        $users = User::role(['admin', 'trabajador'])
+        $users = User::role(['admin', 'trabajador', 'supervisor'])
         ->with(['roles', 'sucursal'])
         ->get()
         ->map(function ($user) {
@@ -61,7 +61,7 @@ class UsuarioController extends Controller
     });
 
     // Roles disponibles
-    $roles = Role::whereIn('name', ['admin', 'trabajador', 'sucursal'])->get(['id', 'name']);
+    $roles = Role::whereIn('name', ['admin', 'trabajador', 'sucursal', 'supervisor'])->get(['id', 'name']);
 
     $allUsers = User::with('roles')->get();
     return Inertia::render('Personal/index', [

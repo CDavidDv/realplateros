@@ -30,7 +30,7 @@
         <div v-if="error" class="text-red-500 font-bold mt-2">{{ error }}</div>
 
         <!-- Cantidad inicial y final -->
-        <div class="mb-6 no-print" v-if="isToday">
+        <div class="mb-6 no-print" v-if="isToday && $page.props.user.roles[0] !== 'supervisor'">
           <label for="initialCash" class="block text-sm font-medium text-gray-700">Cantidad Inicial en Caja</label>
           <div class="flex space-x-2">
             <input
@@ -263,10 +263,16 @@
 
   <!--enviar numero de cortes-->
 
-  <Sobrantes  :cantidadDeCortes="cantidadDeCortes" :sobrantes="sobrantes" :categoriasInventario="categoriasInventario" :sobrantesInventario="sobrantesInventario" />
+  <Sobrantes 
+    v-if="$page.props.user.roles[0] !== 'supervisor'"
+    :cantidadDeCortes="cantidadDeCortes" 
+    :sobrantes="sobrantes" 
+    :categoriasInventario="categoriasInventario" 
+    :sobrantesInventario="sobrantesInventario" 
+  />
 
   <ChartCorte
-      v-if="$page.props.user.roles[0] != 'trabajador'"
+      v-if="$page.props.user.roles[0] != 'trabajador' && $page.props.user.roles[0] != 'supervisor'"
       :ventasProductos="ventasProductos"
       :inventario="inventario"
   />
@@ -286,8 +292,8 @@
           />
         </div>
         <div class="flex justify-end">
-          <button @click="saveEditedVenta" class="bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600">Guardar</button>
-          <button @click="cancelEdit" class="ml-2 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">Cancelar</button>
+          <button v-if="$page.props.user.roles[0] !== 'supervisor'" @click="saveEditedVenta" class="bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600">Guardar</button>
+          <button v-if="$page.props.user.roles[0] !== 'supervisor'" @click="cancelEdit" class="ml-2 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">Cancelar</button>
         </div>
       </div>
     </div>

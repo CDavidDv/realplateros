@@ -156,33 +156,37 @@
           </tbody>
         </table>
       </div>
-      <div v-if="activeTab === 'sobrantes'" class="mt-6 flex justify-end">
-        <button
-          @click="saveSobrantes"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          :disabled="isSaving"
-        >
-          {{ isSaving ? 'Guardando...' : 'Guardar Sobrantes' }}
-        </button>
-      </div>
-      <!-- Save Button -->
-      <div v-else class="mt-6 flex justify-end no-print">
-        <button
-          v-if="activeTab === 'gastos'"
-          @click="saveGastos"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          :disabled="isSaving"
-        >
-          {{ isSaving ? 'Guardando...' : 'Guardar Gastos' }}
-        </button>
-        <button
-          v-else
-          @click="saveForm"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          :disabled="isSaving"
-        >
-          {{ isSaving ? 'Guardando...' : 'Guardar Registro' }}
-        </button>
+      <div v-if="props.user.roles[0] !== 'supervisor'">
+
+        <div v-if="activeTab === 'sobrantes'" class="mt-6 flex justify-end">
+          <button
+            @click="saveSobrantes"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            :disabled="isSaving"
+          >
+            {{ isSaving ? 'Guardando...' : 'Guardar Sobrantes' }}
+          </button>
+        </div>
+        <!-- Save Button -->
+        <div v-else class="mt-6 flex justify-end no-print">
+          <button
+            v-if="activeTab === 'gastos'"
+            @click="saveGastos"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            :disabled="isSaving"
+          >
+            {{ isSaving ? 'Guardando...' : 'Guardar Gastos' }}
+          </button>
+          <button
+          
+            v-else
+            @click="saveForm"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            :disabled="isSaving"
+          >
+            {{ isSaving ? 'Guardando...' : 'Guardar Registro' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>

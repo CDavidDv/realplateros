@@ -29,7 +29,7 @@
       <SistemaHorneado />
       <!-- TODO: poner el control de produccion en el sistema de horneado -->
       <ControlProduccion />
-      <PastesHorneados />
+      <PastesHorneados v-if="props.user.roles[0] !== 'supervisor'" />
       <EstimacionPastes v-if="isAdmin" />
     </div>
   </div>
