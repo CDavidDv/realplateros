@@ -194,92 +194,73 @@ const Toast = Swal.mixin({
 });
 
 // Función para finalizar el horneado
-const finalizarHorneado =  (hornoId) => {
+const finalizarHorneado = async (hornoId) => {
   
   const horno = hornosActivos.value.find(h => h.id === hornoId);
   if (!horno || !horno.horneando) {
-   
     return;
   }
 
   try {
-    const estado = checkEstado(horno);
+    // Limpiar el timer inmediatamente para evitar que siga ejecutándose
+    clearInterval(horno.timer);
     
+    const pastesFinalizados = [...horno.pastesHorneando];
     
-    if (estado) {
-      clearInterval(horno.timer);
-      
+    // Actualizar el estado del horno inmediatamente
+    horno.horneando = false;
+    horno.pastesHorneando = [];
+    horno.tiempoTranscurrido = 0;
+    horno.labeltime = '00:00';
 
-      const pastesFinalizados = [...horno.pastesHorneando];
-      horno.horneando = false;
-      horno.pastesHorneando = [];
-      horno.tiempoTranscurrido = 0;
-      horno.labeltime = '00:00';
+    reproducirSonido();
 
-      
+    // Registrar en control de producción
+    for (const paste of pastesFinalizados) {
+      // Buscar el ID del paste en el inventario
+      const pasteEnInventario = inventario.find(item => 
+        item.nombre.toLowerCase() === paste.nombre.toLowerCase() && 
+        (item.tipo === 'pastes' || item.tipo === 'empanadas saladas' || item.tipo === 'empanadas dulces')
+      );
 
-      reproducirSonido();
-
-      // Registrar en control de producción
-      for (const paste of pastesFinalizados) {
-        // Buscar el ID del paste en el inventario
-        const pasteEnInventario = inventario.find(item => 
-          item.nombre.toLowerCase() === paste.nombre.toLowerCase() && 
-          (item.tipo === 'pastes' || item.tipo === 'empanadas saladas' || item.tipo === 'empanadas dulces')
-        );
-
-
-        if (pasteEnInventario ) {
-          try {
-             axios.post('/api/control-produccion/horneado', {
-              horno_id: hornoId,
-              paste_id: pasteEnInventario.id,
-              cantidad: paste.cantidad
-            });
-
-          } catch (error) {
-            console.error(`Horno ${hornoId} - Error al registrar producción para ${paste.nombre}:`, error);
-          }
-        } else {
-          console.error(`Horno ${hornoId} - No se encontró el paste ${paste.nombre} en el inventario`);
+      if (pasteEnInventario) {
+        try {
+          await axios.post('/api/control-produccion/horneado', {
+            horno_id: hornoId,
+            paste_id: pasteEnInventario.id,
+            cantidad: paste.cantidad
+          });
+        } catch (error) {
+          console.error(`Horno ${hornoId} - Error al registrar producción para ${paste.nombre}:`, error);
         }
+      } else {
+        console.error(`Horno ${hornoId} - No se encontró el paste ${paste.nombre} en el inventario`);
       }
-
-      // Actualizar el estado del horno y registrar horneado
-      router.post('/hornear', { 
-        horno_id: hornoId,
-        pastes: pastesFinalizados 
-      }, {
-        preserveScroll: true,
-        preserveState: false,
-        replace: true,
-        onSuccess: () => {
-          
-          Toast.fire({ icon: 'success', title: 'Horneado finalizado' });
-        },
-        onError: (errors) => {
-          console.error(`Horno ${hornoId} - Error al registrar el horneado:`, errors);
-          Toast.fire({ icon: 'error', title: 'Error al registrar el horneado' });
-        },
-      });
     }
+
+    // Actualizar el estado del horno y registrar horneado
+    router.post('/hornear', { 
+      horno_id: hornoId,
+      pastes: pastesFinalizados 
+    }, {
+      preserveScroll: true,
+      preserveState: false,
+      replace: true,
+      onSuccess: () => {
+        Toast.fire({ icon: 'success', title: 'Horneado finalizado' });
+      },
+      onError: (errors) => {
+        console.error(`Horno ${hornoId} - Error al registrar el horneado:`, errors);
+        Toast.fire({ icon: 'error', title: 'Error al registrar el horneado' });
+      },
+    });
+    
   } catch (error) {
     console.error(`Horno ${hornoId} - Error en finalizarHorneado:`, error);
   }
 };
 
-const checkEstado =  (horno) => {
-  try {
-    const response =  axios.post('/check-estado', { 
-      horno_id: horno.id,
-      pastes: horno.pastesHorneando 
-    });
-    return response.data.estado;
-  } catch (error) {
-    console.error(`Horno ${horno.id} - Error al obtener el estado del horno:`, error);
-    return false;
-  }
-};
+
 
 
 // Función para reproducir sonido
@@ -416,11 +397,17 @@ const cancelarPaste = (id) => {
   pastesPorHornear.value = pastesPorHornear.value.filter(paste => paste.id !== id);
 };
 
-const finalizarContinueTimer = (hornoId) => {
+// Función auxiliar para finalizar horneado desde temporizadores
+const finalizarHorneadoDesdeTimer = (hornoId) => {
+  finalizarHorneado(hornoId).catch(error => {
+    console.error(`Error al finalizar horneado desde timer: ${error}`);
+  });
+};
+
+const finalizarContinueTimer = async (hornoId) => {
   const horno = hornosActivos.value.find(h => h.id === hornoId);
   if (!horno) return;
 
-  if(checkEstado(horno)) return;
   clearInterval(horno.timer);
 
   horno.horneando = false;
@@ -440,7 +427,7 @@ const iniciarTemporizador = (hornoId) => {
   
   
   if (tiempoRestante <= 0) {
-    finalizarHorneado(hornoId);
+    finalizarHorneadoDesdeTimer(hornoId);
     return;
   }
 
@@ -458,7 +445,7 @@ const iniciarTemporizador = (hornoId) => {
     if (tiempoRestante <= 0) {
       
       clearInterval(horno.timer);
-      finalizarHorneado(hornoId);
+      finalizarHorneadoDesdeTimer(hornoId);
       return;
     }
 
@@ -476,7 +463,7 @@ const continuarTemporizador = (hornoId) => {
   
   // Si el tiempo ya pasó, finalizar inmediatamente
   if (tiempoRestante <= 0) {
-    finalizarHorneado(hornoId);
+    finalizarHorneadoDesdeTimer(hornoId);
     return;
   }
     
@@ -494,7 +481,7 @@ const continuarTemporizador = (hornoId) => {
     // Si el tiempo ya pasó, finalizar inmediatamente
     if (tiempoRestante <= 0) {
       clearInterval(horno.timer);
-      finalizarHorneado(hornoId);
+      finalizarHorneadoDesdeTimer(hornoId);
       return;
     }
 
@@ -519,7 +506,7 @@ onMounted(() => {
       const tiempoRestante = tiempoTotal.value - tiempoTranscurridoDesdeInicio;
       
       if (tiempoRestante <= 0) {
-        finalizarHorneado(horno.id);
+        finalizarHorneadoDesdeTimer(horno.id);
         return;
       }
 
