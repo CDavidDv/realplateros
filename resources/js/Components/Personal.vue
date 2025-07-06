@@ -1,5 +1,7 @@
 <template>
-  <div class="relative px-10 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+  <div class="relative px-10 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20"
+  v-if="props.user.roles[0] !== 'supervisor'"
+  >
     <h1 class="text-3xl font-semibold mb-6 text-center">Gestión de Personal</h1>
 
     <!--Notificaciones de contrato-->
