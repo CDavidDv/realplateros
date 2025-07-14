@@ -222,33 +222,38 @@ const showToast = (icon, title) => {
 
 const completeSale = () => {
   //variable
-  if (ticket.value.length === 0) return;
-  
-  loading.value = true;
-  router.post('/ventas', {
-    productos: ticket.value,
-    total: totalAmount.value,
-    metodo_pago: metodoPago.value
-  }, {
-    preserveScroll: true,
-    onSuccess: (a) => {
-      
-      console.log(a.props) 
-      
-      printTicket(a.props.ticket_id)
-      inventario.value = a.props.inventario;
-      ticket.value = [];
-      searchTerm.value = '';
-      metodoPago.value = 'efectivo';
-      showToast("success", "Registrado correctamente");
-      loading.value = false;
-    },
-    onError: (errors) => {
-      console.error('Error al enviar el pedido:', errors);
-      showToast("error", "Error al registrar");
-      loading.value = false;
-    }
-  });
+  setTimeout(() => {
+    if (ticket.value.length === 0) return;
+    
+    loading.value = true;
+    router.post('/ventas', {
+      productos: ticket.value,
+      total: totalAmount.value,
+      metodo_pago: metodoPago.value
+    }, {
+      preserveScroll: true,
+      onSuccess: (a) => {
+        
+        console.log(a.props) 
+        
+        setTimeout(() => {
+          printTicket(a.props.ticket_id)
+          inventario.value = a.props.inventario;
+          ticket.value = [];
+          searchTerm.value = '';
+          metodoPago.value = 'efectivo';
+          showToast("success", "Registrado correctamente");
+          loading.value = false;
+        }, 2000);
+        
+      },
+      onError: (errors) => {
+        console.error('Error al enviar el pedido:', errors);
+        showToast("error", "Error al registrar");
+        loading.value = false;
+      }
+    });
+  }, 3000);
 };
 
 const completeAsignacion = () => {  
