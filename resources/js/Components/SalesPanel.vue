@@ -249,7 +249,7 @@ const completeSale = () => {
       },
       onError: (errors) => {
         console.error('Error al enviar el pedido:', errors);
-        showToast("error", "Error al registrar");
+        showToast("error", "Error al registrar p");
         loading.value = false;
       }
     });
