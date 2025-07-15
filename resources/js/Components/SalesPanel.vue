@@ -253,7 +253,7 @@ const completeSale = () => {
         loading.value = false;
       }
     });
-  }, 3000);
+  }, 5000);
 };
 
 const completeAsignacion = () => {  
