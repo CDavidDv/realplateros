@@ -179,6 +179,24 @@ class VentaController extends Controller
             $metodoPago = $request->input('metodo_pago');
             $total = $request->input('total');
 
+            // Validar existencias antes de procesar la venta
+            $errores = [];
+            foreach ($productos as $producto) {
+                $item = Inventario::find($producto['id']);
+                if ($item) {
+                    if ($item->cantidad < $producto['ticketQuantity']) {
+                        $errores[] = "No hay suficientes existencias de {$item->nombre}. Disponible: {$item->cantidad}, Solicitado: {$producto['ticketQuantity']}";
+                    }
+                } else {
+                    $errores[] = "Producto no encontrado con ID: {$producto['id']}";
+                }
+            }
+
+            // Si hay errores, retornar sin procesar la venta
+            if (!empty($errores)) {
+                return redirect()->route('dashboard')->with('error', implode(', ', $errores));
+            }
+
             // Crear el registro de la venta
             $venta = new Venta();
             $venta->usuario_id = auth()->id();
@@ -302,6 +320,24 @@ class VentaController extends Controller
             $productos = $request->input('productos');
             $sucursal_id = $request->input('sucursal_id');
             $trabajador_id = $request->input('trabajador_id');
+
+            // Validar existencias antes de procesar la asignación
+            $errores = [];
+            foreach ($productos as $producto) {
+                $item = Inventario::find($producto['id']);
+                if ($item) {
+                    if ($item->cantidad < $producto['ticketQuantity']) {
+                        $errores[] = "No hay suficientes existencias de {$item->nombre}. Disponible: {$item->cantidad}, Solicitado: {$producto['ticketQuantity']}";
+                    }
+                } else {
+                    $errores[] = "Producto no encontrado con ID: {$producto['id']}";
+                }
+            }
+
+            // Si hay errores, retornar sin procesar la asignación
+            if (!empty($errores)) {
+                return redirect()->route('dashboard')->with('error', implode(', ', $errores));
+            }
 
             // Crear el registro de la venta
             $ticket = new TicketAsignacion();
