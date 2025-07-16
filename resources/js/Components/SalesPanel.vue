@@ -221,43 +221,41 @@ const showToast = (icon, title) => {
 };
 
 const completeSale = () => {
-  //variable
-  setTimeout(() => {
-    if (ticket.value.length === 0) return;
-    
-    loading.value = true;
-    router.post('/ventas', {
-      productos: ticket.value,
-      total: totalAmount.value,
-      metodo_pago: metodoPago.value
-    }, {
-      preserveScroll: true,
-      onSuccess: (a) => {
-        
-        console.log(a.props) 
-        
-        setTimeout(() => {
-          printTicket(a.props.ticket_id)
-          inventario.value = a.props.inventario;
-          ticket.value = [];
-          searchTerm.value = '';
-          metodoPago.value = 'efectivo';
-          showToast("success", "Registrado correctamente");
-          loading.value = false;
-        }, 2000);
-        
-      },
-      onError: (errors) => {
-        console.error('Error al enviar el pedido:', errors);
-        showToast("error", "Error al registrar p");
+  // Evitar múltiples envíos
+  if (loading.value || ticket.value.length === 0) return;
+  
+  loading.value = true;
+  router.post('/ventas', {
+    productos: ticket.value,
+    total: totalAmount.value,
+    metodo_pago: metodoPago.value
+  }, {
+    preserveScroll: true,
+    onSuccess: (a) => {
+      console.log(a.props) 
+      
+      setTimeout(() => {
+        printTicket(a.props.ticket_id)
+        inventario.value = a.props.inventario;
+        ticket.value = [];
+        searchTerm.value = '';
+        metodoPago.value = 'efectivo';
+        showToast("success", "Registrado correctamente");
         loading.value = false;
-      }
-    });
-  }, 5000);
+      }, 2000);
+      
+    },
+    onError: (errors) => {
+      console.error('Error al enviar el pedido:', errors);
+      showToast("error", "Error al registrar");
+      loading.value = false;
+    }
+  });
 };
 
 const completeAsignacion = () => {  
-  if (ticket.value.length === 0) return;
+  // Evitar múltiples envíos
+  if (loading.value || ticket.value.length === 0) return;
   if (sucursal_id.value === 0) {
     showToast("error", "Seleccione una sucursal");
     return;
