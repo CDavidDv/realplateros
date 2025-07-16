@@ -93,10 +93,11 @@
     <div class="mb-6">
       <h3 class="text-lg font-medium mb-2">Tiempo de Reposición</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div v-for="(tiempo, index) in tiemposReposicion" :key="index" class="bg-gray-50 p-4 rounded-lg">
+        <div v-for="(tiempo, index) in tiemposReposicionCalculados" :key="index" class="bg-gray-50 p-4 rounded-lg">
           <p class="font-medium">{{ tiempo.paste }}</p>
           <p>Tiempo promedio: {{ tiempo.promedio }} minutos</p>
           <p>Última reposición: {{ tiempo.ultima }}</p>
+          <p>Tiempo restante: {{ tiempo.restante }}</p>
         </div>
       </div>
     </div>
@@ -121,7 +122,7 @@
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ notificacion.paste.nombre }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDateTime(notificacion.created_at) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDateTime(notificacion.tiempo_inicio_horneado) }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ Math.round((new Date(notificacion.diferencia_notificacion_inicio) - new Date(notificacion.created_at)) / 60000) }} min</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ calcularTiempoProduccion(notificacion) }}</td>
               <td class="px-6 py-4 whitespace-nowrap capitalize">
                 <span :class="getEstadoClass(notificacion.estado)">
                   {{ notificacion.estado }}
@@ -144,7 +145,6 @@ import { usePage, router } from '@inertiajs/vue3';
 const { props } = usePage();
 
 const produccionActual = ref([]);
-const tiemposReposicion = ref([]);
 const recomendaciones = ref([]);
 const tiemposProduccion = ref([]);
 
@@ -183,6 +183,61 @@ const getHoraFormato = (fecha) => {
   return `${hora12}-${periodo}`;
 };
 
+// Función para calcular tiempo de reposición
+const calcularTiempoReposicion = (notificacion) => {
+  if (!notificacion.tiempo_inicio_horneado || !notificacion.created_at) {
+    return { promedio: 0, ultima: 'N/A', restante: 'N/A' };
+  }
+
+  const tiempoInicio = new Date(notificacion.tiempo_inicio_horneado);
+  const tiempoNotificacion = new Date(notificacion.created_at);
+  const diferencia = Math.max(0, tiempoInicio - tiempoNotificacion);
+  const minutos = Math.floor(diferencia / (1000 * 60));
+
+  return {
+    promedio: minutos,
+    ultima: formatDateTime(notificacion.tiempo_inicio_horneado),
+    restante: minutos > 0 ? `${minutos} min` : 'Completado'
+  };
+};
+
+// Función para calcular tiempo restante sin números negativos
+const calcularTiempoRestante = (fechaInicio, fechaFin) => {
+  if (!fechaInicio || !fechaFin) return 'N/A';
+  
+  const inicio = new Date(fechaInicio);
+  const fin = new Date(fechaFin);
+  const ahora = new Date();
+  
+  // Si ya pasó la fecha, mostrar 0
+  if (ahora > fin) return 'Completado';
+  
+  const diferencia = Math.max(0, fin - ahora);
+  const minutos = Math.floor(diferencia / (1000 * 60));
+  
+  if (minutos < 60) {
+    return `${minutos} min`;
+  } else {
+    const horas = Math.floor(minutos / 60);
+    const minutosRestantes = minutos % 60;
+    return `${horas}h ${minutosRestantes}min`;
+  }
+};
+
+// Función para calcular tiempo de producción sin números negativos
+const calcularTiempoProduccion = (notificacion) => {
+  if (!notificacion.diferencia_notificacion_inicio || !notificacion.created_at) {
+    return 'N/A';
+  }
+  
+  const tiempoInicio = new Date(notificacion.diferencia_notificacion_inicio);
+  const tiempoNotificacion = new Date(notificacion.created_at);
+  const diferencia = Math.max(0, tiempoInicio - tiempoNotificacion);
+  const minutos = Math.floor(diferencia / (1000 * 60));
+  
+  return `${minutos} min`;
+};
+
 // Función para obtener el rango de fechas
 const obtenerRangoFechas = () => {
   const fecha = new Date(fechaSeleccionada.value + 'T00:00:00-06:00'); // Ajustando a zona horaria de México
@@ -218,18 +273,24 @@ const actualizarFechaInicial = () => {
 
 // Función para determinar el estado real de la notificación
 const determinarEstadoReal = (notif) => {
-  if (notif.estado === 'pendiente') return 'pendiente';
-  
-  const ahora = new Date();
-  const horaActual = getHoraFormato(ahora);
-  const horaNotificacion = getHoraFormato(notif.created_at);
-  
-  // Si no es la hora actual y el estado no es pendiente, es desperdicio
-  if (horaNotificacion !== horaActual) {
-    return 'desperdicio';
+  // Si el estado ya está definido y no es pendiente, mantenerlo
+  if (notif.estado && notif.estado !== 'pendiente') {
+    return notif.estado;
   }
   
-  return notif.estado;
+  // Si es pendiente, verificar si ya pasó la hora
+  if (notif.estado === 'pendiente') {
+    const ahora = new Date();
+    const horaActual = getHoraFormato(ahora);
+    const horaNotificacion = getHoraFormato(notif.created_at);
+    
+    // Si ya pasó la hora de la notificación, es desperdicio
+    if (horaNotificacion !== horaActual) {
+      return 'desperdicio';
+    }
+  }
+  
+  return notif.estado || 'pendiente';
 };
 
 // Modificar el computed notificacionesFiltradas
@@ -272,6 +333,18 @@ const notificacionesFiltradas = computed(() => {
     const horaNotificacion = getHoraFormato(notif.created_at);
     return horaNotificacion === horaSeleccionada.value;
   });
+});
+
+// Computed para tiempos de reposición calculados
+const tiemposReposicionCalculados = computed(() => {
+  if (!props.notificaciones?.faltantes) return [];
+  
+  return props.notificaciones.faltantes
+    .filter(notif => notif.tiempo_inicio_horneado) // Solo los que tienen tiempo de inicio
+    .map(notif => ({
+      paste: notif.paste.nombre,
+      ...calcularTiempoReposicion(notif)
+    }));
 });
 
 // Computed para procesar las notificaciones faltantes
@@ -323,10 +396,11 @@ const calcularPorcentajeVenta = (produccion) => {
 };
 
 const calcularTiempoSinVenta = (produccion) => {
-  if (!produccion.tiempo_ultima_venta) return '-';
-  const ultimaVenta = new Date(produccion.tiempo_ultima_venta);
+  if (!produccion.hora_ultima_venta) return '-';
+  const ultimaVenta = new Date(produccion.hora_ultima_venta);
   const ahora = new Date();
-  const minutos = Math.floor((ahora - ultimaVenta) / (1000 * 60));
+  const diferencia = Math.max(0, ahora - ultimaVenta);
+  const minutos = Math.floor(diferencia / (1000 * 60));
   
   if (minutos < 60) {
     return `${minutos} min`;
@@ -363,7 +437,10 @@ const getEstadoClass = (estado) => {
 const notificacionesHorneandoFiltradas = computed(() => {
   if (!props.notificaciones?.horneados) return [];
   
-  const notificaciones = props.notificaciones.horneados;
+  const notificaciones = props.notificaciones.horneados.map(notif => ({
+    ...notif,
+    estado: determinarEstadoReal(notif)
+  }));
 
   // Filtrar por día
   let notificacionesFiltradasPorDia = notificaciones.filter(notif => 
