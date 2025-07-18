@@ -43,8 +43,12 @@
         </div>
         <button type="submit" :disabled="!isFormValid"
           class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed">
-          Asignar Unidades
+          {{ isFormValid ? 'Asignar Unidades' : 'Sin ingredientes suficientes' }}
         </button>
+        <div v-if="nuevoPaste.relleno && !isFormValid" class="text-sm text-red-600 mt-2">
+          <span v-if="maxCantidadDisponible === 0">No hay ingredientes disponibles</span>
+          <span v-else>Máximo disponible: {{ maxCantidadDisponible }} unidades</span>
+        </div>
       </form>
     </div>
   </div>
@@ -281,7 +285,7 @@ const masasActualizadas = computed(() => {
 
     return {
       ...masa,
-      cantidad: masa.cantidad - cantidadHorneando,
+      cantidad: Math.max(0, masa.cantidad - cantidadHorneando), // Evitar cantidades negativas
     };
   });
 });
@@ -294,7 +298,7 @@ const rellenosActualizados = computed(() => {
 
     return {
       ...relleno,
-      cantidad: relleno.cantidad - cantidadHorneando,
+      cantidad: Math.max(0, relleno.cantidad - cantidadHorneando), // Evitar cantidades negativas
     };
   });
 });
@@ -329,12 +333,31 @@ const crearPaste = () => {
   const masa = masasActualizadas.value.find(m => m.nombre.toLowerCase() === masaCorrespondiente);
   const relleno = rellenosActualizados.value.find(r => r.nombre.toLowerCase() === nuevoPaste.value.relleno.toLowerCase());
 
+  // Validar que exista masa y tenga cantidad suficiente
   if (!masa || masa.cantidad <= 0) {
     Toast.fire({ icon: 'error', title: 'No hay suficiente masa disponible' });
     return;
   }
 
-  if (masa && relleno && nuevoPaste.value.cantidad <= maxCantidadDisponible.value) {
+  // Validar que exista relleno y tenga cantidad suficiente
+  if (!relleno || relleno.cantidad <= 0) {
+    Toast.fire({ icon: 'error', title: 'No hay suficiente relleno disponible' });
+    return;
+  }
+
+  // Validar que la cantidad solicitada no exceda lo disponible
+  const cantidadDisponible = Math.min(masa.cantidad, relleno.cantidad);
+  if (nuevoPaste.value.cantidad > cantidadDisponible) {
+    Toast.fire({ 
+      icon: 'error', 
+      title: `Solo hay ${cantidadDisponible} unidades disponibles (${masa.cantidad} masa, ${relleno.cantidad} relleno)` 
+    });
+    return;
+  }
+
+  // Si todas las validaciones pasan, crear el paste
+  if (masa && relleno && nuevoPaste.value.cantidad <= cantidadDisponible) {
+    // Actualizar cantidades disponibles
     masa.cantidad -= nuevoPaste.value.cantidad;
     relleno.cantidad -= nuevoPaste.value.cantidad;
 
@@ -356,12 +379,29 @@ const crearPaste = () => {
 };
 
 const maxCantidadDisponible = computed(() => {
+  const masaCorrespondiente = tipoDeMasa(nuevoPaste).toLowerCase();
+  const masa = masasActualizadas.value.find(m => m.nombre.toLowerCase() === masaCorrespondiente);
   const rellenoSeleccionado = rellenosActualizados.value.find(r => r.nombre === nuevoPaste.value.relleno);
-  return rellenoSeleccionado ? rellenoSeleccionado.cantidad : 1;
+  
+  if (!masa || !rellenoSeleccionado) return 0;
+  
+  // Retornar el mínimo entre masa y relleno disponible
+  return Math.min(masa.cantidad, rellenoSeleccionado.cantidad);
 });
 
 const isFormValid = computed(() => {
-  return nuevoPaste.value.relleno && nuevoPaste.value.cantidad > 0 && nuevoPaste.value.cantidad <= maxCantidadDisponible.value;
+  const masaCorrespondiente = tipoDeMasa(nuevoPaste).toLowerCase();
+  const masa = masasActualizadas.value.find(m => m.nombre.toLowerCase() === masaCorrespondiente);
+  const relleno = rellenosActualizados.value.find(r => r.nombre === nuevoPaste.value.relleno);
+  
+  if (!masa || !relleno) return false;
+  
+  const cantidadDisponible = Math.min(masa.cantidad, relleno.cantidad);
+  
+  return nuevoPaste.value.relleno && 
+         nuevoPaste.value.cantidad > 0 && 
+         nuevoPaste.value.cantidad <= cantidadDisponible &&
+         cantidadDisponible > 0;
 });
 
 const labeltime = ref('00:00');
