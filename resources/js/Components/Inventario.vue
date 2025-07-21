@@ -216,8 +216,9 @@
                     </button>
                     <button
                         @click="subsCategory"
-                        class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg">
+                        class="px-4 py-2 bg-red-600 w-full hover:bg-red-700 text-white rounded-lg">
                         Eliminar
+
                     </button>
                 </div>
             </div>
