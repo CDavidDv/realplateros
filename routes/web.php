@@ -98,9 +98,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::get('/almacen', [AlmacenController::class, 'almacen'])->name("almacen");
     
     Route::get('/api/control-produccion', [ControlProduccionController::class, 'index']);
-    Route::post('/api/control-produccion/retiro', [ControlProduccionController::class, 'registrarRetiro']);
-    Route::post('/api/control-produccion/venta', [ControlProduccionController::class, 'registrarVenta']);
-    Route::post('/api/control-produccion/horneado', [ControlProduccionController::class, 'registrarHorneado']);
+    
+    // Rutas para control de producción
+    Route::post('/control-produccion/iniciar-horneado', [ControlProduccionController::class, 'iniciarHorneado'])->name('control-produccion.iniciar-horneado');
+    Route::post('/control-produccion/finalizar-horneado', [ControlProduccionController::class, 'finalizarHorneado'])->name('control-produccion.finalizar-horneado');
+    Route::post('/control-produccion/registrar-venta', [ControlProduccionController::class, 'registrarVenta'])->name('control-produccion.registrar-venta');
 
     Route::post('/api/notificaciones/registrar', [NotificacionUmbralController::class, 'registrarNotificacion'])->name('notificaciones.registrar');
     Route::post('/api/notificaciones/actualizar', [NotificacionUmbralController::class, 'actualizarNotificaciones'])->name('notificaciones.actualizar');

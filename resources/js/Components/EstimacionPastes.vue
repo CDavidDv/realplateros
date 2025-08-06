@@ -155,8 +155,8 @@ const saveProduction = () => {
   }, {
     preserveState: false,
     preserveScroll: true,
-    onSuccess: () => Toast.fire({ icon: "success", title: "Sobrantes guardados exitosamente" }),
-    onError: () => Toast.fire({ icon: "error", title: "Error al guardar los sobrantes" })
+    onSuccess: () => Toast.fire({ icon: "success", title: "Estimaciones guardados exitosamente" }),
+    onError: () => Toast.fire({ icon: "error", title: "Error al guardar las estimaciones" })
   });
 };
 

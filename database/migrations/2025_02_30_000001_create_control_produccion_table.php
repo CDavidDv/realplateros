@@ -16,6 +16,7 @@ return new class extends Migration
             $table->integer('cantidad')->nullable();
             $table->integer('cantidad_horneada')->nullable();
             $table->timestamp('tiempo_inicio_horneado')->nullable();
+            $table->timestamp('tiempo_fin_horneado')->nullable();
             $table->timestamp('diferencia_notificacion_inicio')->nullable();
             $table->timestamp('hora_ultima_venta')->nullable();
             $table->integer('cantidad_vendida')->default(0)->nullable();

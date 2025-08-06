@@ -223,20 +223,76 @@ class ControlProduccionController extends Controller
     public function registrarVenta(Request $request)
     {
         $request->validate([
-            'produccion_id' => 'required|exists:control_produccion,id',
-            'cantidad' => 'required|integer|min:1'
+            'control_produccion_id' => 'required|exists:control_produccion,id',
+            'cantidad_vendida' => 'required|integer|min:1'
         ]);
 
-        $produccion = ControlProduccion::find($request->produccion_id);
-        $produccion->cantidad_vendida += $request->cantidad;
-        $produccion->tiempo_ultima_venta = now();
-
-        if ($produccion->cantidad_vendida >= $produccion->cantidad) {
-            $produccion->estado = 'vendido';
+        $controlProduccion = ControlProduccion::findOrFail($request->control_produccion_id);
+        
+        // Actualizar cantidad vendida
+        $controlProduccion->cantidad_vendida += $request->cantidad_vendida;
+        $controlProduccion->hora_ultima_venta = now();
+        
+        // Verificar si se vendió todo
+        if ($controlProduccion->cantidad_vendida >= $controlProduccion->cantidad) {
+            $controlProduccion->estado = 'vendido';
+        } else if ($controlProduccion->estado === 'horneando') {
+            $controlProduccion->estado = 'en_espera';
         }
+        
+        $controlProduccion->save();
 
-        $produccion->save();
+        return response()->json([
+            'success' => true,
+            'message' => 'Venta registrada correctamente',
+            'control_produccion' => $controlProduccion
+        ]);
+    }
 
-        return response()->json(['message' => 'Venta registrada correctamente']);
+    public function iniciarHorneado(Request $request)
+    {
+        $request->validate([
+            'control_produccion_id' => 'required|exists:control_produccion,id',
+            'tiempo_inicio_horneado' => 'required|date',
+            'cantidad_horneada' => 'required|integer|min:1'
+        ]);
+
+        $controlProduccion = ControlProduccion::findOrFail($request->control_produccion_id);
+        
+        // Actualizar estado y tiempos
+        $controlProduccion->estado = 'horneando';
+        $controlProduccion->tiempo_inicio_horneado = $request->tiempo_inicio_horneado;
+        $controlProduccion->cantidad_horneada = $request->cantidad_horneada;
+        $controlProduccion->diferencia_notificacion_inicio = now();
+        
+        $controlProduccion->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Horneado iniciado correctamente',
+            'control_produccion' => $controlProduccion
+        ]);
+    }
+
+    public function finalizarHorneado(Request $request)
+    {
+        $request->validate([
+            'control_produccion_id' => 'required|exists:control_produccion,id',
+            'tiempo_fin_horneado' => 'required|date'
+        ]);
+
+        $controlProduccion = ControlProduccion::findOrFail($request->control_produccion_id);
+        
+        // Actualizar estado y tiempos
+        $controlProduccion->estado = 'en_espera';
+        $controlProduccion->tiempo_fin_horneado = $request->tiempo_fin_horneado;
+        
+        $controlProduccion->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Horneado finalizado correctamente',
+            'control_produccion' => $controlProduccion
+        ]);
     }
 } 

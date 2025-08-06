@@ -40,10 +40,13 @@
 </template>
 
 <script setup>
-defineProps({
+import { defineProps, defineEmits } from 'vue';
+
+const props = defineProps({
   notifications: {
     type: Array,
-    required: true
+    required: true,
+    default: () => []
   },
   isVisible: {
     type: Boolean,
@@ -60,5 +63,7 @@ defineProps({
   }
 });
 
-defineEmits(['toggle']);
+console.log(props.notifications);
+
+const emit = defineEmits(['toggle']);
 </script> 

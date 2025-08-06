@@ -29,7 +29,7 @@
       <SistemaHorneado />
       <!-- TODO: poner el control de produccion en el sistema de horneado -->
       <ControlProduccion />
-      <PastesHorneados v-if="props.user.roles[0] !== 'supervisor'" />
+      <PastesHorneados v-if="props.auth?.user?.roles?.[0] !== 'supervisor'" />
       <EstimacionPastes v-if="isAdmin" />
     </div>
   </div>
@@ -52,7 +52,11 @@ const timeInterval = ref(null);
 
 // Props y computed properties
 const { props } = usePage();
-const isAdmin = computed(() => props.auth.user.roles[0].name === 'admin');
+const isAdmin = computed(() => {
+  const user = props.auth?.user;
+  const roles = user?.roles;
+  return roles && roles.length > 0 && roles[0]?.name === 'admin';
+});
 const inventario = computed(() => props.inventario || []);
 const estimaciones = computed(() => props.estimacionesHoy || []);
 
@@ -197,8 +201,10 @@ const notificacionesActuales = computed(() => {
 const notificacionesFaltantes = computed(() => {
   const faltantes = notificacionesActuales.value.filter(item => {
     // Un producto es faltante si:
-    // 1. Tiene estimación y la diferencia es negativa (existen menos de lo estimado)
-    const esFaltante = item.estimado > 0 && item.diferencia < 0;
+    // 1. Tiene estimación y la cantidad existente es menor al 70% de lo estimado
+    const porcentajeMinimo = 0.7; // 70%
+    const cantidadMinima = item.estimado * porcentajeMinimo;
+    const esFaltante = item.estimado > 0 && item.existente < cantidadMinima;
    
     return esFaltante;
   }).map(item => ({

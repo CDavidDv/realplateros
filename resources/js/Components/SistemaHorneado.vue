@@ -123,7 +123,7 @@ import axios from 'axios';
 import { Trash, Trash2 } from 'lucide-vue-next';
 
 const { props } = usePage();
-const inventario = props.inventario;
+const inventario = props.inventario || [];
 const hornos = ref(props.hornos || []);
 
 // Inicialización del estado de los hornos
@@ -140,7 +140,7 @@ const hornosActivos = ref(hornos.value.map(horno => ({
 
 //tiempo horneado 15 min 15 * 60 * 10000
 //900000 == 15 min
-const tiempoTotal = ref(900000); 
+const tiempoTotal = ref(9000); 
 const pastesPorHornear = ref([]);
 
 // Función para iniciar el horneado
@@ -308,7 +308,7 @@ const nuevoPaste = ref({
   masa: '',
   relleno: '',
   cantidad: 1,
-  sucursal_id: props.auth.user.sucursal_id,
+  sucursal_id: props.auth?.user?.sucursal_id,
 });
 
 const tipoDeMasa = (nuevoPaste) => {
@@ -318,7 +318,7 @@ const tipoDeMasa = (nuevoPaste) => {
     'empanadas dulces': 'dulce',
   };
 
-  const masa = props.inventario.find((item) => {
+  const masa = inventario.find((item) => {
     return (
       item.nombre.toLowerCase() === nuevoPaste.value.relleno.toLowerCase() ||
       item.nombre.toLowerCase().startsWith(nuevoPaste.value.relleno.toLowerCase())
@@ -370,11 +370,11 @@ const crearPaste = () => {
         masa: masa.nombre,
         nombre: relleno.nombre,
         cantidad: nuevoPaste.value.cantidad,
-        sucursal_id: props.auth.user.sucursal_id
+        sucursal_id: props.auth?.user?.sucursal_id
       });
     }
 
-    nuevoPaste.value = { masa: '', relleno: '', cantidad: 1, sucursal_id: props.auth.user.sucursal_id };
+    nuevoPaste.value = { masa: '', relleno: '', cantidad: 1, sucursal_id: props.auth?.user?.sucursal_id };
   }
 };
 
