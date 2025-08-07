@@ -29,6 +29,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/ventas/editar', [VentaController::class, 'editarVenta'])->name('ventas.editar');
     Route::post('/asignar', [VentaController::class, 'procesarTicket'])->name('ticket.procesar');
 
+    // Rutas para consultar ventas por día
+    Route::get('/ventas/dia', [VentaController::class, 'obtenerVentasDelDia'])->name('ventas.dia');
+    Route::get('/ventas/resumen-dia', [VentaController::class, 'obtenerResumenVentasPorDia'])->name('ventas.resumen-dia');
+
     Route::get('/hornear', [DashboardController::class, 'hornear'])->name("hornear");
     Route::post('/hornear', [HornoController::class, 'procesarPastesHorneados']);
     Route::post('/iniciar-horneado', [HornoController::class, 'iniciar_horneado']);

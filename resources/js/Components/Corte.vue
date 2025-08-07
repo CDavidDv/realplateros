@@ -196,7 +196,7 @@
                   <tbody class="bg-white divide-y divide-gray-200">
                     <tr class="odd:bg-white even:bg-gray-100" v-for="venta in corte.ventas" :key="venta.id">
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
-                        {{ venta.id }}
+                        {{ venta.idVentaDia || venta.id }}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap overflow-auto text-sm text-gray-500">
                         <span class="print">
@@ -312,8 +312,8 @@ import Sobrantes from './Sobrantes.vue'
 
 const { props } = usePage()
 
-const sobrantes = ref(props.sobrantes)
-const sobrantesInventario = ref(props.sobrantesInventario)
+const sobrantes = ref(props.sobrantes || [])
+const sobrantesInventario = ref(props.sobrantesInventario || [])
 const cantidadDeCortes = ref(props?.cantidadDeCortes || 0)
 const categoriasInventario = ref(props?.categoriasInventario || [])
 const selectedFilter = ref('day')
@@ -328,11 +328,11 @@ const cardPayments = ref(0)
 const productsUsed = ref(props.productosVendidos || [])
 const isLoading = ref(false)
 const error = ref('')
-const ventasProductos = ref(props.ventasProductos)
-const inventario = ref(props.inventario)
-const ventas = ref(props.ventas)
-const gastos = ref(props.gastos)
-const totalGastos = ref(props.totalGastos)
+const ventasProductos = ref(props.ventasProductos || [])
+const inventario = ref(props.inventario || [])
+const ventas = ref(props.ventas || [])
+const gastos = ref(props.gastos || [])
+const totalGastos = ref(props.totalGastos || 0)
 const cantidadCortes = ref(props?.cantidadCortes || 0)
 
 // Estados para controlar el guardado de cantidades
@@ -368,6 +368,11 @@ const ventasPorCorte = ref([])
 const SepararVentaPorCorte = () => {
   ventasPorCorte.value = []
   
+  // Si no hay ventas, mostrar mensaje
+  if (!ventas.value || ventas.value.length === 0) {
+    return
+  }
+  
   // Si no hay cortes, mostrar todas las ventas en un solo grupo
   if (!props.cortes || props.cortes.length === 0) {
     ventasPorCorte.value = [{
@@ -386,7 +391,6 @@ const SepararVentaPorCorte = () => {
 
   // Procesar cada corte
   cortesOrdenados.forEach((corte, index) => {
-    const corteInicio = new Date(corte.created_at)
     const corteFin = corte.updated_at ? new Date(corte.updated_at) : null
     const corteAnterior = index > 0 ? cortesOrdenados[index - 1] : null
     const corteAnteriorFin = corteAnterior?.updated_at ? new Date(corteAnterior.updated_at) : null
@@ -458,17 +462,17 @@ const fetchFilteredData = () => {
   }, {
     preserveScroll: true,
     onSuccess(response) {
-      cashPayments.value = response.props.cashPayments;
-      cardPayments.value = response.props.cardPayments;
-      productsUsed.value = response.props.productsUsed;
-      ventas.value = response.props.ventas;
+      cashPayments.value = response.props.cashPayments || 0;
+      cardPayments.value = response.props.cardPayments || 0;
+      productsUsed.value = response.props.productsUsed || [];
+      ventas.value = response.props.ventas || [];
       initialCash.value = response.props.initialCash || 0;
       finalCash.value = response.props.finalCash || 0;
       isLoading.value = false;
       ventasProductos.value = response.props.ventasProductos || [];
       inventario.value = response.props.inventario || [];
       registrosInventario.value = response.props.registrosInventario || [];
-      gastos.value = response.props.gastos || 0;
+      gastos.value = response.props.gastos || [];
       totalGastos.value = response.props.totalGastos || 0;
       props.cortes = response.props.cortes || [];
       cantidadCortes.value = response?.props?.cantidadCortes || 0;
@@ -477,10 +481,11 @@ const fetchFilteredData = () => {
       cantidadDeCortes.value = response.props.cantidadDeCortes || 0;
       categoriasInventario.value = response.props.categoriasInventario || [];
 
-      console.log(response.props)
+      console.log('Datos actualizados:', response.props)
 
       showToast("success", "Filtro actualizado correctamente");
       calculatePayments(); // Llamar a calculatePayments después de obtener los datos
+      SepararVentaPorCorte(); // Llamar a SepararVentaPorCorte después de actualizar los datos
     },
     onError(e) {
       showToast("error", e.props.flash.error || "Error al obtener datos con este filtro");
@@ -503,11 +508,21 @@ const imprimir = () => {
 }
 
 const calculatePayments = () => {
-  // Calcular el total de ventas seleccionadas por corte o todos
-  // Si hay ventas seleccionadas por corte, usar esas. Si no, usar todas las ventas disponibles
   const ventasACalcular = ventas.value || props?.ventas || [];
-  cashPayments.value = ventasACalcular?.reduce((total, venta) => venta.metodo_pago === 'efectivo' ? Number(total) + Number(venta.total) : Number(total), 0)
-  cardPayments.value = ventasACalcular?.reduce((total, venta) => venta.metodo_pago === 'tarjeta' ? Number(total) + Number(venta.total) : Number(total), 0)
+  
+  cashPayments.value = ventasACalcular.reduce((total, venta) => {
+    if (venta.metodo_pago === 'efectivo') {
+      return Number(total) + Number(venta.total || 0)
+    }
+    return Number(total)
+  }, 0)
+  
+  cardPayments.value = ventasACalcular.reduce((total, venta) => {
+    if (venta.metodo_pago === 'tarjeta') {
+      return Number(total) + Number(venta.total || 0)
+    }
+    return Number(total)
+  }, 0)
 }
 
 const selectedCorteId = ref(null);
@@ -640,8 +655,13 @@ const handleSaveFinalCash = () => {
 };
 
 onMounted(() => {
+  // Asegurarse de que los datos estén inicializados
+  if (props.ventas && Array.isArray(props.ventas)) {
+    ventas.value = props.ventas
+  }
+  
   calculatePayments()
-  SepararVentaPorCorte() // Llamar a la función al montar el componente
+  SepararVentaPorCorte()
 })
 
 const safeToFixed = (value) => {

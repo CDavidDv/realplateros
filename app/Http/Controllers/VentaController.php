@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use PhpParser\Node\Stmt\Return_;
 use App\Models\Estimaciones;
+use Illuminate\Support\Facades\DB;
 
 class VentaController extends Controller
 {
@@ -373,6 +374,61 @@ class VentaController extends Controller
         }
     }
 
+    /**
+     * Obtiene las ventas de un día específico para una sucursal
+     */
+    public function obtenerVentasDelDia(Request $request)
+    {
+        $request->validate([
+            'sucursal_id' => 'required|integer|exists:sucursales,id',
+            'fecha' => 'nullable|date'
+        ]);
+
+        $sucursalId = $request->input('sucursal_id');
+        $fecha = $request->input('fecha', now()->format('Y-m-d'));
+
+        $ventas = Venta::obtenerVentasDelDia($sucursalId, $fecha);
+        $totalVentas = Venta::contarVentasDelDia($sucursalId, $fecha);
+
+        return response()->json([
+            'ventas' => $ventas,
+            'total_ventas' => $totalVentas,
+            'fecha' => $fecha,
+            'sucursal_id' => $sucursalId
+        ]);
+    }
+
+    /**
+     * Obtiene un resumen de ventas por día para todas las sucursales
+     */
+    public function obtenerResumenVentasPorDia(Request $request)
+    {
+        $request->validate([
+            'fecha' => 'nullable|date'
+        ]);
+
+        $fecha = $request->input('fecha', now()->format('Y-m-d'));
+
+        $resumen = DB::table('ventas')
+            ->join('sucursales', 'ventas.sucursal_id', '=', 'sucursales.id')
+            ->select(
+                'ventas.sucursal_id',
+                'sucursales.nombre as sucursal_nombre',
+                DB::raw('COUNT(*) as total_ventas'),
+                DB::raw('SUM(ventas.total) as total_ventas_monto'),
+                DB::raw('MIN(ventas.idVentaDia) as primera_venta_dia'),
+                DB::raw('MAX(ventas.idVentaDia) as ultima_venta_dia')
+            )
+            ->whereDate('ventas.created_at', $fecha)
+            ->groupBy('ventas.sucursal_id', 'sucursales.nombre')
+            ->orderBy('ventas.sucursal_id')
+            ->get();
+
+        return response()->json([
+            'resumen' => $resumen,
+            'fecha' => $fecha
+        ]);
+    }
 
 
 }

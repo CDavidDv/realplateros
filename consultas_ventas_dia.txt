@@ -1,0 +1,171 @@
+=====================================================
+CONSULTAS SQL PARA VENTAS POR DÍA
+=====================================================
+
+1. CONSULTA: Obtener todas las ventas de un día específico para una sucursal
+Parámetros: @sucursal_id, @fecha (YYYY-MM-DD)
+
+SELECT 
+    v.id,
+    v.idVentaDia,
+    v.total,
+    v.metodo_pago,
+    v.created_at,
+    u.name as usuario_nombre,
+    s.nombre as sucursal_nombre
+FROM ventas v
+JOIN users u ON v.usuario_id = u.id
+JOIN sucursales s ON v.sucursal_id = s.id
+WHERE v.sucursal_id = @sucursal_id 
+    AND DATE(v.created_at) = @fecha
+ORDER BY v.idVentaDia ASC;
+
+2. CONSULTA: Obtener resumen de ventas por día para todas las sucursales
+Parámetros: @fecha (YYYY-MM-DD)
+
+SELECT 
+    v.sucursal_id,
+    s.nombre as sucursal_nombre,
+    COUNT(*) as total_ventas,
+    SUM(v.total) as total_ventas_monto,
+    MIN(v.idVentaDia) as primera_venta_dia,
+    MAX(v.idVentaDia) as ultima_venta_dia,
+    AVG(v.total) as promedio_venta
+FROM ventas v
+JOIN sucursales s ON v.sucursal_id = s.id
+WHERE DATE(v.created_at) = @fecha
+GROUP BY v.sucursal_id, s.nombre
+ORDER BY v.sucursal_id;
+
+3. CONSULTA: Obtener ventas de un rango de fechas para una sucursal
+Parámetros: @sucursal_id, @fecha_inicio, @fecha_fin
+
+SELECT 
+    DATE(v.created_at) as fecha,
+    COUNT(*) as total_ventas_dia,
+    SUM(v.total) as total_monto_dia,
+    MIN(v.idVentaDia) as primera_venta_dia,
+    MAX(v.idVentaDia) as ultima_venta_dia
+FROM ventas v
+WHERE v.sucursal_id = @sucursal_id 
+    AND DATE(v.created_at) BETWEEN @fecha_inicio AND @fecha_fin
+GROUP BY DATE(v.created_at)
+ORDER BY fecha DESC;
+
+4. CONSULTA: Obtener la última venta del día para cada sucursal
+Parámetros: @fecha (YYYY-MM-DD)
+
+SELECT 
+    v.sucursal_id,
+    s.nombre as sucursal_nombre,
+    v.idVentaDia as ultima_venta_dia,
+    v.total as ultima_venta_monto,
+    v.created_at as ultima_venta_hora
+FROM ventas v
+JOIN sucursales s ON v.sucursal_id = s.id
+WHERE DATE(v.created_at) = @fecha
+    AND v.idVentaDia = (
+        SELECT MAX(v2.idVentaDia) 
+        FROM ventas v2 
+        WHERE v2.sucursal_id = v.sucursal_id 
+            AND DATE(v2.created_at) = @fecha
+    )
+ORDER BY v.sucursal_id;
+
+5. CONSULTA: Obtener estadísticas de ventas por método de pago por día
+Parámetros: @fecha (YYYY-MM-DD)
+
+SELECT 
+    v.sucursal_id,
+    s.nombre as sucursal_nombre,
+    v.metodo_pago,
+    COUNT(*) as total_ventas,
+    SUM(v.total) as total_monto
+FROM ventas v
+JOIN sucursales s ON v.sucursal_id = s.id
+WHERE DATE(v.created_at) = @fecha
+GROUP BY v.sucursal_id, s.nombre, v.metodo_pago
+ORDER BY v.sucursal_id, v.metodo_pago;
+
+6. CONSULTA: Obtener ventas con detalles de productos por día
+Parámetros: @sucursal_id, @fecha (YYYY-MM-DD)
+
+SELECT 
+    v.idVentaDia,
+    v.total as total_venta,
+    v.metodo_pago,
+    v.created_at,
+    vp.cantidad,
+    vp.precio_unitario,
+    i.nombre as producto_nombre,
+    i.tipo as producto_tipo
+FROM ventas v
+JOIN venta_productos vp ON v.id = vp.venta_id
+JOIN inventarios i ON vp.producto_id = i.id
+WHERE v.sucursal_id = @sucursal_id 
+    AND DATE(v.created_at) = @fecha
+ORDER BY v.idVentaDia ASC, vp.id ASC;
+
+7. CONSULTA: Obtener tickets asociados a las ventas del día
+Parámetros: @sucursal_id, @fecha (YYYY-MM-DD)
+
+SELECT 
+    v.idVentaDia,
+    v.total as total_venta,
+    v.metodo_pago,
+    t.numero_ticket,
+    t.created_at as hora_ticket,
+    u.name as usuario_nombre
+FROM ventas v
+JOIN tickets t ON v.id = t.venta_id
+JOIN users u ON v.usuario_id = u.id
+WHERE v.sucursal_id = @sucursal_id 
+    AND DATE(v.created_at) = @fecha
+ORDER BY v.idVentaDia ASC;
+
+8. CONSULTA: Obtener ventas por hora del día
+Parámetros: @sucursal_id, @fecha (YYYY-MM-DD)
+
+SELECT 
+    HOUR(v.created_at) as hora,
+    COUNT(*) as total_ventas_hora,
+    SUM(v.total) as total_monto_hora,
+    AVG(v.total) as promedio_venta_hora
+FROM ventas v
+WHERE v.sucursal_id = @sucursal_id 
+    AND DATE(v.created_at) = @fecha
+GROUP BY HOUR(v.created_at)
+ORDER BY hora ASC;
+
+9. CONSULTA: Obtener las primeras 10 ventas del día para una sucursal
+Parámetros: @sucursal_id, @fecha (YYYY-MM-DD)
+
+SELECT 
+    v.idVentaDia,
+    v.total,
+    v.metodo_pago,
+    v.created_at,
+    u.name as usuario_nombre
+FROM ventas v
+JOIN users u ON v.usuario_id = u.id
+WHERE v.sucursal_id = @sucursal_id 
+    AND DATE(v.created_at) = @fecha
+ORDER BY v.idVentaDia ASC
+LIMIT 10;
+
+10. CONSULTA: Obtener las últimas 10 ventas del día para una sucursal
+Parámetros: @sucursal_id, @fecha (YYYY-MM-DD)
+
+SELECT 
+    v.idVentaDia,
+    v.total,
+    v.metodo_pago,
+    v.created_at,
+    u.name as usuario_nombre
+FROM ventas v
+JOIN users u ON v.usuario_id = u.id
+WHERE v.sucursal_id = @sucursal_id 
+    AND DATE(v.created_at) = @fecha
+ORDER BY v.idVentaDia DESC
+LIMIT 10;
+
