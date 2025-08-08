@@ -349,40 +349,25 @@ const calcularTiempoRestante = (fechaInicio, fechaFin) => {
   }
 };
 
-// Función para calcular tiempo de producción sin números negativos
+// Función para calcular tiempo de producción
+// Se mide desde que se creó la notificación (created_at)
+// hasta que inició el horneado (tiempo_inicio_horneado)
 const calcularTiempoProduccion = (notificacion) => {
   if (!notificacion.tiempo_inicio_horneado || !notificacion.created_at) {
     return 'N/A';
   }
-  
+
   try {
-    // Crear fechas con zona horaria de México
     const tiempoInicio = new Date(notificacion.tiempo_inicio_horneado);
     const tiempoNotificacion = new Date(notificacion.created_at);
-    
+
     if (isNaN(tiempoInicio.getTime()) || isNaN(tiempoNotificacion.getTime())) {
       return 'N/A';
     }
-    
-    // Calcular la diferencia entre la hora de producción y la hora de notificación
+
     const diferencia = Math.max(0, tiempoInicio - tiempoNotificacion);
     const minutos = Math.floor(diferencia / (1000 * 60));
-    
-    // Si los minutos son muy altos (más de 24 horas), podría ser un error de zona horaria
-    if (minutos > 1440) { // 24 horas = 1440 minutos
-      console.warn('Tiempo de producción muy alto, posible error de zona horaria:', {
-        tiempoInicio: notificacion.tiempo_inicio_horneado,
-        tiempoNotificacion: notificacion.created_at,
-        diferencia: minutos
-      });
-      return 'Error de fecha';
-    }
-    
-    // Si los minutos son 0, significa que se inició inmediatamente
-    if (minutos === 0) {
-      return 'Inmediato';
-    }
-    
+
     return `${minutos} min`;
   } catch (error) {
     console.error('Error al calcular tiempo de producción:', error);
@@ -649,31 +634,11 @@ const getEstadoClass = (estado) => {
 
 // Modificar el computed notificacionesHorneandoFiltradas
 const notificacionesHorneandoFiltradas = computed(() => {
-  // Mostrar todas las notificaciones que están en proceso de producción o que ya han sido procesadas
-  const notificacionesFiltradas = notificacionesFiltradas.value.filter(notif => 
-    notif.estado === 'horneando' || 
-    notif.estado === 'en_espera' || 
-    notif.estado === 'vendido' || 
-    notif.estado === 'desperdicio' ||
+  // Para las notificaciones calculadas en tiempo real, no hay horneados
+  // Solo mostrar las notificaciones filtradas que tengan tiempo de inicio
+  return notificacionesFiltradas.value.filter(notif => 
     notif.tiempo_inicio_horneado
   );
-  
-  // Filtrar solo las notificaciones del día actual
-  const hoy = new Date();
-  const hoyStr = hoy.toISOString().split('T')[0];
-  
-  return notificacionesFiltradas.filter(notif => {
-    if (!notif.created_at) return false;
-    
-    try {
-      const fechaNotificacion = new Date(notif.created_at);
-      const fechaNotificacionStr = fechaNotificacion.toISOString().split('T')[0];
-      return fechaNotificacionStr === hoyStr;
-    } catch (error) {
-      console.error('Error al verificar fecha de notificación:', error);
-      return false;
-    }
-  });
 });
 
 // Inicializar la fecha al montar el componente
