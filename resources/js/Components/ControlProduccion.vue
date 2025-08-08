@@ -204,6 +204,8 @@ const horaSeleccionada = ref('actual');
 const horasDisponibles = ref([
   { value: 'todas', label: 'Todas las horas' },
   { value: 'actual', label: 'Hora Siguiente' },
+  { value: '7-am', label: '7:00 AM' },
+  { value: '8-am', label: '8:00 AM' },
   { value: '9-am', label: '9:00 AM' },
   { value: '10-am', label: '10:00 AM' },
   { value: '11-am', label: '11:00 AM' },
@@ -216,7 +218,9 @@ const horasDisponibles = ref([
   { value: '6-pm', label: '6:00 PM' },
   { value: '7-pm', label: '7:00 PM' },
   { value: '8-pm', label: '8:00 PM' },
-  { value: '9-pm', label: '9:00 PM' }
+  { value: '9-pm', label: '9:00 PM' },
+  { value: '10-pm', label: '10:00 PM' },
+  { value: '11-pm', label: '11:00 PM' }
 ]);
 
 // Función para convertir hora_notificacion (ej: "9:00") al formato que buscamos (ej: "9-am")
@@ -349,25 +353,23 @@ const calcularTiempoRestante = (fechaInicio, fechaFin) => {
   }
 };
 
-// Función para calcular tiempo de producción
-// Se mide desde que se creó la notificación (created_at)
-// hasta que inició el horneado (tiempo_inicio_horneado)
+// Función para calcular tiempo de producción sin números negativos
 const calcularTiempoProduccion = (notificacion) => {
-  if (!notificacion.tiempo_inicio_horneado || !notificacion.created_at) {
+  if (!notificacion.diferencia_notificacion_inicio || !notificacion.created_at) {
     return 'N/A';
   }
-
+  
   try {
-    const tiempoInicio = new Date(notificacion.tiempo_inicio_horneado);
+    const tiempoInicio = new Date(notificacion.diferencia_notificacion_inicio);
     const tiempoNotificacion = new Date(notificacion.created_at);
-
+    
     if (isNaN(tiempoInicio.getTime()) || isNaN(tiempoNotificacion.getTime())) {
       return 'N/A';
     }
-
+    
     const diferencia = Math.max(0, tiempoInicio - tiempoNotificacion);
     const minutos = Math.floor(diferencia / (1000 * 60));
-
+    
     return `${minutos} min`;
   } catch (error) {
     console.error('Error al calcular tiempo de producción:', error);

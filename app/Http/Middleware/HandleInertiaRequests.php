@@ -71,18 +71,14 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'notificaciones' => [
-                // Filtrar también por la fecha de creación para evitar arrastrar
-                // registros de semanas anteriores con el mismo nombre de día
                 'faltantes' => $request->user() ? ControlProduccion::with(['horno', 'paste'])
                     ->where('sucursal_id', $request->user()->sucursal_id)
-                    ->where('dia_notificacion', Carbon::now()->locale('es')->dayName)
-                    ->whereDate('created_at', Carbon::today())
+                    ->where('dia_notificacion', Carbon::now()->locale('es')->dayName)                    
                     ->get() : [],
                 'horneados' => $request->user() ? ControlProduccion::with(['horno', 'paste'])
                     ->where('sucursal_id', $request->user()->sucursal_id)
                     ->whereIn('estado', ['horneando', 'en_espera'])
-                    ->where('dia_notificacion', Carbon::now()->locale('es')->dayName)
-                    ->whereDate('created_at', Carbon::today())
+                    ->where('dia_notificacion', Carbon::now()->locale('es')->dayName)                    
                     ->get() : []
             ],
             'inventario' => $inventario,
