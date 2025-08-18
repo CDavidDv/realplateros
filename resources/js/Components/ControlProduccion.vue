@@ -43,7 +43,6 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Horneado</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Venta</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -65,7 +64,7 @@
                 {{ notif.dia_notificacion }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ notif.hora_notificacion }}
+                {{ formatHora(notif.hora_notificacion) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span :class="[
@@ -90,36 +89,6 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {{ calcularTiempoVenta(notif) }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <div class="flex space-x-2">
-                  <!-- Botón para iniciar horneado -->
-                  <button
-                    v-if="notif.estado === 'pendiente'"
-                    @click="iniciarHorneado(notif)"
-                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs"
-                  >
-                    Iniciar Horneado
-                  </button>
-                  
-                  <!-- Botón para finalizar horneado -->
-                  <button
-                    v-if="notif.estado === 'horneando'"
-                    @click="finalizarHorneado(notif)"
-                    class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs"
-                  >
-                    Finalizar Horneado
-                  </button>
-                  
-                  <!-- Botón para registrar venta -->
-                  <button
-                    v-if="notif.estado === 'en_espera' || notif.estado === 'horneando'"
-                    @click="registrarVenta(notif, 1)"
-                    class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
-                  >
-                    +1 Venta
-                  </button>
-                </div>
               </td>
             </tr>
           </tbody>
@@ -162,8 +131,8 @@
           <tbody class="bg-white divide-y divide-gray-200">
             <tr v-for="notificacion in notificacionesHorneandoFiltradas" :key="notificacion.id">
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ notificacion.paste.nombre }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDateTime(notificacion.created_at) }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDateTime(notificacion.tiempo_inicio_horneado) }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatHora(notificacion.created_at) }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatHora(notificacion.tiempo_inicio_horneado) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ calcularTiempoProduccion(notificacion) }}</td>
               <td class="px-6 py-4 whitespace-nowrap capitalize">
                 <span :class="getEstadoClass(notificacion.estado)">
@@ -367,6 +336,14 @@ const calcularTiempoProduccion = (notificacion) => {
       return 'N/A';
     }
     
+    // Verificar que ambas fechas sean del mismo día
+    const fechaNotificacion = tiempoNotificacion.toDateString();
+    const fechaInicio = tiempoInicioHorneado.toDateString();
+    
+    if (fechaNotificacion !== fechaInicio) {
+      return 'Diferente día';
+    }
+    
     // Calcular diferencia: tiempo de inicio - tiempo de notificación
     const diferencia = tiempoInicioHorneado - tiempoNotificacion;
     const minutos = Math.floor(diferencia / (1000 * 60));
@@ -378,25 +355,6 @@ const calcularTiempoProduccion = (notificacion) => {
   } catch (error) {
     console.error('Error al calcular tiempo de producción:', error);
     return 'Error';
-  }
-};
-
-// Función para verificar si una notificación es del día actual
-const esNotificacionDelDia = (notificacion) => {
-  if (!notificacion.created_at) return false;
-  
-  try {
-    const fechaNotificacion = new Date(notificacion.created_at);
-    const hoy = new Date();
-    
-    // Comparar solo la fecha (sin hora)
-    const fechaNotificacionStr = fechaNotificacion.toDateString();
-    const hoyStr = hoy.toDateString();
-    
-    return fechaNotificacionStr === hoyStr;
-  } catch (error) {
-    console.error('Error al verificar fecha de notificación:', error);
-    return false;
   }
 };
 
@@ -636,6 +594,7 @@ const formatDateTime = (date) => {
     return dateObj.toLocaleString('es-MX', {
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
       hour12: true,
       timeZone: 'America/Mexico_City'
     });
@@ -663,13 +622,6 @@ const notificacionesHorneandoFiltradas = computed(() => {
   // Solo mostrar las notificaciones filtradas que tengan tiempo de inicio
   return notificacionesFiltradas.value.filter(notif => 
     notif.tiempo_inicio_horneado
-  );
-});
-
-// Computed para notificaciones del día actual
-const notificacionesDelDia = computed(() => {
-  return notificacionesFiltradas.value.filter(notif => 
-    esNotificacionDelDia(notif)
   );
 });
 
@@ -938,6 +890,14 @@ const calcularTiempoHorneado = (notificacion) => {
       return 'Fecha inválida';
     }
     
+    // Verificar que ambas fechas sean del mismo día
+    const fechaNotificacion = tiempoNotificacion.toDateString();
+    const fechaInicio = tiempoInicioHorneado.toDateString();
+    
+    if (fechaNotificacion !== fechaInicio) {
+      return 'Diferente día';
+    }
+    
     // Calcular diferencia: tiempo de inicio - tiempo de notificación
     const diferencia = tiempoInicioHorneado - tiempoNotificacion;
     const minutos = Math.floor(diferencia / (1000 * 60));
@@ -952,7 +912,7 @@ const calcularTiempoHorneado = (notificacion) => {
   }
 };
 
-// Función para calcular tiempo de venta (desde última venta hasta ahora)
+// Función para calcular tiempo de venta (desde última venta hasta ahora, solo del mismo día)
 const calcularTiempoVenta = (notificacion) => {
   if (!notificacion.hora_ultima_venta) return 'Sin ventas';
   
@@ -966,7 +926,7 @@ const calcularTiempoVenta = (notificacion) => {
     const fechaNotificacion = new Date(notificacion.created_at);
     const fechaVenta = new Date(notificacion.hora_ultima_venta);
     
-    // Si la venta no es del mismo día, no calcular tiempo
+    // Si la venta no es del mismo día que la notificación, no calcular tiempo
     if (fechaNotificacion.toDateString() !== fechaVenta.toDateString()) {
       return 'Sin ventas del día';
     }
@@ -987,6 +947,50 @@ const calcularTiempoVenta = (notificacion) => {
   } catch (error) {
     console.error('Error al calcular tiempo de venta:', error);
     return 'Error';
+  }
+};
+
+// Función para formatear hora en formato HH:MM:SS AM/PM
+const formatHora = (hora) => {
+  if (!hora) return '-';
+  
+  try {
+    // Si la hora ya está en formato de fecha, formatearla
+    if (hora.includes('-') || hora.includes(':')) {
+      const fecha = new Date(`2000-01-01 ${hora}`);
+      if (!isNaN(fecha.getTime())) {
+        return fecha.toLocaleString('es-MX', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true,
+          timeZone: 'America/Mexico_City'
+        });
+      }
+    }
+    
+    // Si es solo hora (ej: "6:00 pm"), convertir a formato completo
+    if (hora.includes(':')) {
+      const [horaPart, minutosPart] = hora.split(':');
+      const horaNum = parseInt(horaPart);
+      const minutos = parseInt(minutosPart);
+      
+      if (!isNaN(horaNum) && !isNaN(minutos)) {
+        const fecha = new Date(2000, 0, 1, horaNum, minutos);
+        return fecha.toLocaleString('es-MX', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true,
+          timeZone: 'America/Mexico_City'
+        });
+      }
+    }
+    
+    return hora;
+  } catch (error) {
+    console.error('Error al formatear hora:', hora, error);
+    return hora;
   }
 };
 
