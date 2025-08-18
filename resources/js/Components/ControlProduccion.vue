@@ -160,6 +160,20 @@ console.log(props);
 const produccionActual = ref([]);
 const recomendaciones = ref([]);
 const tiemposProduccion = ref([]);
+const notificaciones = ref({ faltantes: [], horneados: [] });
+
+// Función para obtener notificaciones desde la API
+const obtenerNotificaciones = async () => {
+  try {
+    const response = await fetch('/api/notificaciones');
+    if (response.ok) {
+      const data = await response.json();
+      notificaciones.value = data;
+    }
+  } catch (error) {
+    console.error('Error al obtener notificaciones:', error);
+  }
+};
 
 const isAdmin = computed(() => {
   const user = props.auth?.user;
@@ -421,7 +435,7 @@ const determinarEstadoReal = (notif) => {
 const notificacionesFiltradas = computed(() => {
   // Combinar notificaciones calculadas en tiempo real con las registradas en BD
   const notificacionesCalculadas = notificacionesFaltantesCalculadas.value;
-  const notificacionesRegistradas = props.notificaciones?.faltantes || [];
+  const notificacionesRegistradas = notificacionesFaltantes.value;
   
   // Crear un mapa de notificaciones registradas para evitar duplicados
   const notificacionesRegistradasMap = new Map();
@@ -451,6 +465,7 @@ const notificacionesFiltradas = computed(() => {
         cantidad_vendida: notifRegistrada.cantidad_vendida || 0,
         tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
         created_at: notifRegistrada.created_at || notifCalculada.created_at,
+        updated_at: notifRegistrada.updated_at || notifCalculada.updated_at,
         cantidad_horneada: notifRegistrada.cantidad_horneada || 0
       };
     } else {
@@ -482,6 +497,7 @@ const notificacionesFiltradas = computed(() => {
         cantidad_vendida: notifRegistrada.cantidad_vendida || 0,
         tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
         created_at: notifRegistrada.created_at,
+        updated_at: notifRegistrada.updated_at,
         cantidad_horneada: notifRegistrada.cantidad_horneada || 0
       });
     }
@@ -529,9 +545,9 @@ const tiemposReposicionCalculados = computed(() => {
 
 // Computed para procesar las notificaciones faltantes
 const notificacionesFaltantes = computed(() => {
-  if (!props.notificaciones?.faltantes) return [];
+  if (!notificaciones.value?.faltantes) return [];
   
-  return props.notificaciones.faltantes.map(notif => ({
+  return notificaciones.value.faltantes.map(notif => ({
     id: notif.id,
     paste: notif.paste,
     cantidad: notif.cantidad,
@@ -542,14 +558,15 @@ const notificacionesFaltantes = computed(() => {
     hora_ultima_venta: notif.hora_ultima_venta,
     cantidad_vendida: notif.cantidad_vendida,
     tiempo_inicio_horneado: notif.tiempo_inicio_horneado,
-    created_at: notif.created_at
+    created_at: notif.created_at,
+    updated_at: notif.updated_at
   }));
 });
 
 const notificacionesHorneando = computed(() => {
-  if (!props.notificaciones?.horneados) return [];
+  if (!notificaciones.value?.horneados) return [];
 
-  return props.notificaciones.horneados;
+  return notificaciones.value.horneados;
 });
 
 // Computed para las recomendaciones basadas en notificaciones
@@ -564,7 +581,7 @@ const recomendacionesActualizadas = computed(() => {
 });
 
 // Watch para actualizar las recomendaciones cuando cambian las notificaciones
-watch(() => props.notificaciones?.faltantes, (newNotificaciones) => {
+watch(() => notificaciones.value?.faltantes, (newNotificaciones) => {
   if (newNotificaciones) {
     recomendaciones.value = recomendacionesActualizadas.value;
   }
@@ -635,6 +652,7 @@ const notificacionesHorneandoFiltradas = computed(() => {
 // Inicializar la fecha al montar el componente
 onMounted(() => {
   actualizarFechaInicial();
+  obtenerNotificaciones(); // Obtener notificaciones desde la API
 });
 
 // Función para convertir hora 12h a 24h
@@ -766,6 +784,7 @@ const notificacionesFaltantesCalculadas = computed(() => {
     dia_notificacion: item.dia,
     estado: 'pendiente',
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     cantidad_horneada: 0,
     cantidad_vendida: 0,
     hora_ultima_venta: null,
@@ -782,7 +801,7 @@ watch(() => notificacionesFaltantesCalculadas.value, (nuevasNotificaciones) => {
       const cantidad = notif.cantidad;
       
       // Verificar si ya existe la notificación
-      const notificacionExistente = props.notificaciones?.faltantes?.find(
+      const notificacionExistente = notificaciones.value?.faltantes?.find(
         n => {
           // Verificar que notif.id sea una cadena antes de usar split
           const notifId = typeof notif.id === 'string' ? notif.id : String(notif.id);
@@ -923,7 +942,14 @@ const calcularTiempoHorneado = (notificacion) => {
 
 // Función para calcular tiempo de venta (desde última venta hasta ahora, solo del mismo día)
 const calcularTiempoVenta = (notificacion) => {
-  if (!notificacion.hora_ultima_venta) return 'Sin ventas';
+  // Si no hay hora_ultima_venta, pero el producto está vendido, usar updated_at
+  if (!notificacion.hora_ultima_venta) {
+    // Si el producto está vendido, usar el tiempo de la última actualización
+    if (notificacion.estado === 'vendido' && notificacion.updated_at) {
+      return calcularTiempoDesdeUltimaActualizacion(notificacion.updated_at);
+    }
+    return 'Sin ventas';
+  }
   
   try {
     const ultimaVenta = new Date(notificacion.hora_ultima_venta);
@@ -968,6 +994,46 @@ const calcularTiempoVenta = (notificacion) => {
     }
   } catch (error) {
     console.error('Error al calcular tiempo de venta:', error);
+    return 'Error';
+  }
+};
+
+// Función auxiliar para calcular tiempo desde la última actualización
+const calcularTiempoDesdeUltimaActualizacion = (updatedAt) => {
+  try {
+    const ultimaActualizacion = new Date(updatedAt);
+    const ahora = new Date();
+    
+    if (isNaN(ultimaActualizacion.getTime())) return 'Fecha inválida';
+    
+    // Verificar que la actualización sea del mismo día
+    const fechaActualizacion = ultimaActualizacion.toDateString();
+    const fechaActual = ahora.toDateString();
+    
+    if (fechaActualizacion !== fechaActual) {
+      return 'Actualizado otro día';
+    }
+    
+    const diferencia = ahora - ultimaActualizacion;
+    const minutos = Math.floor(diferencia / (1000 * 60));
+    
+    // Evitar números negativos
+    if (minutos < 0) return '0 min';
+    
+    // Limitar el tiempo máximo a 24 horas
+    if (minutos > 1440) {
+      return 'Actualizado otro día';
+    }
+    
+    if (minutos < 60) {
+      return `${minutos} min`;
+    } else {
+      const horas = Math.floor(minutos / 60);
+      const minutosRestantes = minutos % 60;
+      return `${horas}h ${minutosRestantes}min`;
+    }
+  } catch (error) {
+    console.error('Error al calcular tiempo desde última actualización:', error);
     return 'Error';
   }
 };

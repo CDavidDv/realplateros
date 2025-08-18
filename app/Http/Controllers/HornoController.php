@@ -113,7 +113,8 @@ class HornoController extends Controller
 
             $control = ControlProduccion::where('sucursal_id', $sucursalId)
                 ->where('paste_id', $paste['paste_id'])
-                ->orderBy('created_at', 'desc')
+                ->whereDate('created_at', Carbon::today('America/Mexico_City'))
+                ->latest()
                 ->first();
 
             
