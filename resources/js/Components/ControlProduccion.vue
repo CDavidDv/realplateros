@@ -932,18 +932,40 @@ const calcularTiempoHorneado = (notificacion) => {
   }
 };
 
-// Función para calcular tiempo de venta (desde última venta hasta ahora, solo del mismo día)
 const calcularTiempoVenta = (notificacion) => {
-  //hora local de mexico (server: 2025-08-07 20:32:27)
-  const fecha = new Date(notificacion.updated_at);
-  console.log('Fecha:', fecha);
-  return fecha.toLocaleString('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-    timeZone: 'America/Mexico_City'
-  });
+  // Debug: mostrar todos los datos de la notificación
+  console.log('Notificación completa:', notificacion);
+  console.log('updated_at:', notificacion.updated_at);
+  console.log('hora_ultima_venta:', notificacion.hora_ultima_venta);
+  console.log('created_at:', notificacion.created_at);
+  
+  // Verificar si updated_at existe y es válido
+  if (!notificacion.updated_at) {
+    return 'Sin ventas';
+  }
+  
+  try {
+    //hora local de mexico (server: 2025-08-07 20:32:27)
+    const fecha = new Date(notificacion.updated_at);
+    
+    // Verificar que la fecha sea válida
+    if (isNaN(fecha.getTime())) {
+      console.log('Fecha inválida:', notificacion.updated_at);
+      return 'Fecha inválida';
+    }
+    
+    console.log('Fecha válida:', fecha);
+    return fecha.toLocaleString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: 'America/Mexico_City'
+    });
+  } catch (error) {
+    console.error('Error al procesar fecha:', error);
+    return 'Error de fecha';
+  }
 };
 
 // Función para formatear hora en formato HH:MM:SS AM/PM
