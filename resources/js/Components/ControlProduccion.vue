@@ -353,27 +353,50 @@ const calcularTiempoRestante = (fechaInicio, fechaFin) => {
   }
 };
 
-// Función para calcular tiempo de producción sin números negativos
+// Función para calcular tiempo de producción (desde notificación hasta inicio de horneado)
 const calcularTiempoProduccion = (notificacion) => {
-  if (!notificacion.diferencia_notificacion_inicio || !notificacion.created_at) {
+  if (!notificacion.tiempo_inicio_horneado || !notificacion.created_at) {
     return 'N/A';
   }
   
   try {
-    const tiempoInicio = new Date(notificacion.diferencia_notificacion_inicio);
     const tiempoNotificacion = new Date(notificacion.created_at);
+    const tiempoInicioHorneado = new Date(notificacion.tiempo_inicio_horneado);
     
-    if (isNaN(tiempoInicio.getTime()) || isNaN(tiempoNotificacion.getTime())) {
+    if (isNaN(tiempoNotificacion.getTime()) || isNaN(tiempoInicioHorneado.getTime())) {
       return 'N/A';
     }
     
-    const diferencia = Math.max(0, tiempoInicio - tiempoNotificacion);
+    // Calcular diferencia: tiempo de inicio - tiempo de notificación
+    const diferencia = tiempoInicioHorneado - tiempoNotificacion;
     const minutos = Math.floor(diferencia / (1000 * 60));
+    
+    // Evitar números negativos
+    if (minutos < 0) return '0 min';
     
     return `${minutos} min`;
   } catch (error) {
     console.error('Error al calcular tiempo de producción:', error);
     return 'Error';
+  }
+};
+
+// Función para verificar si una notificación es del día actual
+const esNotificacionDelDia = (notificacion) => {
+  if (!notificacion.created_at) return false;
+  
+  try {
+    const fechaNotificacion = new Date(notificacion.created_at);
+    const hoy = new Date();
+    
+    // Comparar solo la fecha (sin hora)
+    const fechaNotificacionStr = fechaNotificacion.toDateString();
+    const hoyStr = hoy.toDateString();
+    
+    return fechaNotificacionStr === hoyStr;
+  } catch (error) {
+    console.error('Error al verificar fecha de notificación:', error);
+    return false;
   }
 };
 
@@ -643,6 +666,13 @@ const notificacionesHorneandoFiltradas = computed(() => {
   );
 });
 
+// Computed para notificaciones del día actual
+const notificacionesDelDia = computed(() => {
+  return notificacionesFiltradas.value.filter(notif => 
+    esNotificacionDelDia(notif)
+  );
+});
+
 // Inicializar la fecha al montar el componente
 onMounted(() => {
   actualizarFechaInicial();
@@ -894,18 +924,26 @@ const registrarVenta = (notificacion, cantidad) => {
   });
 };
 
-// Función para calcular tiempo de horneado
+// Función para calcular tiempo de horneado (desde notificación hasta inicio)
 const calcularTiempoHorneado = (notificacion) => {
-  if (!notificacion.tiempo_inicio_horneado) return 'No iniciado';
+  if (!notificacion.tiempo_inicio_horneado || !notificacion.created_at) {
+    return 'No iniciado';
+  }
   
   try {
-    const inicio = new Date(notificacion.tiempo_inicio_horneado);
-    const ahora = new Date();
+    const tiempoNotificacion = new Date(notificacion.created_at);
+    const tiempoInicioHorneado = new Date(notificacion.tiempo_inicio_horneado);
     
-    if (isNaN(inicio.getTime())) return 'Fecha inválida';
+    if (isNaN(tiempoNotificacion.getTime()) || isNaN(tiempoInicioHorneado.getTime())) {
+      return 'Fecha inválida';
+    }
     
-    const diferencia = ahora - inicio;
+    // Calcular diferencia: tiempo de inicio - tiempo de notificación
+    const diferencia = tiempoInicioHorneado - tiempoNotificacion;
     const minutos = Math.floor(diferencia / (1000 * 60));
+    
+    // Evitar números negativos
+    if (minutos < 0) return '0 min';
     
     return `${minutos} min`;
   } catch (error) {
@@ -914,7 +952,7 @@ const calcularTiempoHorneado = (notificacion) => {
   }
 };
 
-// Función para calcular tiempo de venta
+// Función para calcular tiempo de venta (desde última venta hasta ahora)
 const calcularTiempoVenta = (notificacion) => {
   if (!notificacion.hora_ultima_venta) return 'Sin ventas';
   
@@ -924,8 +962,20 @@ const calcularTiempoVenta = (notificacion) => {
     
     if (isNaN(ultimaVenta.getTime())) return 'Fecha inválida';
     
+    // Verificar que la venta sea del mismo día que la notificación
+    const fechaNotificacion = new Date(notificacion.created_at);
+    const fechaVenta = new Date(notificacion.hora_ultima_venta);
+    
+    // Si la venta no es del mismo día, no calcular tiempo
+    if (fechaNotificacion.toDateString() !== fechaVenta.toDateString()) {
+      return 'Sin ventas del día';
+    }
+    
     const diferencia = ahora - ultimaVenta;
     const minutos = Math.floor(diferencia / (1000 * 60));
+    
+    // Evitar números negativos
+    if (minutos < 0) return '0 min';
     
     if (minutos < 60) {
       return `${minutos} min`;
