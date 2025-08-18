@@ -423,6 +423,20 @@ const notificacionesFiltradas = computed(() => {
   const notificacionesCalculadas = notificacionesFaltantesCalculadas.value;
   const notificacionesRegistradas = props.notificaciones?.faltantes || [];
   
+  // Debug: mostrar qué datos están llegando
+  console.log('Debug notificacionesFiltradas:', {
+    notificacionesCalculadas: notificacionesCalculadas.length,
+    notificacionesRegistradas: notificacionesRegistradas.length,
+    muestraRegistradas: notificacionesRegistradas.slice(0, 2).map(n => ({
+      id: n.id,
+      nombre: n.paste?.nombre,
+      hora_ultima_venta: n.hora_ultima_venta,
+      cantidad_vendida: n.cantidad_vendida,
+      cantidad_horneada: n.cantidad_horneada,
+      estado: n.estado
+    }))
+  });
+  
   // Crear un mapa de notificaciones registradas para evitar duplicados
   const notificacionesRegistradasMap = new Map();
   notificacionesRegistradas.forEach(notif => {
@@ -449,7 +463,6 @@ const notificacionesFiltradas = computed(() => {
         tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
         hora_ultima_venta: notifRegistrada.hora_ultima_venta,
         cantidad_vendida: notifRegistrada.cantidad_vendida || 0,
-        tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
         created_at: notifRegistrada.created_at || notifCalculada.created_at,
         cantidad_horneada: notifRegistrada.cantidad_horneada || 0
       };
@@ -480,7 +493,6 @@ const notificacionesFiltradas = computed(() => {
         tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
         hora_ultima_venta: notifRegistrada.hora_ultima_venta,
         cantidad_vendida: notifRegistrada.cantidad_vendida || 0,
-        tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
         created_at: notifRegistrada.created_at,
         cantidad_horneada: notifRegistrada.cantidad_horneada || 0
       });
@@ -541,7 +553,6 @@ const notificacionesFaltantes = computed(() => {
     tiempo_inicio_horneado: notif.tiempo_inicio_horneado,
     hora_ultima_venta: notif.hora_ultima_venta,
     cantidad_vendida: notif.cantidad_vendida,
-    tiempo_inicio_horneado: notif.tiempo_inicio_horneado,
     created_at: notif.created_at
   }));
 });
@@ -923,17 +934,31 @@ const calcularTiempoHorneado = (notificacion) => {
 
 // Función para calcular tiempo de venta (desde última venta hasta ahora, solo del mismo día)
 const calcularTiempoVenta = (notificacion) => {
-  if (!notificacion.updated_at) return 'Sin ventas';
+  if (!notificacion.hora_ultima_venta) {
+    console.log('Sin hora_ultima_venta:', notificacion);
+    return 'Sin ventas';
+  }
   
   try {
-    const ultimaVenta = new Date(notificacion.updated_at);
+    const ultimaVenta = new Date(notificacion.hora_ultima_venta);
     const ahora = new Date();
     
     if (isNaN(ultimaVenta.getTime())) return 'Fecha inválida';
     
     // Verificar que la venta sea del mismo día que la notificación
     const fechaNotificacion = new Date(notificacion.created_at);
-    const fechaVenta = new Date(notificacion.updated_at);
+    const fechaVenta = new Date(notificacion.hora_ultima_venta);
+    
+    // Debug: mostrar información de fechas
+    console.log('Debug calcularTiempoVenta:', {
+      producto: notificacion.paste?.nombre,
+      hora_ultima_venta: notificacion.hora_ultima_venta,
+      fecha_notificacion: fechaNotificacion.toDateString(),
+      fecha_venta: fechaVenta.toDateString(),
+      fecha_actual: ahora.toDateString(),
+      cantidad_vendida: notificacion.cantidad_vendida,
+      cantidad_horneada: notificacion.cantidad_horneada
+    });
     
     // Si la venta no es del mismo día que la notificación, no calcular tiempo
     if (fechaNotificacion.toDateString() !== fechaVenta.toDateString()) {
