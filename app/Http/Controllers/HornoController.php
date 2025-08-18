@@ -116,64 +116,18 @@ class HornoController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->first();
 
-            Log::info('Control encontrado:', [
-                'control_id' => $control ? $control->id : 'no encontrado',
-                'estado' => $control ? $control->estado : 'no encontrado',
-                'cantidad_horneada_actual' => $control ? $control->cantidad_horneada : 'no encontrado'
-            ]);
-
-            if(isset($control->estado) && $control->estado === 'pendiente'){
-                // Validar que la notificación exista antes de iniciar horneado
-                $fechaNotificacion = Carbon::parse($control->created_at);
-                $fechaActual = Carbon::now();
-                
-                if ($fechaActual < $fechaNotificacion) {
-                    Log::warning('Intento de iniciar horneado antes de la notificación:', [
-                        'control_id' => $control->id,
-                        'fecha_notificacion' => $fechaNotificacion->toDateTimeString(),
-                        'fecha_actual' => $fechaActual->toDateTimeString(),
-                        'diferencia_minutos' => $fechaNotificacion->diffInMinutes($fechaActual, false)
-                    ]);
-                    
-                    // No permitir horneado antes de la notificación
-                    continue;
-                }
-                
-                $control->tiempo_inicio_horneado = Carbon::now();
-                $control->save();
-                
-                Log::info('Guardado tiempo_inicio_horneado');
-            }
             
-            if ($control) {
+            if ($control && $control->estado === 'pendiente') {
                 $control->estado = 'horneando';
                 
                 // Obtener valores actuales
                 $cantidadActual = is_numeric($control->cantidad_horneada) ? (int)$control->cantidad_horneada : 0;
                 $cantidadNueva = is_numeric($paste['cantidad']) ? (int)$paste['cantidad'] : 0;
                 
-                Log::info('Valores antes de la suma:', [
-                    'control_id' => $control->id,
-                    'cantidad_actual' => $cantidadActual,
-                    'cantidad_nueva' => $cantidadNueva,
-                    'tipo_cantidad_actual' => gettype($cantidadActual),
-                    'tipo_cantidad_nueva' => gettype($cantidadNueva)
-                ]);
-                
                 // Realizar la suma
                 $control->cantidad_horneada = $cantidadActual + $cantidadNueva;
                 
-                // Solo establecer tiempo_inicio_horneado si no se ha establecido antes
-                if (!$control->tiempo_inicio_horneado) {
-                    $control->tiempo_inicio_horneado = $tiempo_inicio;
-                }
-                
-                Log::info('Después de la suma:', [
-                    'control_id' => $control->id,
-                    'cantidad_total' => $control->cantidad_horneada,
-                    'tiempo_inicio_horneado' => $control->tiempo_inicio_horneado,
-                    'tipo_cantidad_total' => gettype($control->cantidad_horneada)
-                ]);
+                $control->tiempo_inicio_horneado = $tiempo_inicio;
                 
                 try {
                     $control->save();
@@ -184,6 +138,7 @@ class HornoController extends Controller
                         'control_id' => $control->id
                     ]);
                 }
+                $control->save();
                 
                 $control_produccion[] = $control;
             }
