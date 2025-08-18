@@ -223,21 +223,64 @@ class VentaController extends Controller
 
                     $control = ControlProduccion::where('sucursal_id', auth()->user()->sucursal_id)
                         ->where('paste_id', $item->id)
-                        ->whereIn('estado', ['en_espera'])
+                        ->whereIn('estado', ['en_espera', 'horneando', 'pendiente'])
+                        ->whereDate('created_at', Carbon::today()) // Solo del día actual
                         ->orderBy('created_at', 'desc')
                         ->first();
 
                     if ($control) {
-                        if($control->cantidad_vendida + $producto['ticketQuantity'] >= $control->cantidad_horneada){
-                            $control->estado = 'vendido';
-                            $control->cantidad_vendida += $producto['ticketQuantity'];
-                            $control->hora_ultima_venta = Carbon::now();
-                            $control->save();
-                        }else{
-                            $control->cantidad_vendida += $producto['ticketQuantity'];
-                            $control->hora_ultima_venta = Carbon::now();
-                            $control->save();
+                        // Verificar que la notificación sea del día actual
+                        $fechaNotificacion = Carbon::parse($control->created_at)->toDateString();
+                        $fechaActual = Carbon::today()->toDateString();
+                        
+                        Log::info('Control de producción encontrado para venta:', [
+                            'producto_id' => $item->id,
+                            'producto_nombre' => $item->nombre,
+                            'control_id' => $control->id,
+                            'estado' => $control->estado,
+                            'fecha_notificacion' => $fechaNotificacion,
+                            'fecha_actual' => $fechaActual,
+                            'es_mismo_dia' => $fechaNotificacion === $fechaActual,
+                            'cantidad_vendida_actual' => $control->cantidad_vendida,
+                            'cantidad_nueva' => $producto['ticketQuantity']
+                        ]);
+                        
+                        if ($fechaNotificacion === $fechaActual) {
+                            if($control->cantidad_vendida + $producto['ticketQuantity'] >= $control->cantidad_horneada){
+                                $control->estado = 'vendido';
+                                $control->cantidad_vendida += $producto['ticketQuantity'];
+                                $control->hora_ultima_venta = Carbon::now();
+                                $control->save();
+                                
+                                Log::info('Control marcado como vendido:', [
+                                    'control_id' => $control->id,
+                                    'cantidad_total_vendida' => $control->cantidad_vendida,
+                                    'hora_ultima_venta' => $control->hora_ultima_venta
+                                ]);
+                            }else{
+                                $control->cantidad_vendida += $producto['ticketQuantity'];
+                                $control->hora_ultima_venta = Carbon::now();
+                                $control->save();
+                                
+                                Log::info('Control actualizado con nueva venta:', [
+                                    'control_id' => $control->id,
+                                    'cantidad_total_vendida' => $control->cantidad_vendida,
+                                    'hora_ultima_venta' => $control->hora_ultima_venta
+                                ]);
+                            }
+                        } else {
+                            Log::info('Control ignorado por ser de otro día:', [
+                                'control_id' => $control->id,
+                                'fecha_notificacion' => $fechaNotificacion,
+                                'fecha_actual' => $fechaActual
+                            ]);
                         }
+                    } else {
+                        Log::info('No se encontró control de producción para el producto:', [
+                            'producto_id' => $item->id,
+                            'producto_nombre' => $item->nombre,
+                            'sucursal_id' => auth()->user()->sucursal_id
+                        ]);
                     }
 
                     

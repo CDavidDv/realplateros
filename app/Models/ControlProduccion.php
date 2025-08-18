@@ -15,7 +15,6 @@ class ControlProduccion extends Model
         'cantidad',
         'tiempo_inicio_horneado',
         'tiempo_fin_horneado',
-        'diferencia_notificacion_inicio',
         'hora_ultima_venta',
         'cantidad_vendida',
         'cantidad_horneada',

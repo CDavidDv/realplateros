@@ -123,10 +123,26 @@ class HornoController extends Controller
             ]);
 
             if(isset($control->estado) && $control->estado === 'pendiente'){
-                $control->diferencia_notificacion_inicio = Carbon::now();
+                // Validar que la notificación exista antes de iniciar horneado
+                $fechaNotificacion = Carbon::parse($control->created_at);
+                $fechaActual = Carbon::now();
+                
+                if ($fechaActual < $fechaNotificacion) {
+                    Log::warning('Intento de iniciar horneado antes de la notificación:', [
+                        'control_id' => $control->id,
+                        'fecha_notificacion' => $fechaNotificacion->toDateTimeString(),
+                        'fecha_actual' => $fechaActual->toDateTimeString(),
+                        'diferencia_minutos' => $fechaNotificacion->diffInMinutes($fechaActual, false)
+                    ]);
+                    
+                    // No permitir horneado antes de la notificación
+                    continue;
+                }
+                
+                $control->tiempo_inicio_horneado = Carbon::now();
                 $control->save();
                 
-                Log::info('Guardado diferencia_notificacion_inicio');
+                Log::info('Guardado tiempo_inicio_horneado');
             }
             
             if ($control) {
@@ -147,14 +163,17 @@ class HornoController extends Controller
                 // Realizar la suma
                 $control->cantidad_horneada = $cantidadActual + $cantidadNueva;
                 
+                // Solo establecer tiempo_inicio_horneado si no se ha establecido antes
+                if (!$control->tiempo_inicio_horneado) {
+                    $control->tiempo_inicio_horneado = $tiempo_inicio;
+                }
                 
                 Log::info('Después de la suma:', [
                     'control_id' => $control->id,
                     'cantidad_total' => $control->cantidad_horneada,
+                    'tiempo_inicio_horneado' => $control->tiempo_inicio_horneado,
                     'tipo_cantidad_total' => gettype($control->cantidad_horneada)
                 ]);
-                
-                $control->tiempo_inicio_horneado = $tiempo_inicio;
                 
                 try {
                     $control->save();

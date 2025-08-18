@@ -348,10 +348,9 @@ const calcularTiempoProduccion = (notificacion) => {
     const diferencia = tiempoInicioHorneado - tiempoNotificacion;
     const minutos = Math.floor(diferencia / (1000 * 60));
     
-    // Evitar números negativos
+    // Si la producción empezó antes que la notificación, es un error lógico
     if (minutos < 0) {
-      // Si el horneado empezó antes que la notificación, mostrar 0
-      return '0 min';
+      return 'Error: Producción antes de notificación';
     }
     
     // Limitar el tiempo máximo a 24 horas para evitar errores
@@ -450,7 +449,7 @@ const notificacionesFiltradas = computed(() => {
         tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
         hora_ultima_venta: notifRegistrada.hora_ultima_venta,
         cantidad_vendida: notifRegistrada.cantidad_vendida || 0,
-        diferencia_notificacion_inicio: notifRegistrada.diferencia_notificacion_inicio,
+        tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
         created_at: notifRegistrada.created_at || notifCalculada.created_at,
         cantidad_horneada: notifRegistrada.cantidad_horneada || 0
       };
@@ -481,7 +480,7 @@ const notificacionesFiltradas = computed(() => {
         tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
         hora_ultima_venta: notifRegistrada.hora_ultima_venta,
         cantidad_vendida: notifRegistrada.cantidad_vendida || 0,
-        diferencia_notificacion_inicio: notifRegistrada.diferencia_notificacion_inicio,
+        tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
         created_at: notifRegistrada.created_at,
         cantidad_horneada: notifRegistrada.cantidad_horneada || 0
       });
@@ -542,7 +541,7 @@ const notificacionesFaltantes = computed(() => {
     tiempo_inicio_horneado: notif.tiempo_inicio_horneado,
     hora_ultima_venta: notif.hora_ultima_venta,
     cantidad_vendida: notif.cantidad_vendida,
-    diferencia_notificacion_inicio: notif.diferencia_notificacion_inicio,
+    tiempo_inicio_horneado: notif.tiempo_inicio_horneado,
     created_at: notif.created_at
   }));
 });
@@ -770,7 +769,7 @@ const notificacionesFaltantesCalculadas = computed(() => {
     cantidad_horneada: 0,
     cantidad_vendida: 0,
     hora_ultima_venta: null,
-    diferencia_notificacion_inicio: null
+    tiempo_inicio_horneado: null
   }));
 });
 
@@ -891,9 +890,6 @@ const calcularTiempoHorneado = (notificacion) => {
   }
   
   try {
-    // Debug para identificar problemas
-    debugTiempos(notificacion);
-    
     const tiempoNotificacion = new Date(notificacion.created_at);
     const tiempoInicioHorneado = new Date(notificacion.tiempo_inicio_horneado);
     
@@ -913,10 +909,9 @@ const calcularTiempoHorneado = (notificacion) => {
     const diferencia = tiempoInicioHorneado - tiempoNotificacion;
     const minutos = Math.floor(diferencia / (1000 * 60));
     
-    // Evitar números negativos
+    // Si el horneado empezó antes que la notificación, es un error lógico
     if (minutos < 0) {
-      // Si el horneado empezó antes que la notificación, mostrar 0
-      return '0 min';
+      return 'Error: Horneado antes de notificación';
     }
     
     return `${minutos} min`;
@@ -1023,32 +1018,6 @@ const formatHora = (hora) => {
     console.error('Error al formatear hora:', hora, error);
     return hora;
   }
-};
-
-// Función de debug para mostrar información detallada de tiempos
-const debugTiempos = (notificacion) => {
-  console.log('=== DEBUG TIEMPOS ===');
-  console.log('Notificación:', notificacion);
-  console.log('created_at:', notificacion.created_at);
-  console.log('tiempo_inicio_horneado:', notificacion.tiempo_inicio_horneado);
-  console.log('hora_ultima_venta:', notificacion.hora_ultima_venta);
-  
-  if (notificacion.created_at) {
-    const fechaNotif = new Date(notificacion.created_at);
-    console.log('Fecha notificación:', fechaNotif.toLocaleString());
-  }
-  
-  if (notificacion.tiempo_inicio_horneado) {
-    const fechaInicio = new Date(notificacion.tiempo_inicio_horneado);
-    console.log('Fecha inicio horneado:', fechaInicio.toLocaleString());
-  }
-  
-  if (notificacion.hora_ultima_venta) {
-    const fechaVenta = new Date(notificacion.hora_ultima_venta);
-    console.log('Fecha última venta:', fechaVenta.toLocaleString());
-  }
-  
-  console.log('=====================');
 };
 
 </script> 

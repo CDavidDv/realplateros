@@ -229,6 +229,33 @@ class ControlProduccionController extends Controller
 
         $controlProduccion = ControlProduccion::findOrFail($request->control_produccion_id);
         
+        // Verificar que la notificación sea del día actual
+        $fechaNotificacion = \Carbon\Carbon::parse($controlProduccion->created_at)->toDateString();
+        $fechaActual = \Carbon\Carbon::today()->toDateString();
+        
+        Log::info('Registrando venta en ControlProduccionController:', [
+            'control_id' => $controlProduccion->id,
+            'paste_id' => $controlProduccion->paste_id,
+            'fecha_notificacion' => $fechaNotificacion,
+            'fecha_actual' => $fechaActual,
+            'es_mismo_dia' => $fechaNotificacion === $fechaActual,
+            'cantidad_vendida_actual' => $controlProduccion->cantidad_vendida,
+            'cantidad_nueva' => $request->cantidad_vendida
+        ]);
+        
+        if ($fechaNotificacion !== $fechaActual) {
+            Log::warning('Intento de registrar venta en notificación de otro día:', [
+                'control_id' => $controlProduccion->id,
+                'fecha_notificacion' => $fechaNotificacion,
+                'fecha_actual' => $fechaActual
+            ]);
+            
+            return response()->json([
+                'error' => 'No se puede registrar venta en notificaciones de otros días',
+                'message' => 'La notificación debe ser del día actual'
+            ], 422);
+        }
+        
         // Actualizar cantidad vendida
         $controlProduccion->cantidad_vendida += $request->cantidad_vendida;
         $controlProduccion->hora_ultima_venta = now();
@@ -241,6 +268,13 @@ class ControlProduccionController extends Controller
         }
         
         $controlProduccion->save();
+
+        Log::info('Venta registrada exitosamente en ControlProduccionController:', [
+            'control_id' => $controlProduccion->id,
+            'cantidad_total_vendida' => $controlProduccion->cantidad_vendida,
+            'hora_ultima_venta' => $controlProduccion->hora_ultima_venta,
+            'estado_final' => $controlProduccion->estado
+        ]);
 
         return response()->json([
             'success' => true,
@@ -259,11 +293,29 @@ class ControlProduccionController extends Controller
 
         $controlProduccion = ControlProduccion::findOrFail($request->control_produccion_id);
         
+        // Validar que la notificación exista antes de iniciar horneado
+        $fechaNotificacion = \Carbon\Carbon::parse($controlProduccion->created_at);
+        $fechaHorneado = \Carbon\Carbon::parse($request->tiempo_inicio_horneado);
+        
+        if ($fechaHorneado < $fechaNotificacion) {
+            Log::warning('Intento de iniciar horneado antes de la notificación:', [
+                'control_id' => $controlProduccion->id,
+                'fecha_notificacion' => $fechaNotificacion->toDateTimeString(),
+                'fecha_horneado' => $fechaHorneado->toDateTimeString(),
+                'diferencia_minutos' => $fechaNotificacion->diffInMinutes($fechaHorneado, false)
+            ]);
+            
+            return response()->json([
+                'error' => 'No se puede iniciar horneado antes de la notificación',
+                'message' => 'El horneado debe iniciarse después de generar la notificación'
+            ], 422);
+        }
+        
         // Actualizar estado y tiempos
         $controlProduccion->estado = 'horneando';
         $controlProduccion->tiempo_inicio_horneado = $request->tiempo_inicio_horneado;
         $controlProduccion->cantidad_horneada = $request->cantidad_horneada;
-        $controlProduccion->diferencia_notificacion_inicio = now();
+        // No usar diferencia_notificacion_inicio, ya se establece en tiempo_inicio_horneado
         
         $controlProduccion->save();
 
