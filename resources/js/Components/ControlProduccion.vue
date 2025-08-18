@@ -431,9 +431,12 @@ const notificacionesFiltradas = computed(() => {
       id: n.id,
       nombre: n.paste?.nombre,
       hora_ultima_venta: n.hora_ultima_venta,
+      tiempo_ultima_venta: n.tiempo_ultima_venta,
+      updated_at: n.updated_at,
       cantidad_vendida: n.cantidad_vendida,
       cantidad_horneada: n.cantidad_horneada,
-      estado: n.estado
+      estado: n.estado,
+      campos_disponibles: Object.keys(n)
     }))
   });
   
@@ -937,20 +940,21 @@ const calcularTiempoVenta = (notificacion) => {
   console.log('Notificación completa:', notificacion);
   console.log('updated_at:', notificacion.updated_at);
   console.log('hora_ultima_venta:', notificacion.hora_ultima_venta);
+  console.log('tiempo_ultima_venta:', notificacion.tiempo_ultima_venta);
   console.log('created_at:', notificacion.created_at);
   
-  // Verificar si updated_at existe y es válido
-  if (!notificacion.updated_at) {
+  // Usar hora_ultima_venta que es el campo que se actualiza en ventas
+  if (!notificacion.hora_ultima_venta) {
     return 'Sin ventas';
   }
   
   try {
     //hora local de mexico (server: 2025-08-07 20:32:27)
-    const fecha = new Date(notificacion.updated_at);
+    const fecha = new Date(notificacion.hora_ultima_venta);
     
     // Verificar que la fecha sea válida
     if (isNaN(fecha.getTime())) {
-      console.log('Fecha inválida:', notificacion.updated_at);
+      console.log('Fecha inválida:', notificacion.hora_ultima_venta);
       return 'Fecha inválida';
     }
     
