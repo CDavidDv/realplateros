@@ -934,67 +934,15 @@ const calcularTiempoHorneado = (notificacion) => {
 
 // Función para calcular tiempo de venta (desde última venta hasta ahora, solo del mismo día)
 const calcularTiempoVenta = (notificacion) => {
-  if (!notificacion.hora_ultima_venta) {
-    console.log('Sin hora_ultima_venta:', notificacion);
-    return 'Sin ventas';
-  }
-  
-  try {
-    const ultimaVenta = new Date(notificacion.hora_ultima_venta);
-    const ahora = new Date();
-    
-    if (isNaN(ultimaVenta.getTime())) return 'Fecha inválida';
-    
-    // Verificar que la venta sea del mismo día que la notificación
-    const fechaNotificacion = new Date(notificacion.created_at);
-    const fechaVenta = new Date(notificacion.hora_ultima_venta);
-    
-    // Debug: mostrar información de fechas
-    console.log('Debug calcularTiempoVenta:', {
-      producto: notificacion.paste?.nombre,
-      hora_ultima_venta: notificacion.hora_ultima_venta,
-      fecha_notificacion: fechaNotificacion.toDateString(),
-      fecha_venta: fechaVenta.toDateString(),
-      fecha_actual: ahora.toDateString(),
-      cantidad_vendida: notificacion.cantidad_vendida,
-      cantidad_horneada: notificacion.cantidad_horneada
-    });
-    
-    // Si la venta no es del mismo día que la notificación, no calcular tiempo
-    if (fechaNotificacion.toDateString() !== fechaVenta.toDateString()) {
-      return 'Sin ventas del día';
-    }
-    
-    // Verificar que la venta no sea del día anterior (después de medianoche)
-    const ahoraDate = ahora.toDateString();
-    const ventaDate = fechaVenta.toDateString();
-    
-    if (ventaDate !== ahoraDate) {
-      return 'Sin ventas del día';
-    }
-    
-    const diferencia = ahora - ultimaVenta;
-    const minutos = Math.floor(diferencia / (1000 * 60));
-    
-    // Evitar números negativos
-    if (minutos < 0) return '0 min';
-    
-    // Limitar el tiempo máximo a 24 horas (1440 minutos) para evitar errores
-    if (minutos > 1440) {
-      return 'Sin ventas del día';
-    }
-    
-    if (minutos < 60) {
-      return `${minutos} min`;
-    } else {
-      const horas = Math.floor(minutos / 60);
-      const minutosRestantes = minutos % 60;
-      return `${horas}h ${minutosRestantes}min`;
-    }
-  } catch (error) {
-    console.error('Error al calcular tiempo de venta:', error);
-    return 'Error';
-  }
+  //hora local de mexico
+  const fecha = new Date(notificacion.updated_at);
+  return fecha.toLocaleString('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    timeZone: 'America/Mexico_City'
+  });
 };
 
 // Función para formatear hora en formato HH:MM:SS AM/PM
