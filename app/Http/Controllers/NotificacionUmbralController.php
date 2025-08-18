@@ -65,29 +65,4 @@ class NotificacionUmbralController extends Controller
 
         return back()->with('success', 'Notificación actualizada correctamente');
     }
-
-    public function getNotificaciones()
-    {
-        $user = Auth::user();
-        $sucursalId = $user->sucursal_id;
-
-        // Obtener notificaciones faltantes (pendientes, horneando, en_espera)
-        $faltantes = ControlProduccion::with('paste')
-            ->where('sucursal_id', $sucursalId)
-            ->whereIn('estado', ['pendiente', 'horneando', 'en_espera'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Obtener notificaciones horneadas (vendidas, desperdicio)
-        $horneados = ControlProduccion::with('paste')
-            ->where('sucursal_id', $sucursalId)
-            ->whereIn('estado', ['vendido', 'desperdicio'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        return response()->json([
-            'faltantes' => $faltantes,
-            'horneados' => $horneados
-        ]);
-    }
 } 
