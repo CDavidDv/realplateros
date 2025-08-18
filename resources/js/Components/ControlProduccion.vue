@@ -934,8 +934,9 @@ const calcularTiempoHorneado = (notificacion) => {
 
 // Función para calcular tiempo de venta (desde última venta hasta ahora, solo del mismo día)
 const calcularTiempoVenta = (notificacion) => {
-  //hora local de mexico
+  //hora local de mexico (server: 2025-08-07 20:32:27)
   const fecha = new Date(notificacion.updated_at);
+  console.log('Fecha:', fecha);
   return fecha.toLocaleString('es-MX', {
     hour: '2-digit',
     minute: '2-digit',
