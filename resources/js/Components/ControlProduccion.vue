@@ -349,7 +349,15 @@ const calcularTiempoProduccion = (notificacion) => {
     const minutos = Math.floor(diferencia / (1000 * 60));
     
     // Evitar números negativos
-    if (minutos < 0) return '0 min';
+    if (minutos < 0) {
+      // Si el horneado empezó antes que la notificación, mostrar 0
+      return '0 min';
+    }
+    
+    // Limitar el tiempo máximo a 24 horas para evitar errores
+    if (minutos > 1440) {
+      return 'Error de cálculo';
+    }
     
     return `${minutos} min`;
   } catch (error) {
@@ -883,6 +891,9 @@ const calcularTiempoHorneado = (notificacion) => {
   }
   
   try {
+    // Debug para identificar problemas
+    debugTiempos(notificacion);
+    
     const tiempoNotificacion = new Date(notificacion.created_at);
     const tiempoInicioHorneado = new Date(notificacion.tiempo_inicio_horneado);
     
@@ -903,7 +914,10 @@ const calcularTiempoHorneado = (notificacion) => {
     const minutos = Math.floor(diferencia / (1000 * 60));
     
     // Evitar números negativos
-    if (minutos < 0) return '0 min';
+    if (minutos < 0) {
+      // Si el horneado empezó antes que la notificación, mostrar 0
+      return '0 min';
+    }
     
     return `${minutos} min`;
   } catch (error) {
@@ -931,11 +945,24 @@ const calcularTiempoVenta = (notificacion) => {
       return 'Sin ventas del día';
     }
     
+    // Verificar que la venta no sea del día anterior (después de medianoche)
+    const ahoraDate = ahora.toDateString();
+    const ventaDate = fechaVenta.toDateString();
+    
+    if (ventaDate !== ahoraDate) {
+      return 'Sin ventas del día';
+    }
+    
     const diferencia = ahora - ultimaVenta;
     const minutos = Math.floor(diferencia / (1000 * 60));
     
     // Evitar números negativos
     if (minutos < 0) return '0 min';
+    
+    // Limitar el tiempo máximo a 24 horas (1440 minutos) para evitar errores
+    if (minutos > 1440) {
+      return 'Sin ventas del día';
+    }
     
     if (minutos < 60) {
       return `${minutos} min`;
@@ -955,9 +982,9 @@ const formatHora = (hora) => {
   if (!hora) return '-';
   
   try {
-    // Si la hora ya está en formato de fecha, formatearla
-    if (hora.includes('-') || hora.includes(':')) {
-      const fecha = new Date(`2000-01-01 ${hora}`);
+    // Si es una fecha completa (ej: "2025-08-17 23:04:52")
+    if (hora.includes('-') && hora.includes(':')) {
+      const fecha = new Date(hora);
       if (!isNaN(fecha.getTime())) {
         return fecha.toLocaleString('es-MX', {
           hour: '2-digit',
@@ -970,20 +997,24 @@ const formatHora = (hora) => {
     }
     
     // Si es solo hora (ej: "6:00 pm"), convertir a formato completo
-    if (hora.includes(':')) {
-      const [horaPart, minutosPart] = hora.split(':');
-      const horaNum = parseInt(horaPart);
-      const minutos = parseInt(minutosPart);
-      
-      if (!isNaN(horaNum) && !isNaN(minutos)) {
-        const fecha = new Date(2000, 0, 1, horaNum, minutos);
-        return fecha.toLocaleString('es-MX', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true,
-          timeZone: 'America/Mexico_City'
-        });
+    if (hora.includes(':') && !hora.includes('-')) {
+      const match = hora.match(/(\d+):(\d+)\s*(am|pm)/i);
+      if (match) {
+        const [, horaPart, minutosPart, periodo] = match;
+        const horaNum = parseInt(horaPart);
+        const minutos = parseInt(minutosPart);
+        
+        if (!isNaN(horaNum) && !isNaN(minutos)) {
+          // Crear fecha con hora específica
+          const fecha = new Date(2000, 0, 1, horaNum, minutos, 0);
+          return fecha.toLocaleString('es-MX', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true,
+            timeZone: 'America/Mexico_City'
+          });
+        }
       }
     }
     
@@ -992,6 +1023,32 @@ const formatHora = (hora) => {
     console.error('Error al formatear hora:', hora, error);
     return hora;
   }
+};
+
+// Función de debug para mostrar información detallada de tiempos
+const debugTiempos = (notificacion) => {
+  console.log('=== DEBUG TIEMPOS ===');
+  console.log('Notificación:', notificacion);
+  console.log('created_at:', notificacion.created_at);
+  console.log('tiempo_inicio_horneado:', notificacion.tiempo_inicio_horneado);
+  console.log('hora_ultima_venta:', notificacion.hora_ultima_venta);
+  
+  if (notificacion.created_at) {
+    const fechaNotif = new Date(notificacion.created_at);
+    console.log('Fecha notificación:', fechaNotif.toLocaleString());
+  }
+  
+  if (notificacion.tiempo_inicio_horneado) {
+    const fechaInicio = new Date(notificacion.tiempo_inicio_horneado);
+    console.log('Fecha inicio horneado:', fechaInicio.toLocaleString());
+  }
+  
+  if (notificacion.hora_ultima_venta) {
+    const fechaVenta = new Date(notificacion.hora_ultima_venta);
+    console.log('Fecha última venta:', fechaVenta.toLocaleString());
+  }
+  
+  console.log('=====================');
 };
 
 </script> 
