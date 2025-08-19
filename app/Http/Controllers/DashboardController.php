@@ -66,6 +66,7 @@ class DashboardController extends Controller
             ->with(['paste', 'sucursal'])
             ->where('sucursal_id', $sucursalId)
             ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
+            ->whereDate('created_at', Carbon::now()->toDateString())
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -74,6 +75,7 @@ class DashboardController extends Controller
             ->where('sucursal_id', $sucursalId)
             ->whereIn('estado', ['horneando', 'en_espera', 'vendido'])
             ->whereNotNull('tiempo_inicio_horneado')
+            ->whereDate('created_at', Carbon::now()->toDateString())
             ->orderBy('created_at', 'desc')
             ->get();
 
