@@ -1,14 +1,26 @@
 <template>
   <div class="mt-8 bg-white shadow rounded-lg p-6" v-if="isAdmin">
     <div class="flex justify-between items-center mb-4">
+      <div>
       <h2 class="text-xl font-semibold">Control de Producción</h2>
+        <p class="text-sm text-gray-600 mt-1">
+          Mostrando datos del día: 
+          <span class="font-medium">{{ fechaSeleccionada || 'Cargando...' }}</span>
+          <span v-if="cargando" class="ml-2 inline-flex items-center text-blue-600">
+            <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500 mr-1"></div>
+            Actualizando...
+          </span>
+        </p>
+      </div>
       <div class="flex items-center space-x-4">
         <div class="flex items-center space-x-2">
           <label for="fecha" class="text-sm font-medium text-gray-700">Seleccionar día:</label>
           <input
             type="date"
             id="fecha"
+            :max="getFechaActualMexico()"
             v-model="fechaSeleccionada"
+            @change="cambiarFecha"
             class="mt-1 block w-40 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
           >
         </div>
@@ -17,6 +29,7 @@
           <select
             id="hora"
             v-model="horaSeleccionada"
+            @change="cambiarHora"
             class="mt-1 block w-40 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
           >
             <option v-for="hora in horasDisponibles" :key="hora.value" :value="hora.value">
@@ -29,8 +42,35 @@
     
     <!-- Tabla de Notificaciones Faltantes -->
     <div class="mb-6">
-      <h3 class="text-lg font-medium mb-2">Productos Faltantes (Hora Siguiente) - Control de Producción</h3>
-      <div v-if="notificacionesFiltradas.length > 0" class="overflow-x-auto">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-lg font-medium">Productos Faltantes - Control de Producción</h3>
+          <div class="flex items-center space-x-2">
+            <div class="text-sm text-gray-600">
+              <span class="font-medium">{{ notificacionesFiltradas.length }}</span> de 
+              <span class="font-medium">{{ totalNotificacionesLocales }}</span> 
+              notificaciones para {{ fechaSeleccionada }}
+            </div>
+            <!-- Indicador de carga -->
+            <div v-if="cargando" class="flex items-center space-x-1">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+              <span class="text-xs text-blue-600">Cargando...</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Estado de carga -->
+        <div v-if="cargando" class="text-center py-12">
+          <div class="flex flex-col items-center space-y-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            <div class="text-center">
+              <p class="text-lg font-medium text-gray-700">Cargando notificaciones...</p>
+              <p class="text-sm text-gray-500">Obteniendo datos para {{ fechaSeleccionada }}</p>
+            </div>
+          </div>
+        </div>
+        
+                <!-- Tabla de notificaciones -->
+        <div v-else-if="notificacionesFiltradas.length > 0" class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -48,7 +88,8 @@
           <tbody class="bg-white divide-y divide-gray-200">
             <tr v-for="notif in notificacionesFiltradas" :key="notif.id" class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 capitalize">
-                {{ notif.paste.id }} - {{ notif.paste.nombre }}
+                  {{ notif.paste.nombre }}
+                
                 <span class="text-xs text-gray-500 block capitalize">{{ notif.paste.tipo }}</span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -94,29 +135,45 @@
           </tbody>
         </table>
       </div>
-      <div v-else class="text-center py-8">
-        <p class="text-gray-500 text-lg">No hay productos faltantes para la hora siguiente</p>
-        <p class="text-gray-400 text-sm mt-2">Los faltantes se calculan en tiempo real basándose en el inventario y estimaciones</p>
+        
+        <!-- Estado sin datos -->
+        <div v-else class="text-center py-12">
+          <div class="flex flex-col items-center space-y-4">
+            <!-- Icono de estado vacío -->
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+              <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
       </div>
+            
+            <div class="text-center">
+              <h3 class="text-lg font-medium text-gray-700">
+                {{ totalNotificacionesLocales === 0 
+                  ? `Sin notificaciones para ${fechaSeleccionada}` 
+                  : 'Sin notificaciones para la hora seleccionada' 
+                }}
+              </h3>
+              <p class="text-sm text-gray-500 mt-1">
+                {{ totalNotificacionesLocales === 0 
+                  ? 'No se encontraron productos faltantes para esta fecha' 
+                  : 'Cambia la hora del filtro para ver más notificaciones' 
+                }}
+              </p>
     </div>
 
-    <!-- Tiempo de Reposición 
-    <div class="mb-6" v-if="tiemposReposicionCalculados.length > 0">
-      <h3 class="text-lg font-medium mb-2">Tiempo de Reposición</h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div v-for="(tiempo, index) in tiemposReposicionCalculados" :key="index" class="bg-gray-50 p-4 rounded-lg">
-          <p class="font-medium">{{ tiempo.paste }}</p>
-          <p>Tiempo promedio: {{ tiempo.promedio }} minutos</p>
-          <p>Última reposición: {{ tiempo.ultima }}</p>
-          <p>Tiempo restante: {{ tiempo.restante }}</p>
         </div>
       </div>
     </div>
--->
 
     <!-- Tabla de Control de Tiempo (Solo para Administrador) -->
-    <div  class="mt-8">
-      <h3 class="text-lg font-medium mb-2">Control de Tiempo de Producción</h3>
+    <div class="mt-8">
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="text-lg font-medium">Control de Tiempo de Producción</h3>
+        <div class="text-sm text-gray-600">
+          <span class="font-medium">{{ notificacionesHorneandoFiltradas.length }}</span> 
+          notificaciones procesadas
+        </div>
+      </div>
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
@@ -145,33 +202,49 @@
           </tbody>
         </table>
       </div>
+      
+      <!-- Estado sin datos para Control de Tiempo -->
+      <div v-if="notificacionesHorneandoFiltradas.length === 0" class="text-center py-8">
+        <div class="flex flex-col items-center space-y-3">
+          <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="text-center">
+            <p class="text-gray-500 text-lg">No hay notificaciones procesadas</p>
+            <p class="text-gray-400 text-sm mt-1">Solo se muestran notificaciones que han sido horneadas o procesadas</p>
+          </div>
+        </div>
+      </div>
     </div>
-
-   
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { usePage, router } from '@inertiajs/vue3';
+import axios from 'axios';
 
 const { props } = usePage();
 
-console.log(props);
+// Variables reactivas principales
+const fechaSeleccionada = ref();
+const horaSeleccionada = ref('actual');
+const cargando = ref(false);
+const notificacionesLocales = ref({
+  faltantes: [],
+  horneados: []
+});
 
-const produccionActual = ref([]);
-const recomendaciones = ref([]);
-const tiemposProduccion = ref([]);
-
+// Computed para verificar si es admin
 const isAdmin = computed(() => {
   const user = props.auth?.user;
   const roles = user?.roles;
   return roles && roles.length > 0 && roles[0]?.name === 'admin';
 });
 
-const fechaSeleccionada = ref(new Date().toISOString().split('T')[0]);
-const horaSeleccionada = ref('actual');
-
+// Opciones de horas disponibles
 const horasDisponibles = ref([
   { value: 'todas', label: 'Todas las horas' },
   { value: 'actual', label: 'Hora Siguiente' },
@@ -194,7 +267,32 @@ const horasDisponibles = ref([
   { value: '11-pm', label: '11:00 PM' }
 ]);
 
-// Función para convertir hora_notificacion (ej: "9:00") al formato que buscamos (ej: "9-am")
+// Función para obtener la fecha actual en zona horaria de México
+const getFechaActualMexico = () => {
+  try {
+    const hoy = new Date();
+    const hoyMX = new Date(hoy.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+    return hoyMX.toISOString().split('T')[0];
+  } catch (error) {
+    console.error('Error al obtener fecha México:', error);
+    return new Date().toISOString().split('T')[0];
+  }
+};
+
+// Función para obtener la hora siguiente redondeada
+const getHoraSiguienteRedondeada = () => {
+  const ahora = new Date();
+  const horaSiguiente = new Date(ahora.getTime() + 60 * 60 * 1000);
+  const horaRedondeada = new Date(horaSiguiente);
+  horaRedondeada.setMinutes(0, 0, 0);
+  
+  const hora = horaRedondeada.getHours();
+  const periodo = hora >= 12 ? 'pm' : 'am';
+  const hora12 = hora % 12 || 12;
+  return `${hora12}-${periodo}`;
+};
+
+// Función para convertir hora de notificación al formato del filtro
 const convertirHoraNotificacion = (horaNotificacion) => {
   if (!horaNotificacion || typeof horaNotificacion !== 'string') return '';
   
@@ -204,24 +302,22 @@ const convertirHoraNotificacion = (horaNotificacion) => {
       return horaNotificacion;
     }
     
-    // Si es formato "9:00" o "9:00 am", convertirlo
-    if (horaNotificacion.includes(':')) {
-      const [hora, minutos] = horaNotificacion.split(':');
-      const horaNum = parseInt(hora);
-      const periodo = horaNum >= 12 ? 'pm' : 'am';
-      const hora12 = horaNum % 12 || 12;
-      
-      return `${hora12}-${periodo}`;
-    }
-    
-    // Si es formato "9:00 am", extraer la hora y convertir
+    // Si es formato "9:00 am" o "3:00 pm", extraer la hora y el periodo
     const match = horaNotificacion.match(/(\d+):(\d+)\s*(am|pm)/i);
     if (match) {
       const [, hora, minutos, periodo] = match;
       const horaNum = parseInt(hora);
       const hora12 = horaNum % 12 || 12;
-      
       return `${hora12}-${periodo.toLowerCase()}`;
+    }
+    
+    // Si es formato "9:00" sin periodo, asumir AM
+    if (horaNotificacion.includes(':')) {
+      const [hora, minutos] = horaNotificacion.split(':');
+      const horaNum = parseInt(hora);
+      const periodo = horaNum >= 12 ? 'pm' : 'am';
+      const hora12 = horaNum % 12 || 12;
+      return `${hora12}-${periodo}`;
     }
     
     return '';
@@ -231,37 +327,207 @@ const convertirHoraNotificacion = (horaNotificacion) => {
   }
 };
 
-// Función para obtener la hora siguiente redondeada (ej: 8:32 -> 9:00, 9:15 -> 10:00)
-const getHoraSiguienteRedondeada = () => {
-  const ahora = new Date();
-  const horaSiguiente = new Date(ahora.getTime() + 60 * 60 * 1000); // Agregar 1 hora
+// Computed principal para filtrar notificaciones
+const notificacionesFiltradas = computed(() => {
+  // Obtener notificaciones (priorizar locales sobre backend)
+  let notificaciones = [];
   
-  // Redondear a la hora en punto (00 minutos)
-  const horaRedondeada = new Date(horaSiguiente);
-  horaRedondeada.setMinutes(0, 0, 0);
-  
-  const horaFormato = getHoraFormato(horaRedondeada);
-  return horaFormato;
-};
-
-// Función para obtener la hora en formato AM/PM
-const getHoraFormato = (fecha) => {
-  if (!fecha) return '';
-  
-  try {
-    const date = new Date(fecha);
-    if (isNaN(date.getTime())) return '';
+  // Si hay notificaciones locales para la fecha seleccionada, usarlas
+  if (notificacionesLocales.value?.faltantes?.length > 0) {
+    notificaciones = notificacionesLocales.value.faltantes;
     
-    const hora = date.getHours();
-    const minutos = date.getMinutes();
-    const periodo = hora >= 12 ? 'pm' : 'am';
-    const hora12 = hora % 12 || 12;
-    return `${hora12}-${periodo}`;
-  } catch (error) {
-    console.error('Error al obtener formato de hora:', fecha, error);
-    return '';
+  } else {
+    // Si no hay locales, usar las del backend solo si son de la fecha actual
+    const fechaActual = getFechaActualMexico();
+    if (fechaSeleccionada.value === fechaActual && props.notificaciones?.faltantes) {
+      notificaciones = props.notificaciones.faltantes;
+      
+    } else {
+      
+      return [];
+    }
+  }
+  
+  // Aplicar filtro de hora
+  if (horaSeleccionada.value === 'todas') {
+    
+    return notificaciones;
+  }
+  
+  if (horaSeleccionada.value === 'actual') {
+    const horaSiguiente = getHoraSiguienteRedondeada();
+    
+    
+    const filtradas = notificaciones.filter(notif => {
+      if (!notif.hora_notificacion) return false;
+      
+      const horaFormato = convertirHoraNotificacion(notif.hora_notificacion);
+      const coincide = horaFormato === horaSiguiente;
+      
+      
+      
+      return coincide;
+    });
+    
+    return filtradas;
+  }
+  
+  
+  const filtradas = notificaciones.filter(notif => {
+    if (!notif.hora_notificacion) return false;
+    
+    const horaFormato = convertirHoraNotificacion(notif.hora_notificacion);
+    const coincide = horaFormato === horaSeleccionada.value;
+    
+    
+    return coincide;
+  });
+  
+  
+  return filtradas;
+});
+
+// Computed para notificaciones horneando filtradas
+const notificacionesHorneandoFiltradas = computed(() => {
+  // Obtener todas las notificaciones (faltantes + horneados)
+  let todasLasNotificaciones = [];
+  
+  // Agregar notificaciones faltantes
+  if (notificacionesLocales.value?.faltantes?.length > 0) {
+    todasLasNotificaciones = [...todasLasNotificaciones, ...notificacionesLocales.value.faltantes];
+  } else if (props.notificaciones?.faltantes) {
+    todasLasNotificaciones = [...todasLasNotificaciones, ...props.notificaciones.faltantes];
+  }
+  
+  // Agregar notificaciones horneados
+  if (notificacionesLocales.value?.horneados?.length > 0) {
+    todasLasNotificaciones = [...todasLasNotificaciones, ...notificacionesLocales.value.horneados];
+  } else if (props.notificaciones?.horneados) {
+    todasLasNotificaciones = [...todasLasNotificaciones, ...props.notificaciones.horneados];
+  }
+  
+  // Filtrar para mostrar solo las que NO están en espera y SÍ se han horneado
+  const notificacionesFiltradas = todasLasNotificaciones.filter(notif => {
+    // Excluir notificaciones en espera
+    if (notif.estado === 'en_espera') return false;
+    
+    // Excluir notificaciones que no se han horneado
+    if (!notif.tiempo_inicio_horneado) return false;
+    
+    // Incluir solo las que tienen estado de horneado, vendido, desperdicio, etc.
+    return ['horneando', 'vendido', 'desperdicio', 'retirado'].includes(notif.estado);
+  });
+  
+  console.log('🔍 Control de Tiempo - Total notificaciones:', todasLasNotificaciones.length);
+  console.log('🔍 Control de Tiempo - Filtradas por estado:', notificacionesFiltradas.length);
+  console.log('🔍 Control de Tiempo - Estados encontrados:', [...new Set(todasLasNotificaciones.map(n => n.estado))]);
+  
+  return notificacionesFiltradas;
+});
+
+// Computed seguro para el total de notificaciones locales
+const totalNotificacionesLocales = computed(() => {
+  return notificacionesLocales.value?.faltantes?.length || 0;
+});
+
+// Función para cambiar fecha
+const cambiarFecha = async () => {
+  
+  if (fechaSeleccionada.value) {
+    await cargarNotificacionesPorFecha(fechaSeleccionada.value);
   }
 };
+
+// Función para cambiar hora
+const cambiarHora = () => {
+  
+  // El computed se actualizará automáticamente
+};
+
+// Función para cargar notificaciones por fecha
+const cargarNotificacionesPorFecha = async (fecha) => {
+  try {
+    
+    
+    // Activar estado de carga
+    cargando.value = true;
+    
+    // Limpiar notificaciones locales antes de cargar nuevas
+    notificacionesLocales.value = { faltantes: [], horneados: [] };
+    
+    // Simular un pequeño delay para mejor UX (opcional)
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const response = await axios.post(route('control.produccion.notificaciones'), { 
+      fecha: fecha 
+    });
+    
+    if (response.data.success) {
+      notificacionesLocales.value = response.data.notificaciones;
+      
+    } else {
+      console.error('❌ Error en respuesta:', response.data.message);
+      // Si hay error, mantener las notificaciones locales vacías
+      notificacionesLocales.value = { faltantes: [], horneados: [] };
+    }
+  } catch (error) {
+    console.error('❌ Error al cargar notificaciones:', error);
+    // Si hay error, mantener las notificaciones locales vacías
+    notificacionesLocales.value = { faltantes: [], horneados: [] };
+  } finally {
+    // Desactivar estado de carga
+    cargando.value = false;
+  }
+};
+
+// Inicialización del componente
+onMounted(() => {
+  // Inicializar fecha
+  fechaSeleccionada.value = props.fechaFiltro || props.fechaActual || getFechaActualMexico();
+  
+  
+  // Cargar notificaciones iniciales
+  if (fechaSeleccionada.value) {
+    cargarNotificacionesPorFecha(fechaSeleccionada.value);
+  }
+});
+
+// Computed para tiempos de reposición calculados
+const tiemposReposicionCalculados = computed(() => {
+  // Usar las notificaciones filtradas
+  return notificacionesFiltradas.value
+    .filter(notif => notif.tiempo_inicio_horneado) // Solo los que tienen tiempo de inicio
+    .map(notif => ({
+      paste: notif.paste.nombre,
+      ...calcularTiempoReposicion(notif)
+    }));
+});
+
+// Computed para procesar las notificaciones faltantes
+const notificacionesFaltantes = computed(() => {
+  if (!props.notificaciones?.faltantes) return [];
+  
+  return props.notificaciones.faltantes.map(notif => ({
+    id: notif.id,
+    paste: notif.paste,
+    cantidad: notif.cantidad,
+    hora_notificacion: notif.hora_notificacion,
+    dia_notificacion: notif.dia_notificacion,
+    estado: notif.estado,
+    tiempo_inicio_horneado: notif.tiempo_inicio_horneado,
+    hora_ultima_venta: notif.hora_ultima_venta,
+    cantidad_vendida: notif.cantidad_vendida,
+    created_at: notif.created_at
+  }));
+});
+
+const notificacionesHorneando = computed(() => {
+  if (!props.notificaciones?.horneados) return [];
+
+  return props.notificaciones.horneados;
+});
+
+
 
 // Función para calcular tiempo de reposición
 const calcularTiempoReposicion = (notificacion) => {
@@ -347,12 +613,12 @@ const calcularTiempoProduccion = (notificacion) => {
     }
     
     // Calcular diferencia: tiempo de inicio - tiempo de notificación
-    const diferencia = tiempoInicioHorneado - tiempoNotificacion;
+    const diferencia = Math.max(0, tiempoInicioHorneado - tiempoNotificacion); // Evitar números negativos
     const minutos = Math.floor(diferencia / (1000 * 60));
     
-    // Si la producción empezó antes que la notificación, es un error lógico
-    if (minutos < 0) {
-      return 'Error: Producción antes de notificación';
+    // Si la producción empezó antes que la notificación, mostrar 0
+    if (minutos === 0) {
+      return '0 min';
     }
     
     // Limitar el tiempo máximo a 24 horas para evitar errores
@@ -362,7 +628,7 @@ const calcularTiempoProduccion = (notificacion) => {
     
     // Formato horas:minutos
     if (minutos < 60) {
-      return `${minutos} min`;
+    return `${minutos} min`;
     } else {
       const horas = Math.floor(minutos / 60);
       const minutosRestantes = minutos % 60;
@@ -374,47 +640,9 @@ const calcularTiempoProduccion = (notificacion) => {
   }
 };
 
-// Función para obtener el rango de fechas
-const obtenerRangoFechas = () => {
-  const fecha = new Date(fechaSeleccionada.value + 'T00:00:00-06:00'); // Ajustando a zona horaria de México
-  const fechaFin = new Date(fechaSeleccionada.value + 'T23:59:59-06:00');
-  return {
-    inicio: fecha,
-    fin: fechaFin
-  };
-};
+// Las funciones de fecha ya no son necesarias, la fecha viene del backend
 
-// Función para verificar si una fecha está dentro del rango seleccionado
-const estaEnRangoSeleccionado = (fecha) => {
-  if (!fecha) return false;
-  
-  try {
-    const fechaNotificacion = new Date(fecha);
-    const hoy = new Date();
-    
-    // Comparar solo la fecha (sin hora)
-    const fechaNotificacionStr = fechaNotificacion.toISOString().split('T')[0];
-    const hoyStr = hoy.toISOString().split('T')[0];
-    
-    return fechaNotificacionStr === hoyStr;
-  } catch (error) {
-    console.error('Error al verificar rango de fecha:', fecha, error);
-    return false;
-  }
-};
 
-// Función para actualizar la fecha al montar el componente
-const actualizarFechaInicial = () => {
-  try {
-    const hoy = new Date();
-    const hoyMX = new Date(hoy.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
-    fechaSeleccionada.value = hoyMX.toISOString().split('T')[0];
-  } catch (error) {
-    console.error('Error al actualizar fecha inicial:', error);
-    // Fallback: usar fecha actual
-    fechaSeleccionada.value = new Date().toISOString().split('T')[0];
-  }
-};
 
 // Función para determinar el estado real de la notificación
 const determinarEstadoReal = (notif) => {
@@ -426,276 +654,9 @@ const determinarEstadoReal = (notif) => {
   return 'pendiente';
 };
 
-// Modificar el computed notificacionesFiltradas
-const notificacionesFiltradas = computed(() => {
-  // Combinar notificaciones calculadas en tiempo real con las registradas en BD
-  const notificacionesCalculadas = notificacionesFaltantesCalculadas.value;
-  const notificacionesRegistradas = props.notificaciones?.faltantes || [];
-  
-  // Debug temporal: verificar campos disponibles
-  if (notificacionesRegistradas.length > 0) {
-    const primerRegistro = notificacionesRegistradas[0];
-    console.log('Debug campos disponibles:', {
-      campos: Object.keys(primerRegistro),
-      tiene_updated_at: 'updated_at' in primerRegistro,
-      updated_at_valor: primerRegistro.updated_at,
-      tiene_hora_ultima_venta: 'hora_ultima_venta' in primerRegistro,
-      hora_ultima_venta_valor: primerRegistro.hora_ultima_venta
-    });
-  }
-  
-  // Crear un mapa de notificaciones registradas para evitar duplicados
-  const notificacionesRegistradasMap = new Map();
-  notificacionesRegistradas.forEach(notif => {
-    const key = `${notif.paste_id}-${notif.hora_notificacion}`;
-    notificacionesRegistradasMap.set(key, notif);
-  });
-  
-  // Combinar notificaciones, dando prioridad a las registradas
-  const notificacionesCombinadas = notificacionesCalculadas.map(notifCalculada => {
-    // Verificar que notifCalculada.id sea una cadena antes de usar split
-    const notifId = typeof notifCalculada.id === 'string' ? notifCalculada.id : String(notifCalculada.id);
-    const key = `${notifId.split('-')[0]}-${notifCalculada.hora_notificacion}`;
-    const notifRegistrada = notificacionesRegistradasMap.get(key);
-    
-    if (notifRegistrada) {
-      // Usar la notificación registrada (tiene más información como estado, tiempos, etc.)
-      return {
-        id: notifRegistrada.id,
-        paste: notifRegistrada.paste || notifCalculada.paste,
-        cantidad: notifRegistrada.cantidad || notifCalculada.cantidad,
-        hora_notificacion: notifRegistrada.hora_notificacion || notifCalculada.hora_notificacion,
-        dia_notificacion: notifRegistrada.dia_notificacion || notifCalculada.dia_notificacion,
-        estado: notifRegistrada.estado || 'pendiente',
-        tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
-        hora_ultima_venta: notifRegistrada.hora_ultima_venta,
-        cantidad_vendida: notifRegistrada.cantidad_vendida || 0,
-        created_at: notifRegistrada.created_at || notifCalculada.created_at,
-        cantidad_horneada: notifRegistrada.cantidad_horneada || 0,
-        updated_at: notifRegistrada.updated_at 
-      };
-    } else {
-      // Usar la notificación calculada
-      return notifCalculada;
-    }
-  });
-  
-  // Agregar notificaciones registradas que no están en las calculadas
-  notificacionesRegistradas.forEach(notifRegistrada => {
-    const key = `${notifRegistrada.paste_id}-${notifRegistrada.hora_notificacion}`;
-    const existe = notificacionesCombinadas.some(notif => {
-      // Verificar que notif.id sea una cadena antes de usar split
-      const notifId = typeof notif.id === 'string' ? notif.id : String(notif.id);
-      const notifKey = `${notifId.split('-')[0]}-${notif.hora_notificacion}`;
-      return notifKey === key;
-    });
-    
-    if (!existe) {
-      notificacionesCombinadas.push({
-        id: notifRegistrada.id,
-        paste: notifRegistrada.paste,
-        cantidad: notifRegistrada.cantidad,
-        hora_notificacion: notifRegistrada.hora_notificacion,
-        dia_notificacion: notifRegistrada.dia_notificacion,
-        estado: notifRegistrada.estado || 'pendiente',
-        tiempo_inicio_horneado: notifRegistrada.tiempo_inicio_horneado,
-        hora_ultima_venta: notifRegistrada.hora_ultima_venta,
-        cantidad_vendida: notifRegistrada.cantidad_vendida || 0,
-        created_at: notifRegistrada.created_at,
-        cantidad_horneada: notifRegistrada.cantidad_horneada || 0
-      });
-    }
-  });
 
-  // Filtrar por hora - por defecto solo mostrar la hora siguiente redondeada
-  let notificacionesFiltradasPorHora;
-  if (horaSeleccionada.value === 'todas') {
-    notificacionesFiltradasPorHora = notificacionesCombinadas;
-  } else if (horaSeleccionada.value === 'actual') {
-    const horaSiguienteRedondeada = getHoraSiguienteRedondeada();
-    
-    // Si no hay hora siguiente válida, retornar array vacío
-    if (!horaSiguienteRedondeada) return [];
-    
-    notificacionesFiltradasPorHora = notificacionesCombinadas.filter(notif => {
-      // Buscar por hora_notificacion
-      const horaNotificacion = notif.hora_notificacion;
-      if (!horaNotificacion) return false;
-      
-      // Convertir la hora_notificacion (ej: "9:00") al formato que buscamos (ej: "9-am")
-      const horaFormato = convertirHoraNotificacion(horaNotificacion);
-      return horaFormato === horaSiguienteRedondeada;
-    });
-  } else {
-    notificacionesFiltradasPorHora = notificacionesCombinadas.filter(notif => {
-      const horaNotificacion = notif.hora_notificacion;
-      if (!horaNotificacion) return false;
-      
-      const horaFormato = convertirHoraNotificacion(horaNotificacion);
-      return horaFormato === horaSeleccionada.value;
-    });
-  }
 
-  // Aplicar filtro adicional para excluir notificaciones con tiempos inválidos
-  return notificacionesFiltradasPorHora.filter(notif => {
-    // Si no tiene tiempo de inicio, es válida (pendiente de horneado)
-    if (!notif.tiempo_inicio_horneado) {
-      return true;
-    }
-    
-    // Si tiene tiempo de inicio, validar que sea correcto
-    return esTiempoProduccionValido(notif);
-  });
-});
 
-// Computed para tiempos de reposición calculados
-const tiemposReposicionCalculados = computed(() => {
-  // Usar las notificaciones filtradas
-  return notificacionesFiltradas.value
-    .filter(notif => notif.tiempo_inicio_horneado) // Solo los que tienen tiempo de inicio
-    .map(notif => ({
-      paste: notif.paste.nombre,
-      ...calcularTiempoReposicion(notif)
-    }));
-});
-
-// Computed para procesar las notificaciones faltantes
-const notificacionesFaltantes = computed(() => {
-  if (!props.notificaciones?.faltantes) return [];
-  
-  return props.notificaciones.faltantes.map(notif => ({
-    id: notif.id,
-    paste: notif.paste,
-    cantidad: notif.cantidad,
-    hora_notificacion: notif.hora_notificacion,
-    dia_notificacion: notif.dia_notificacion,
-    estado: notif.estado,
-    tiempo_inicio_horneado: notif.tiempo_inicio_horneado,
-    hora_ultima_venta: notif.hora_ultima_venta,
-    cantidad_vendida: notif.cantidad_vendida,
-    created_at: notif.created_at
-  }));
-});
-
-const notificacionesHorneando = computed(() => {
-  if (!props.notificaciones?.horneados) return [];
-
-  return props.notificaciones.horneados;
-});
-
-// Computed para las recomendaciones basadas en notificaciones
-const recomendacionesActualizadas = computed(() => {
-  const recomendacionesBase = notificacionesFaltantes.value.map(notif => ({
-    paste: notif.paste.nombre,
-    recomendacion: 'Producir',
-    razon: `Faltan ${notif.cantidad} unidades para las ${notif.hora_notificacion}`
-  }));
-
-  return recomendacionesBase;
-});
-
-// Watch para actualizar las recomendaciones cuando cambian las notificaciones
-watch(() => props.notificaciones?.faltantes, (newNotificaciones) => {
-  if (newNotificaciones) {
-    recomendaciones.value = recomendacionesActualizadas.value;
-  }
-}, { immediate: true });
-
-const calcularPorcentajeVenta = (produccion) => {
-  if (!produccion.cantidad) return 0;
-  return Math.round((produccion.cantidad_vendida / produccion.cantidad) * 100);
-};
-
-const calcularTiempoSinVenta = (produccion) => {
-  if (!produccion.hora_ultima_venta) return '-';
-  const ultimaVenta = new Date(produccion.hora_ultima_venta);
-  const ahora = new Date();
-  const diferencia = Math.max(0, ahora - ultimaVenta);
-  const minutos = Math.floor(diferencia / (1000 * 60));
-  
-  if (minutos < 60) {
-    return `${minutos} min`;
-  } else {
-    const horas = Math.floor(minutos / 60);
-    const minutosRestantes = minutos % 60;
-    return `${horas}h ${minutosRestantes}min`;
-  }
-};
-
-const formatDateTime = (date) => {
-  if (!date) return '-';
-  
-  try {
-    const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime())) return 'Fecha inválida';
-    
-    return dateObj.toLocaleString('es-MX', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true,
-      timeZone: 'America/Mexico_City'
-    });
-  } catch (error) {
-    console.error('Error al formatear fecha:', date, error);
-    return 'Error';
-  }
-};
-
-const getEstadoClass = (estado) => {
-  const classes = {
-    horneando: 'bg-yellow-100 text-yellow-800 capitalize',
-    retirado: 'bg-blue-100 text-blue-800 capitalize',
-    vendido: 'bg-green-100 text-green-800 capitalize',
-    desperdicio: 'bg-red-100 text-red-800 capitalize',
-    pendiente: 'bg-gray-100 text-gray-800 capitalize',
-    en_espera: 'bg-green-100 text-green-800'
-  };
-  return `px-2 py-1 rounded-full text-xs font-medium ${classes[estado]}`;
-};
-
-// Modificar el computed notificacionesHorneandoFiltradas
-const notificacionesHorneandoFiltradas = computed(() => {
-  // Filtrar solo notificaciones con tiempos válidos
-  return notificacionesFiltradas.value.filter(notif => {
-    if (!notif.tiempo_inicio_horneado || !notif.created_at) {
-      return false; // No mostrar si no tiene tiempo de inicio
-    }
-    
-    try {
-      const tiempoNotificacion = new Date(notif.created_at);
-      const tiempoInicioHorneado = new Date(notif.tiempo_inicio_horneado);
-      
-      if (isNaN(tiempoNotificacion.getTime()) || isNaN(tiempoInicioHorneado.getTime())) {
-        return false; // No mostrar si las fechas son inválidas
-      }
-      
-      // Verificar que ambas fechas sean del mismo día
-      const fechaNotificacion = tiempoNotificacion.toDateString();
-      const fechaInicio = tiempoInicioHorneado.toDateString();
-      
-      if (fechaNotificacion !== fechaInicio) {
-        return false; // No mostrar si son de días diferentes
-      }
-      
-      // Verificar que el tiempo de inicio sea después de la notificación
-      const diferencia = tiempoInicioHorneado - tiempoNotificacion;
-      const minutos = Math.floor(diferencia / (1000 * 60));
-      
-      // Solo mostrar si el tiempo es válido (positivo y menor a 24 horas)
-      return minutos >= 0 && minutos <= 1440;
-      
-    } catch (error) {
-      console.error('Error al validar notificación:', error);
-      return false; // No mostrar si hay error
-    }
-  });
-});
-
-// Inicializar la fecha al montar el componente
-onMounted(() => {
-  actualizarFechaInicial();
-});
 
 // Función para convertir hora 12h a 24h
 const convertTo24Hour = (time12h) => {
@@ -860,7 +821,7 @@ watch(() => notificacionesFaltantesCalculadas.value, (nuevasNotificaciones) => {
         }, {
           preserveScroll: true,
           onSuccess: (response) => {
-            console.log('Notificación registrada:', response);
+            
           },
           onError: (error) => {
             console.error('Error al registrar notificación:', error);
@@ -875,7 +836,7 @@ watch(() => notificacionesFaltantesCalculadas.value, (nuevasNotificaciones) => {
         }, {
           preserveScroll: true,
           onSuccess: (response) => {
-            console.log('Notificación actualizada:', response);
+            
           },
           onError: (error) => {
             console.error('Error al actualizar notificación:', error);
@@ -897,7 +858,7 @@ const iniciarHorneado = (notificacion) => {
   }, {
     preserveScroll: true,
     onSuccess: (response) => {
-      console.log('Horneado iniciado:', response);
+      
       // Recargar la página para actualizar los datos
       window.location.reload();
     },
@@ -917,7 +878,7 @@ const finalizarHorneado = (notificacion) => {
   }, {
     preserveScroll: true,
     onSuccess: (response) => {
-      console.log('Horneado finalizado:', response);
+      
       window.location.reload();
     },
     onError: (error) => {
@@ -934,7 +895,7 @@ const registrarVenta = (notificacion, cantidad) => {
   }, {
     preserveScroll: true,
     onSuccess: (response) => {
-      console.log('Venta registrada:', response);
+      
       window.location.reload();
     },
     onError: (error) => {
@@ -966,17 +927,17 @@ const calcularTiempoHorneado = (notificacion) => {
     }
     
     // Calcular diferencia: tiempo de inicio - tiempo de notificación
-    const diferencia = tiempoInicioHorneado - tiempoNotificacion;
+    const diferencia = Math.max(0, tiempoInicioHorneado - tiempoNotificacion); // Evitar números negativos
     const minutos = Math.floor(diferencia / (1000 * 60));
     
-    // Si el horneado empezó antes que la notificación, es un error lógico
-    if (minutos < 0) {
-      return 'Error: Horneado antes de notificación';
+    // Si el horneado empezó antes que la notificación, mostrar 0
+    if (minutos === 0) {
+      return '0 min';
     }
     
     // Formato horas:minutos
     if (minutos < 60) {
-      return `${minutos} min`;
+    return `${minutos} min`;
     } else {
       const horas = Math.floor(minutos / 60);
       const minutosRestantes = minutos % 60;
@@ -1003,8 +964,8 @@ const calcularTiempoVenta = (notificacion) => {
     
     // Si no hay ventas, calcular desde la notificación hasta ahora
     if (!notificacion.hora_ultima_venta) {
-      const ahora = new Date();
-      const diferencia = ahora - tiempoNotificacion;
+    const ahora = new Date();
+      const diferencia = Math.max(0, ahora - tiempoNotificacion); // Evitar números negativos
       const minutos = Math.floor(diferencia / (1000 * 60));
       
       // Verificar que sea del mismo día
@@ -1017,9 +978,9 @@ const calcularTiempoVenta = (notificacion) => {
       
       // Limitar el tiempo máximo a 24 horas
       if (minutos > 1440) {
-        return 'Sin ventas del día';
-      }
-      
+      return 'Sin ventas del día';
+    }
+    
       // Formato horas:minutos
       if (minutos < 60) {
         return `${minutos} min`;
@@ -1046,12 +1007,12 @@ const calcularTiempoVenta = (notificacion) => {
     }
     
     // Calcular diferencia: última venta - notificación
-    const diferencia = tiempoUltimaVenta - tiempoNotificacion;
+    const diferencia = Math.max(0, tiempoUltimaVenta - tiempoNotificacion); // Evitar números negativos
     const minutos = Math.floor(diferencia / (1000 * 60));
     
-    // Si la venta fue antes que la notificación, es un error lógico
-    if (minutos < 0) {
-      return 'Error: Venta antes de notificación';
+    // Si la venta fue antes que la notificación, mostrar 0
+    if (minutos === 0) {
+      return '0 min';
     }
     
     // Limitar el tiempo máximo a 24 horas
@@ -1133,6 +1094,40 @@ const formatHora = (hora) => {
     console.error('Error al formatear hora:', hora, error);
     return 'Error';
   }
+};
+
+// Función para formatear fecha y hora
+const formatDateTime = (date) => {
+  if (!date) return '-';
+  
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return 'Fecha inválida';
+    
+    return dateObj.toLocaleString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: 'America/Mexico_City'
+    });
+  } catch (error) {
+    console.error('Error al formatear fecha:', date, error);
+    return 'Error';
+  }
+};
+
+// Función para obtener clases CSS del estado
+const getEstadoClass = (estado) => {
+  const classes = {
+    horneando: 'bg-yellow-100 text-yellow-800 capitalize',
+    retirado: 'bg-blue-100 text-blue-800 capitalize',
+    vendido: 'bg-green-100 text-green-800 capitalize',
+    desperdicio: 'bg-red-100 text-red-800 capitalize',
+    pendiente: 'bg-gray-100 text-gray-800 capitalize',
+    en_espera: 'bg-green-100 text-green-800'
+  };
+  return `px-2 py-1 rounded-full text-xs font-medium ${classes[estado]}`;
 };
 
 </script> 

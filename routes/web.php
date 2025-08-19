@@ -59,6 +59,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::get('/inventario/filtro', function () {
         return redirect('/inventario');
     });
+
+
+    Route::post('/control-produccion', [ControlProduccionController::class, 'obtenerNotificacionesFiltradas'])->name('control.produccion.notificaciones');
     
     
     Route::post('/registro', [InventarioController::class, 'registro'])->name('inventario.registro');
@@ -107,9 +110,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/control-produccion/iniciar-horneado', [ControlProduccionController::class, 'iniciarHorneado'])->name('control-produccion.iniciar-horneado');
     Route::post('/control-produccion/finalizar-horneado', [ControlProduccionController::class, 'finalizarHorneado'])->name('control-produccion.finalizar-horneado');
     Route::post('/control-produccion/registrar-venta', [ControlProduccionController::class, 'registrarVenta'])->name('control-produccion.registrar-venta');
+    Route::get('/control-produccion/notificaciones', [ControlProduccionController::class, 'obtenerNotificacionesFiltradas'])->name('control-produccion.notificaciones');
+    Route::get('/control-produccion/test', [ControlProduccionController::class, 'test'])->name('control-produccion.test');
 
     Route::post('/api/notificaciones/registrar', [NotificacionUmbralController::class, 'registrarNotificacion'])->name('notificaciones.registrar');
     Route::post('/api/notificaciones/actualizar', [NotificacionUmbralController::class, 'actualizarNotificaciones'])->name('notificaciones.actualizar');
+    Route::get('/api/notificaciones/obtener', [NotificacionUmbralController::class, 'obtenerNotificacionesFiltradas'])->name('notificaciones.obtener');
 });
 
 // Rutas para notificaciones de umbral

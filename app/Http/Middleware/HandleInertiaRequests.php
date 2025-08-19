@@ -43,46 +43,94 @@ class HandleInertiaRequests extends Middleware
     {
         //si el usuario esta autenticado
         if ($request->user()) {
-            $sucursal_id = $request->user()->sucursal_id;
-            $horno = Hornos::where('sucursal_id', $sucursal_id)->first();
+            $sucursalId = $request->user()->sucursal_id;
             
-            // Obtener inventario y estimaciones para las notificaciones globales
-            $inventario = Inventario::where('sucursal_id', $sucursal_id)->get();
-            $diaHoy = Carbon::now()->locale('es')->dayName;
-            $estimacionesHoy = Estimaciones::where('sucursal_id', $sucursal_id)
-                ->where('dia', $diaHoy)
+            // Obtener inventario de la sucursal
+            $inventario = Inventario::select(['id', 'nombre', 'tipo', 'cantidad', 'sucursal_id'])
+                ->where('sucursal_id', $sucursalId)
                 ->get();
-        } else {
-            $horno = null;
-            $inventario = collect([]);
-            $estimacionesHoy = collect([]);
+            
+            // Obtener estimaciones del día actual
+            $estimacionesHoy = Estimaciones::select(['id', 'inventario_id', 'cantidad', 'hora', 'dia', 'sucursal_id'])
+                ->with(['inventario:id,nombre,tipo,cantidad'])
+                ->where('sucursal_id', $sucursalId)
+                ->where('dia', Carbon::now()->locale('es')->dayName)
+                ->get();
+
+            // Obtener notificaciones faltantes
+            $notificacionesFaltantes = ControlProduccion::select([
+                    'id', 'paste_id', 'sucursal_id', 'estado', 'created_at',
+                    'cantidad', 'cantidad_horneada', 'cantidad_vendida',
+                    'tiempo_inicio_horneado', 'hora_ultima_venta',
+                    'hora_notificacion', 'dia_notificacion'
+                ])
+                ->with(['paste:id,nombre,tipo', 'sucursal:id,nombre'])
+                ->where('sucursal_id', $sucursalId)
+                ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
+                ->orderBy('created_at', 'desc')
+                ->limit(50)
+                ->get();
+
+            // Obtener notificaciones horneados
+            $notificacionesHorneados = ControlProduccion::select([
+                    'id', 'paste_id', 'sucursal_id', 'estado', 'created_at',
+                    'cantidad_horneada', 'tiempo_inicio_horneado',
+                    'hora_notificacion', 'dia_notificacion'
+                ])
+                ->with(['paste:id,nombre,tipo', 'sucursal:id,nombre'])
+                ->where('sucursal_id', $sucursalId)
+                ->whereIn('estado', ['horneando', 'en_espera', 'vendido'])
+                ->whereNotNull('tiempo_inicio_horneado')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return array_merge(parent::share($request), [
+                
+                'auth' => [
+                    'user' => $request->user() ? [
+                        'id' => $request->user()->id,
+                        'name' => $request->user()->name,
+                        'email' => $request->user()->email,
+                        'sucursal_id' => $request->user()->sucursal_id,
+                        'roles' => $request->user()->roles->map(function($role) {
+                            return ['name' => $role->name];
+                        })
+                    ] : null,
+                ],
+                'user.roles' => $request->user() ? $request->user()->roles->pluck('name') : [],
+                'notificaciones' => [
+                    'faltantes' => $notificacionesFaltantes,
+                    'horneados' => $notificacionesHorneados
+                ],
+                
+                'inventario' => $inventario,
+                'estimacionesHoy' => $estimacionesHoy
+            ]);
         }
 
         return array_merge(parent::share($request), [
-            'user.roles' => $request->user() ? $request->user()->roles->pluck('name') : [],
-            'user.permissions' => $request->user() ? $request->user()->getPermissionsViaRoles()->pluck('name') : [],
-            'flash' => [
-                'success' => session('success'),
-                'error' => session('error'),
-                'message' => fn () => $request->session()->get('message')
-            ],
-            'horno' => $horno ? $horno->id : null,
             'auth' => [
-                'user' => $request->user(),
+                'user' => null,
             ],
             'notificaciones' => [
-                'faltantes' => $request->user() ? ControlProduccion::with(['horno', 'paste'])
-                    ->where('sucursal_id', $request->user()->sucursal_id)
-                    ->where('dia_notificacion', Carbon::now()->locale('es')->dayName)                    
-                    ->get() : [],
-                'horneados' => $request->user() ? ControlProduccion::with(['horno', 'paste'])
-                    ->where('sucursal_id', $request->user()->sucursal_id)
-                    ->whereIn('estado', ['horneando', 'en_espera'])
-                    ->where('dia_notificacion', Carbon::now()->locale('es')->dayName)                    
-                    ->get() : []
+                'faltantes' => collect([]),
+                'horneados' => collect([])
             ],
-            'inventario' => $inventario,
-            'estimacionesHoy' => $estimacionesHoy
+            'inventario' => collect([]),
+            'estimacionesHoy' => collect([])
         ]);
+    }
+
+    /**
+     * Handle an incoming request.
+     */
+    public function handle(Request $request, \Closure $next)
+    {
+        // Si la petición espera JSON, no procesar con Inertia
+        if ($request->expectsJson() || $request->header('Accept') === 'application/json') {
+            return $next($request);
+        }
+
+        return parent::handle($request, $next);
     }
 }

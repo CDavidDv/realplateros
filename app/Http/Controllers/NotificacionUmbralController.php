@@ -65,4 +65,163 @@ class NotificacionUmbralController extends Controller
 
         return back()->with('success', 'Notificación actualizada correctamente');
     }
+
+    public function obtenerNotificacionesFiltradas(Request $request)
+    {
+        try {
+            $sucursalId = Auth::user()->sucursal_id;
+            $fecha = $request->get('fecha');
+            $hora = $request->get('hora');
+
+            Log::info('Obteniendo notificaciones filtradas:', [
+                'sucursal_id' => $sucursalId,
+                'fecha' => $fecha,
+                'hora' => $hora
+            ]);
+
+            $query = ControlProduccion::with(['paste', 'sucursal'])
+                ->where('sucursal_id', $sucursalId);
+
+            // Filtrar por fecha si está presente
+            if ($fecha) {
+                $fechaObj = Carbon::parse($fecha);
+                $query->whereDate('created_at', $fechaObj->toDateString());
+            }
+
+            // Filtrar por hora si está presente
+            if ($hora && $hora !== 'todas' && $hora !== 'actual') {
+                // Convertir hora 12h a 24h
+                $hora24 = $this->convertTo24Hour($hora);
+                if ($hora24 !== null) {
+                    $query->whereRaw('HOUR(created_at) = ?', [$hora24]);
+                }
+            }
+
+            // Obtener notificaciones ordenadas por fecha de creación
+            $notificaciones = $query->orderBy('created_at', 'desc')->get();
+
+            Log::info('Notificaciones obtenidas:', [
+                'total' => $notificaciones->count(),
+                'filtros_aplicados' => [
+                    'fecha' => $fecha,
+                    'hora' => $hora
+                ]
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'notificaciones' => $notificaciones,
+                'filtros' => [
+                    'fecha' => $fecha,
+                    'hora' => $hora
+                ],
+                'total' => $notificaciones->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al obtener notificaciones filtradas:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al obtener notificaciones',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getNotificaciones()
+    {
+        try {
+            $sucursalId = Auth::user()->sucursal_id;
+            
+            $notificaciones = ControlProduccion::with(['paste', 'sucursal'])
+                ->where('sucursal_id', $sucursalId)
+                ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            Log::info('Notificaciones obtenidas:', [
+                'sucursal_id' => $sucursalId,
+                'total' => $notificaciones->count()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'notificaciones' => $notificaciones,
+                'total' => $notificaciones->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al obtener notificaciones:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al obtener notificaciones',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Convertir hora de formato 12h a 24h
+     */
+    private function convertTo24Hour($time12h)
+    {
+        if (!$time12h || !is_string($time12h)) {
+            return null;
+        }
+
+        try {
+            // Manejar formato '7-am', '2-pm'
+            if (strpos($time12h, '-') !== false) {
+                $parts = explode('-', strtolower($time12h));
+                if (count($parts) === 2) {
+                    $hours = (int) $parts[0];
+                    $modifier = $parts[1];
+
+                    if ($hours === 12) {
+                        $hours = $modifier === 'am' ? 0 : 12;
+                    } elseif ($modifier === 'pm') {
+                        $hours = $hours + 12;
+                    }
+
+                    return $hours;
+                }
+            }
+
+            // Manejar formato '7:00 AM', '2:00 PM'
+            if (strpos($time12h, ' ') !== false) {
+                $parts = explode(' ', strtolower($time12h));
+                if (count($parts) === 2) {
+                    $timeParts = explode(':', $parts[0]);
+                    if (count($timeParts) === 2) {
+                        $hours = (int) $timeParts[0];
+                        $modifier = $parts[1];
+
+                        if ($hours === 12) {
+                            $hours = $modifier === 'am' ? 0 : 12;
+                        } elseif ($modifier === 'pm') {
+                            $hours = $hours + 12;
+                        }
+
+                        return $hours;
+                    }
+                }
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Error al convertir hora:', [
+                'hora_original' => $time12h,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
 } 

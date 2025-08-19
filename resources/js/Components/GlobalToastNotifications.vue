@@ -13,8 +13,8 @@ import Swal from 'sweetalert2';
 const checkNotificationsInterval = ref(null);
 const lastNotificationTime = ref(Date.now());
 
-const NOTIFICATION_INTERVAL = 180000; // 3 minutos
-const UPDATE_INTERVAL = 5000; // 5 segundos para actualizar datos
+const NOTIFICATION_INTERVAL = 300000; // 5 minutos (aumentado de 3 a 5)
+const UPDATE_INTERVAL = 30000; // 30 segundos (aumentado de 5 a 30)
 
 // Props y computed properties
 const { props } = usePage();
@@ -28,6 +28,26 @@ watch(estimaciones.value, (newEstimaciones) => {
 });
 
 const notificaciones_guardadas = ref(props.notificaciones?.faltantes || []);
+
+// Maps optimizados para búsquedas rápidas
+const notificacionesMap = computed(() => {
+  const map = new Map();
+  notificaciones_guardadas.value.forEach(notif => {
+    const key = `${notif.paste_id}-${notif.hora_notificacion}`;
+    map.set(key, notif);
+  });
+  return map;
+});
+
+const horneadosMap = computed(() => {
+  const map = new Map();
+  const horneados = props.notificaciones?.horneados || [];
+  horneados.forEach(h => {
+    const key = `${h.paste_id}-${h.hora_notificacion}`;
+    map.set(key, h);
+  });
+  return map;
+});
 
 // Funciones de utilidad
 const getCurrentDayAndTime = () => {
@@ -206,23 +226,30 @@ const reproducirSonido = () => {
 
 // Función para actualizar las notificaciones
 const actualizarNotificaciones = (nuevasNotificaciones) => {
-  
   notificaciones_guardadas.value = nuevasNotificaciones;
 };
 
-// Función de utilidad para filtrar notificaciones considerando horneados
+// Función de utilidad para filtrar notificaciones considerando horneados (OPTIMIZADA)
 const filterNotificationsForUI = (notificationsToFilter, horneadosList) => {
   if (!notificationsToFilter || notificationsToFilter.length === 0) return [];
-  const horneados = horneadosList || []; // Asegurar que horneadosList sea un array
+  
+  // Usar el Map optimizado en lugar de la lista
+  const horneadosMap = new Map();
+  if (horneadosList && horneadosList.length > 0) {
+    horneadosList.forEach(h => {
+      const key = `${h.paste_id}-${h.hora_notificacion}`;
+      horneadosMap.set(key, h);
+    });
+  }
 
   return notificationsToFilter
     .map(notif => {
       const pasteId = parseInt(notif.id.toString().split('-')[0]);
       const horaOriginalNotif = notif.hora; // ej: "10:00 am"
+      const key = `${pasteId}-${horaOriginalNotif}`;
 
-      const itemHorneado = horneados.find(h =>
-        h.paste_id === pasteId && h.hora_notificacion === horaOriginalNotif
-      );
+      // ✅ Búsqueda O(1) en lugar de O(n)
+      const itemHorneado = horneadosMap.get(key);
       const cantidadHorneada = itemHorneado ? (itemHorneado.cantidad_horneada || 0) : 0;
       const totalConsiderado = notif.existente + cantidadHorneada;
       const estimadoNumerico = Number(notif.estimado);
@@ -297,10 +324,9 @@ onMounted(() => {
           return;
         }
 
-        // Buscamos en todas las notificaciones guardadas
-        const notificacionExistente = notificaciones_guardadas.value.find(
-          ng => ng.paste_id === pasteId && ng.hora_notificacion === horaNotificacion
-        );
+        // Buscamos en todas las notificaciones guardadas usando Map optimizado
+        const key = `${pasteId}-${horaNotificacion}`;
+        const notificacionExistente = notificacionesMap.value.get(key);
 
         if (notificacionExistente) {
           // Si existe y la cantidad es diferente, actualizamos
@@ -368,39 +394,22 @@ onMounted(() => {
   });
 });
 
-// Watch para actualizar notificaciones cuando cambia el inventario
+// Watch para actualizar notificaciones cuando cambia el inventario (OPTIMIZADO)
 watch(() => props.inventario, (newInventario) => {
-  if (newInventario) {
-    // Actualizar las notificaciones sin mostrar toast
-    const notificarFaltantes = notificacionesFaltantes.value;
-    if (notificarFaltantes.length > 0) {
-      notificarFaltantes.forEach(async (notif) => {
-        const notificacionId = `${notif.id}`;
-        const cantidad = notif.estimado - notif.existente;
-        const pasteId = parseInt(notificacionId.split('-')[0]);
-        const horaNotificacion = notificacionId.split('-')[1];
+  if (newInventario && newInventario.length > 0) {
+    // Usar setTimeout para evitar múltiples operaciones simultáneas
+    setTimeout(() => {
+      const notificarFaltantes = notificacionesFaltantes.value;
+      if (notificarFaltantes.length > 0) {
+        notificarFaltantes.forEach(async (notif) => {
+          const notificacionId = `${notif.id}`;
+          const cantidad = notif.estimado - notif.existente;
+          const pasteId = parseInt(notificacionId.split('-')[0]);
+          const horaNotificacion = notificacionId.split('-')[1];
 
-        // Actualizar o crear notificación sin mostrar toast
-        if (!notificaciones_guardadas.value || notificaciones_guardadas.value.length === 0) {
-          router.post(route('notificaciones.registrar'), {
-            sucursal_id: usePage().props.auth.user.sucursal_id,
-            notificacion_id: notificacionId,
-            cantidad: cantidad
-          }, {
-            preserveScroll: true,
-            onSuccess: (response) => {
-              if (response.props.notificaciones?.faltantes) {
-                actualizarNotificaciones(response.props.notificaciones.faltantes);
-              }
-            }
-          });
-        } else {
-          const notificacionExistente = notificaciones_guardadas.value.find(
-            notif => notif.paste_id === pasteId && notif.hora_notificacion === horaNotificacion
-          );
-
-          if (notificacionExistente && notificacionExistente.cantidad !== cantidad) {
-            router.post(route('notificaciones.actualizar'), {
+          // Actualizar o crear notificación sin mostrar toast
+          if (!notificaciones_guardadas.value || notificaciones_guardadas.value.length === 0) {
+            router.post(route('notificaciones.registrar'), {
               sucursal_id: usePage().props.auth.user.sucursal_id,
               notificacion_id: notificacionId,
               cantidad: cantidad
@@ -412,10 +421,28 @@ watch(() => props.inventario, (newInventario) => {
                 }
               }
             });
+          } else {
+            const key = `${pasteId}-${horaNotificacion}`;
+            const notificacionExistente = notificacionesMap.value.get(key);
+
+            if (notificacionExistente && notificacionExistente.cantidad !== cantidad) {
+              router.post(route('notificaciones.actualizar'), {
+                sucursal_id: usePage().props.auth.user.sucursal_id,
+                notificacion_id: notificacionId,
+                cantidad: cantidad
+              }, {
+                preserveScroll: true,
+                onSuccess: (response) => {
+                  if (response.props.notificaciones?.faltantes) {
+                    actualizarNotificaciones(response.props.notificaciones.faltantes);
+                  }
+                }
+              });
+            }
           }
-        }
-      });
-    }
+        });
+      }
+    }, 1000); // Delay de 1 segundo para evitar operaciones múltiples
   }
 }, { deep: true });
 </script> 

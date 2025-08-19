@@ -348,4 +348,89 @@ class ControlProduccionController extends Controller
             'control_produccion' => $controlProduccion
         ]);
     }
+
+
+    public function obtenerNotificacionesFiltradas(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $sucursalId = $user->sucursal_id;
+            $fecha = $request->fecha;
+            
+            if (!$fecha) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Fecha requerida'
+                ], 400);
+            }
+            
+            // Obtener notificaciones faltantes (todos los estados excepto en_espera)
+            $notificacionesFaltantes = ControlProduccion::select('*')
+                ->with(['paste', 'sucursal'])
+                ->where('sucursal_id', $sucursalId)
+                ->whereNotIn('estado', ['en_espera'])
+                ->whereDate('created_at', $fecha)
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
+            // Obtener notificaciones horneados (todos los estados procesados)
+            $notificacionesHorneados = ControlProduccion::select('*')
+                ->with(['paste', 'sucursal'])
+                ->where('sucursal_id', $sucursalId)
+                ->whereIn('estado', ['horneando', 'en_espera', 'vendido', 'desperdicio', 'retirado'])
+                ->whereNotNull('tiempo_inicio_horneado')
+                ->whereDate('created_at', $fecha)
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
+            // Log detallado de estados encontrados
+            $estadosFaltantes = $notificacionesFaltantes->pluck('estado')->countBy();
+            $estadosHorneados = $notificacionesHorneados->pluck('estado')->countBy();
+            
+            Log::info('ControlProduccionController - Resultados detallados:', [
+                'total_faltantes' => $notificacionesFaltantes->count(),
+                'total_horneados' => $notificacionesHorneados->count(),
+                'fecha_filtro' => $fecha,
+                'estados_faltantes' => $estadosFaltantes->toArray(),
+                'estados_horneados' => $estadosHorneados->toArray()
+            ]);
+            
+            // Obtener todas las notificaciones de la fecha para debugging
+            $todasLasNotificaciones = ControlProduccion::select('*')
+                ->with(['paste', 'sucursal'])
+                ->where('sucursal_id', $sucursalId)
+                ->whereDate('created_at', $fecha)
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
+            $estadosTotales = $todasLasNotificaciones->pluck('estado')->countBy();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Notificaciones obtenidas correctamente',
+                'notificaciones' => [
+                    'faltantes' => $notificacionesFaltantes,
+                    'horneados' => $notificacionesHorneados
+                ],
+                'fecha_filtro' => $fecha,
+                'total_faltantes' => $notificacionesFaltantes->count(),
+                'total_horneados' => $notificacionesHorneados->count(),
+                'debug' => [
+                    'total_notificaciones_fecha' => $todasLasNotificaciones->count(),
+                    'estados_totales' => $estadosTotales->toArray()
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error en obtenerNotificacionesFiltradas:', [
+                'error' => $e->getMessage(),
+                'fecha' => $request->fecha ?? 'no proporcionada'
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener notificaciones: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 } 

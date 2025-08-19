@@ -126,22 +126,10 @@ class HornoController extends Controller
             if(isset($control->estado) && $control->estado === 'pendiente'){
                 // Validar que la notificación exista antes de iniciar horneado
                 $fechaNotificacion = Carbon::parse($control->created_at);
-                $fechaHorneado = Carbon::parse($tiempo_inicio); // Usar tiempo de la request
-                
-                if ($fechaHorneado < $fechaNotificacion) {
-                    Log::warning('Intento de iniciar horneado antes de la notificación:', [
-                        'control_id' => $control->id,
-                        'fecha_notificacion' => $fechaNotificacion->toDateTimeString(),
-                        'fecha_horneado' => $fechaHorneado->toDateTimeString(),
-                        'diferencia_minutos' => $fechaNotificacion->diffInMinutes($fechaHorneado, false)
-                    ]);
-                    
-                    // No permitir horneado antes de la notificación
-                    continue;
-                }
+                $fechaHorneado = Carbon::parse(Carbon::now()); // Usar la hora actual
                 
                 // Si pasa la validación, asignar el tiempo de la request
-                $control->tiempo_inicio_horneado = $tiempo_inicio;
+                $control->tiempo_inicio_horneado = $fechaHorneado;
                 $control->save();
                 
                 Log::info('Guardado tiempo_inicio_horneado con validación temporal');

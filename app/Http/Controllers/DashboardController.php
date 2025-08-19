@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ControlProduccion;
 use App\Models\Estimaciones;
 use App\Models\Horneados;
 use App\Models\Hornos;
@@ -38,10 +39,26 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
+        
+        // Obtener fecha seleccionada o usar fecha actual
+        $fechaSeleccionada = $request->input('fecha', null);
+        $fechaActual = Carbon::now()->setTimezone('America/Mexico_City');
+        
+        if ($fechaSeleccionada) {
+            try {
+                $fechaFiltro = Carbon::parse($fechaSeleccionada)->setTimezone('America/Mexico_City');
+            } catch (\Exception $e) {
+                $fechaFiltro = $fechaActual;
+            }
+        } else {
+            $fechaFiltro = $fechaActual;
+        }
+        
+        $fechaHoy = $fechaFiltro->toDateString();
 
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
         $numeroTiketsPorSucursal = Venta::where('sucursal_id', $sucursalId)->count();
@@ -61,12 +78,17 @@ class DashboardController extends Controller
             ->where('dia', Carbon::now()->locale('es')->dayName)
             ->get();    
 
-        // Cargar notificaciones de control de producción
+        // Cargar notificaciones de control de producción FILTRADAS POR FECHA
+        $fechaActual = Carbon::now()->setTimezone('America/Mexico_City');
+        $fechaHoy = $fechaActual->toDateString();
+        
+        // Notificaciones del día actual
         $notificacionesFaltantes = \App\Models\ControlProduccion::select('*')
             ->with(['paste', 'sucursal'])
             ->where('sucursal_id', $sucursalId)
             ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
-            ->whereDate('created_at', Carbon::now()->toDateString())
+            ->where('created_at', '>=', $fechaHoy . ' 00:00:00')
+            ->where('created_at', '<=', $fechaHoy . ' 23:59:59')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -75,9 +97,19 @@ class DashboardController extends Controller
             ->where('sucursal_id', $sucursalId)
             ->whereIn('estado', ['horneando', 'en_espera', 'vendido'])
             ->whereNotNull('tiempo_inicio_horneado')
-            ->whereDate('created_at', Carbon::now()->toDateString())
+            ->where('created_at', '>=', $fechaHoy . ' 00:00:00')
+            ->where('created_at', '<=', $fechaHoy . ' 23:59:59')
             ->orderBy('created_at', 'desc')
             ->get();
+
+        // Debug: verificar filtros aplicados
+        Log::info('Debug filtros backend:', [
+            'fecha_seleccionada' => $fechaSeleccionada,
+            'fecha_filtro' => $fechaHoy,
+            'total_notificaciones_faltantes' => $notificacionesFaltantes->count(),
+            'total_notificaciones_horneados' => $notificacionesHorneados->count(),
+            'sucursal_id' => $sucursalId
+        ]);
 
         // Debug: verificar qué campos están llegando
         if ($notificacionesFaltantes->count() > 0) {
@@ -102,7 +134,10 @@ class DashboardController extends Controller
             'notificaciones' => [
                 'faltantes' => $notificacionesFaltantes,
                 'horneados' => $notificacionesHorneados
-            ]
+            ],
+            'fechaActual' => $fechaHoy,
+            'fechaSeleccionada' => $fechaSeleccionada,
+            'fechaFiltro' => $fechaHoy
         ]);
     }
 
@@ -125,19 +160,46 @@ class DashboardController extends Controller
         return response()->json(['correct' => false], 403);
     }
 
-    public function hornear()
+    public function hornear(Request $request)
     {
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
-
+        
+        // Obtener fecha seleccionada o usar fecha actual
+        $fechaSeleccionada = $request->input('fecha', null);
+        $fechaActual = Carbon::now()->setTimezone('America/Mexico_City');
+        
+        Log::info('Debug hornear - parámetros recibidos:', [
+            'fecha_seleccionada' => $fechaSeleccionada,
+            'fecha_actual_mexico' => $fechaActual->toDateString(),
+            'request_all' => $request->all()
+        ]);
+        
+        if ($fechaSeleccionada) {
+            try {
+                $fechaFiltro = Carbon::parse($fechaSeleccionada)->setTimezone('America/Mexico_City');
+                Log::info('Debug hornear - fecha parseada correctamente:', [
+                    'fecha_recibida' => $fechaSeleccionada,
+                    'fecha_parseada' => $fechaFiltro->toDateString()
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Error al parsear fecha en hornear:', ['fecha' => $fechaSeleccionada, 'error' => $e->getMessage()]);
+                $fechaFiltro = $fechaActual;
+            }
+        } else {
+            $fechaFiltro = $fechaActual;
+            Log::info('Debug hornear - usando fecha por defecto:', ['fecha_por_defecto' => $fechaFiltro->toDateString()]);
+        }
+        
+        $fechaHoy = $fechaFiltro->toDateString();
         
         $pastesHorneados = Horneados::where('sucursal_id', $sucursalId)
             ->with('responsable')
-            ->whereDate('created_at', Carbon::now()->toDateString())
+            ->whereDate('created_at', $fechaHoy)
             ->get();
         
         $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
-        $diaHoy = Carbon::now()->locale('es')->dayName;
+        $diaHoy = $fechaFiltro->locale('es')->dayName;
 
         $estimacionesHoy = Estimaciones::where('sucursal_id', $sucursalId)
             ->where('dia', $diaHoy)
@@ -149,12 +211,98 @@ class DashboardController extends Controller
 
         $hornos = Hornos::where('sucursal_id', $sucursalId)->get();
 
+        // Cargar notificaciones de control de producción FILTRADAS POR FECHA
+        $notificacionesFaltantes = \App\Models\ControlProduccion::select('*')
+            ->with(['paste', 'sucursal'])
+            ->where('sucursal_id', $sucursalId)
+            ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
+            ->whereDate('created_at', $fechaHoy) // Usar whereDate que es más confiable
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+        // Debug: probar filtro más permisivo
+        Log::info('Debug filtro permisivo:', [
+            'fecha_hoy' => $fechaHoy,
+            'registros_con_filtro_permisivo' => \App\Models\ControlProduccion::select('*')
+                ->where('sucursal_id', $sucursalId)
+                ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
+                ->whereDate('created_at', $fechaHoy)
+                ->count()
+        ]);
+
+        $notificacionesHorneados = \App\Models\ControlProduccion::select('*')
+            ->with(['paste', 'sucursal'])
+            ->where('sucursal_id', $sucursalId)
+            ->whereIn('estado', ['horneando', 'en_espera', 'vendido'])
+            ->whereNotNull('tiempo_inicio_horneado')
+            ->where('created_at', '>=', $fechaHoy . ' 00:00:00')
+            ->where('created_at', '<=', $fechaHoy . ' 23:59:59')
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+        // Debug: verificar todos los registros sin filtros
+        $todasLasNotificaciones = \App\Models\ControlProduccion::select('*')
+            ->where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', $fechaHoy)
+            ->get();
+            
+        $notificacionesSinFiltroFecha = \App\Models\ControlProduccion::select('*')
+            ->where('sucursal_id', $sucursalId)
+            ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
+            ->whereDate('created_at', $fechaHoy)
+            ->get();
+
+        // Debug: verificar filtros aplicados
+        Log::info('Debug filtros hornear:', [
+            'fecha_seleccionada' => $fechaSeleccionada,
+            'fecha_filtro' => $fechaHoy,
+            'total_notificaciones_faltantes' => $notificacionesFaltantes->count(),
+            'total_notificaciones_horneados' => $notificacionesHorneados->count(),
+            'sucursal_id' => $sucursalId,
+            'fecha_actual_mexico' => $fechaActual->toDateString(),
+            'fecha_hoy_original' => Carbon::now()->toDateString(),
+            'total_todas_notificaciones' => $todasLasNotificaciones->count(),
+            'total_sin_filtro_fecha' => $notificacionesSinFiltroFecha->count(),
+            'ejemplo_registros' => $todasLasNotificaciones->take(3)->map(function($n) {
+                return [
+                    'id' => $n->id,
+                    'created_at' => $n->created_at,
+                    'estado' => $n->estado,
+                    'sucursal_id' => $n->sucursal_id
+                ];
+            })
+        ]);
+        
+        // Debug adicional: verificar consultas SQL
+        Log::info('Debug consultas SQL:', [
+            'consulta_faltantes' => \App\Models\ControlProduccion::select('*')
+                ->with(['paste', 'sucursal'])
+                ->where('sucursal_id', $sucursalId)
+                ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
+                ->whereDate('created_at', $fechaHoy)
+                ->toSql(),
+            'consulta_horneados' => \App\Models\ControlProduccion::select('*')
+                ->with(['paste', 'sucursal'])
+                ->where('sucursal_id', $sucursalId)
+                ->whereIn('estado', ['horneando', 'en_espera', 'vendido'])
+                ->whereNotNull('tiempo_inicio_horneado')
+                ->whereDate('created_at', $fechaHoy)
+                ->toSql()
+        ]);
+
         return Inertia::render('Hornear/index', [
             'inventario' => $inventario,
             'pastesHorneados' => $pastesHorneados,
             'estimaciones' => $estimaciones,
             'estimacionesHoy' => $estimacionesHoy,
-            'hornos' => $hornos 
+            'hornos' => $hornos,
+            'notificaciones' => [
+                'faltantes' => $notificacionesFaltantes,
+                'horneados' => $notificacionesHorneados
+            ],
+            'fechaActual' => $fechaHoy,
+            'fechaSeleccionada' => $fechaSeleccionada,
+            'fechaFiltro' => $fechaHoy
         ]);
     }
 

@@ -30,8 +30,14 @@ const logout = () => {
 
 const { props } = usePage()
 
-const role = ref(props.user.roles[0]);
-const isAlmacen = role.value === 'almacen';
+// Validaciones seguras para evitar errores de acceso a propiedades undefined
+const user = computed(() => props.auth?.user || null);
+const userRoles = computed(() => user.value?.roles || []);
+const primaryRole = computed(() => userRoles.value[0] || null);
+const isAlmacen = computed(() => primaryRole.value === 'almacen');
+const isTrabajador = computed(() => primaryRole.value === 'trabajador');
+const isSupervisor = computed(() => primaryRole.value === 'supervisor');
+const isAdmin = computed(() => primaryRole.value === 'admin');
 
 </script>
 
@@ -52,7 +58,7 @@ const isAlmacen = role.value === 'almacen';
                         <div class="flex">
                             <!-- Logo -->
                             <div class="shrink-0 flex items-center">
-                                <Link v-if="$page.props.auth.user.roles[0] !== 'almacen'" :href="route('dashboard')">
+                                <Link v-if="!isAlmacen" :href="route('dashboard')">
                                     <ApplicationMark class="block h-14 p-1 w-auto" />
                                 </Link>
                                 <Link :href="route('almacen')" v-else>
@@ -84,7 +90,7 @@ const isAlmacen = role.value === 'almacen';
                                 </NavLink>
                             </div>
                             
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="props.user.roles[0] !== 'trabajador' && !isAlmacen && props.user.roles[0] !== 'supervisor'">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="!isTrabajador && !isAlmacen && !isSupervisor">
                                 <NavLink :href="route('personal')" :active="route().current('personal')">
                                     Personal
                                 </NavLink>
@@ -109,7 +115,7 @@ const isAlmacen = role.value === 'almacen';
                                     <template #trigger>
                                         <span class="inline-flex rounded-md">
                                             <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none focus:bg-gray-50 active:bg-gray-50 transition ease-in-out duration-150">
-                                                {{ $page.props.auth.user.current_team.name }}
+                                                {{ user?.current_team?.name }}
 
                                                 <svg class="ms-2 -me-0.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
@@ -126,7 +132,7 @@ const isAlmacen = role.value === 'almacen';
                                             </div>
 
                                             <!-- Team Settings -->
-                                            <DropdownLink :href="route('teams.show', $page.props.auth.user.current_team)">
+                                            <DropdownLink :href="route('teams.show', user?.current_team)">
                                                 Team Settings
                                             </DropdownLink>
 
@@ -135,18 +141,18 @@ const isAlmacen = role.value === 'almacen';
                                             </DropdownLink>
 
                                             <!-- Team Switcher -->
-                                            <template v-if="$page.props.auth.user.all_teams.length > 1">
+                                            <template v-if="user?.all_teams && user.all_teams.length > 1">
                                                 <div class="border-t border-gray-200" />
 
                                                 <div class="block px-4 py-2 text-xs text-gray-400">
                                                     Switch Teams
                                                 </div>
 
-                                                <template v-for="team in $page.props.auth.user.all_teams" :key="team.id">
+                                                <template v-for="team in user.all_teams" :key="team.id">
                                                     <form @submit.prevent="switchToTeam(team)">
                                                         <DropdownLink as="button">
                                                             <div class="flex items-center">
-                                                                <svg v-if="team.id == $page.props.auth.user.current_team_id" class="me-2 h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                                <svg v-if="team.id == user?.current_team_id" class="me-2 h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                                 </svg>
 
@@ -166,12 +172,12 @@ const isAlmacen = role.value === 'almacen';
                                 <Dropdown align="right" width="48">
                                     <template #trigger>
                                         <button v-if="$page.props.jetstream.managesProfilePhotos" class="flex text-sm border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300 transition">
-                                            <img class="h-8 w-8 rounded-full object-cover" :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.name">
+                                            <img class="h-8 w-8 rounded-full object-cover" :src="user?.profile_photo_url" :alt="user?.name">
                                         </button>
 
                                         <span v-else class="inline-flex rounded-md">
                                             <button type="button" class="inline-flex capitalize items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none focus:bg-gray-50 active:bg-gray-50 transition ease-in-out duration-150">
-                                                {{ $page.props.auth.user.name }}
+                                                {{ user?.name }}
 
                                                 <svg class="ms-2 -me-0.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -259,7 +265,7 @@ const isAlmacen = role.value === 'almacen';
                         </ResponsiveNavLink>
                     </div>
                     
-                    <div class="pt-2 pb-3 space-y-1" v-if="props.user.roles[0] !== 'trabajador' && !isAlmacen">
+                    <div class="pt-2 pb-3 space-y-1" v-if="!isTrabajador && !isAlmacen">
                         
                         <ResponsiveNavLink :href="route('personal')" :active="route().current('personal')" >
                             Personal
@@ -280,15 +286,15 @@ const isAlmacen = role.value === 'almacen';
                     <div class="pt-4 pb-1 border-t border-gray-200">
                         <div class="flex items-center px-4">
                             <div v-if="$page.props.jetstream.managesProfilePhotos" class="shrink-0 me-3">
-                                <img class="h-10 w-10 rounded-full object-cover" :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.name">
+                                <img class="h-10 w-10 rounded-full object-cover" :src="user?.profile_photo_url" :alt="user?.name">
                             </div>
 
                             <div>
                                 <div class="font-medium text-base text-gray-800">
-                                    {{ $page.props.auth.user.name }}
+                                    {{ user?.name }}
                                 </div>
                                 <div class="font-medium text-sm text-gray-500">
-                                    {{ $page.props.auth.user.email }}
+                                    {{ user?.email }}
                                 </div>
                             </div>
                         </div>
@@ -318,7 +324,7 @@ const isAlmacen = role.value === 'almacen';
                                 </div>
 
                                 <!-- Team Settings -->
-                                <ResponsiveNavLink :href="route('teams.show', $page.props.auth.user.current_team)" :active="route().current('teams.show')">
+                                <ResponsiveNavLink :href="route('teams.show', user?.current_team)" :active="route().current('teams.show')">
                                     Team Settings
                                 </ResponsiveNavLink>
 
@@ -327,18 +333,18 @@ const isAlmacen = role.value === 'almacen';
                                 </ResponsiveNavLink>
 
                                 <!-- Team Switcher -->
-                                <template v-if="$page.props.auth.user.all_teams.length > 1">
+                                <template v-if="user?.all_teams && user.all_teams.length > 1">
                                     <div class="border-t border-gray-200" />
 
                                     <div class="block px-4 py-2 text-xs text-gray-400">
                                         Switch Teams
                                     </div>
 
-                                    <template v-for="team in $page.props.auth.user.all_teams" :key="team.id">
+                                    <template v-for="team in user.all_teams" :key="team.id">
                                         <form @submit.prevent="switchToTeam(team)">
                                             <ResponsiveNavLink as="button">
                                                 <div class="flex items-center">
-                                                    <svg v-if="team.id == $page.props.auth.user.current_team_id" class="me-2 h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <svg v-if="team.id == user?.current_team_id" class="me-2 h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                     </svg>
                                                     <div>{{ team.name }}</div>
