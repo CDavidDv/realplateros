@@ -14,6 +14,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -60,6 +61,34 @@ class DashboardController extends Controller
             ->where('dia', Carbon::now()->locale('es')->dayName)
             ->get();    
 
+        // Cargar notificaciones de control de producción
+        $notificacionesFaltantes = \App\Models\ControlProduccion::select('*')
+            ->with(['paste', 'sucursal'])
+            ->where('sucursal_id', $sucursalId)
+            ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $notificacionesHorneados = \App\Models\ControlProduccion::select('*')
+            ->with(['paste', 'sucursal'])
+            ->where('sucursal_id', $sucursalId)
+            ->whereIn('estado', ['horneando', 'en_espera', 'vendido'])
+            ->whereNotNull('tiempo_inicio_horneado')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Debug: verificar qué campos están llegando
+        if ($notificacionesFaltantes->count() > 0) {
+            $primerRegistro = $notificacionesFaltantes->first();
+            Log::info('Debug notificaciones - campos disponibles:', [
+                'campos' => array_keys($primerRegistro->toArray()),
+                'tiene_updated_at' => isset($primerRegistro->updated_at),
+                'updated_at_valor' => $primerRegistro->updated_at ?? 'NULL',
+                'tiene_hora_ultima_venta' => isset($primerRegistro->hora_ultima_venta),
+                'hora_ultima_venta_valor' => $primerRegistro->hora_ultima_venta ?? 'NULL'
+            ]);
+        }
+
         return Inertia::render('Dashboard/index', [
             'inventario' => $inventario,
             'ticket_id' => $ticketId,
@@ -67,7 +96,11 @@ class DashboardController extends Controller
             'sucursales' => $sucursales,
             'trabajadores' => $trabajadores,
             'hornos' => $hornos,
-            'estimacionesHoy' => $estimacionesHoy
+            'estimacionesHoy' => $estimacionesHoy,
+            'notificaciones' => [
+                'faltantes' => $notificacionesFaltantes,
+                'horneados' => $notificacionesHorneados
+            ]
         ]);
     }
 

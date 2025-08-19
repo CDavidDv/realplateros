@@ -16,11 +16,12 @@ class ControlProduccionController extends Controller
     {
         $sucursalId = Auth::user()->sucursal_id;
         
-        // Obtener producción actual
+        // Obtener producción actual seleccionar todo los created_at y updated_at
         $produccion = ControlProduccion::with('paste')
             ->where('sucursal_id', $sucursalId)
             ->whereIn('estado', ['horneando', 'retirado'])
             ->orderBy('created_at', 'desc')
+            ->select('*')
             ->get();
 
         // Calcular tiempos de reposición

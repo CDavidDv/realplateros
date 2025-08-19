@@ -21,7 +21,8 @@ class ControlProduccion extends Model
         'estado',
         'hora_notificacion',
         'dia_notificacion',
-        'updated_at'    
+        'updated_at',
+        'created_at'    
     ];
 
     protected $casts = [

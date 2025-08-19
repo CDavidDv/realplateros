@@ -64,7 +64,7 @@
                 {{ notif.dia_notificacion }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ formatHora(notif.hora_notificacion) }}
+                {{ (notif.hora_notificacion) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span :class="[
@@ -132,7 +132,9 @@
             <tr v-for="notificacion in notificacionesHorneandoFiltradas" :key="notificacion.id">
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ notificacion.paste.nombre }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatHora(notificacion.created_at) }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatHora(notificacion.tiempo_inicio_horneado) }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {{ esTiempoProduccionValido(notificacion) ? formatHora(notificacion.tiempo_inicio_horneado) : '-' }}
+              </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ calcularTiempoProduccion(notificacion) }}</td>
               <td class="px-6 py-4 whitespace-nowrap capitalize">
                 <span :class="getEstadoClass(notificacion.estado)">
@@ -358,7 +360,14 @@ const calcularTiempoProduccion = (notificacion) => {
       return 'Error de cálculo';
     }
     
-    return `${minutos} min`;
+    // Formato horas:minutos
+    if (minutos < 60) {
+      return `${minutos} min`;
+    } else {
+      const horas = Math.floor(minutos / 60);
+      const minutosRestantes = minutos % 60;
+      return `${horas}:${minutosRestantes.toString().padStart(2, '0')} hrs`;
+    }
   } catch (error) {
     console.error('Error al calcular tiempo de producción:', error);
     return 'Error';
@@ -423,22 +432,17 @@ const notificacionesFiltradas = computed(() => {
   const notificacionesCalculadas = notificacionesFaltantesCalculadas.value;
   const notificacionesRegistradas = props.notificaciones?.faltantes || [];
   
-  // Debug: mostrar qué datos están llegando
-  console.log('Debug notificacionesFiltradas:', {
-    notificacionesCalculadas: notificacionesCalculadas.length,
-    notificacionesRegistradas: notificacionesRegistradas.length,
-    muestraRegistradas: notificacionesRegistradas.slice(0, 2).map(n => ({
-      id: n.id,
-      nombre: n.paste?.nombre,
-      hora_ultima_venta: n.hora_ultima_venta,
-      tiempo_ultima_venta: n.tiempo_ultima_venta,
-      updated_at: n.updated_at,
-      cantidad_vendida: n.cantidad_vendida,
-      cantidad_horneada: n.cantidad_horneada,
-      estado: n.estado,
-      campos_disponibles: Object.keys(n)
-    }))
-  });
+  // Debug temporal: verificar campos disponibles
+  if (notificacionesRegistradas.length > 0) {
+    const primerRegistro = notificacionesRegistradas[0];
+    console.log('Debug campos disponibles:', {
+      campos: Object.keys(primerRegistro),
+      tiene_updated_at: 'updated_at' in primerRegistro,
+      updated_at_valor: primerRegistro.updated_at,
+      tiene_hora_ultima_venta: 'hora_ultima_venta' in primerRegistro,
+      hora_ultima_venta_valor: primerRegistro.hora_ultima_venta
+    });
+  }
   
   // Crear un mapa de notificaciones registradas para evitar duplicados
   const notificacionesRegistradasMap = new Map();
@@ -467,7 +471,8 @@ const notificacionesFiltradas = computed(() => {
         hora_ultima_venta: notifRegistrada.hora_ultima_venta,
         cantidad_vendida: notifRegistrada.cantidad_vendida || 0,
         created_at: notifRegistrada.created_at || notifCalculada.created_at,
-        cantidad_horneada: notifRegistrada.cantidad_horneada || 0
+        cantidad_horneada: notifRegistrada.cantidad_horneada || 0,
+        updated_at: notifRegistrada.updated_at 
       };
     } else {
       // Usar la notificación calculada
@@ -503,15 +508,16 @@ const notificacionesFiltradas = computed(() => {
   });
 
   // Filtrar por hora - por defecto solo mostrar la hora siguiente redondeada
+  let notificacionesFiltradasPorHora;
   if (horaSeleccionada.value === 'todas') {
-    return notificacionesCombinadas;
+    notificacionesFiltradasPorHora = notificacionesCombinadas;
   } else if (horaSeleccionada.value === 'actual') {
     const horaSiguienteRedondeada = getHoraSiguienteRedondeada();
     
     // Si no hay hora siguiente válida, retornar array vacío
     if (!horaSiguienteRedondeada) return [];
     
-    return notificacionesCombinadas.filter(notif => {
+    notificacionesFiltradasPorHora = notificacionesCombinadas.filter(notif => {
       // Buscar por hora_notificacion
       const horaNotificacion = notif.hora_notificacion;
       if (!horaNotificacion) return false;
@@ -520,14 +526,25 @@ const notificacionesFiltradas = computed(() => {
       const horaFormato = convertirHoraNotificacion(horaNotificacion);
       return horaFormato === horaSiguienteRedondeada;
     });
+  } else {
+    notificacionesFiltradasPorHora = notificacionesCombinadas.filter(notif => {
+      const horaNotificacion = notif.hora_notificacion;
+      if (!horaNotificacion) return false;
+      
+      const horaFormato = convertirHoraNotificacion(horaNotificacion);
+      return horaFormato === horaSeleccionada.value;
+    });
   }
 
-  return notificacionesCombinadas.filter(notif => {
-    const horaNotificacion = notif.hora_notificacion;
-    if (!horaNotificacion) return false;
+  // Aplicar filtro adicional para excluir notificaciones con tiempos inválidos
+  return notificacionesFiltradasPorHora.filter(notif => {
+    // Si no tiene tiempo de inicio, es válida (pendiente de horneado)
+    if (!notif.tiempo_inicio_horneado) {
+      return true;
+    }
     
-    const horaFormato = convertirHoraNotificacion(horaNotificacion);
-    return horaFormato === horaSeleccionada.value;
+    // Si tiene tiempo de inicio, validar que sea correcto
+    return esTiempoProduccionValido(notif);
   });
 });
 
@@ -639,11 +656,40 @@ const getEstadoClass = (estado) => {
 
 // Modificar el computed notificacionesHorneandoFiltradas
 const notificacionesHorneandoFiltradas = computed(() => {
-  // Para las notificaciones calculadas en tiempo real, no hay horneados
-  // Solo mostrar las notificaciones filtradas que tengan tiempo de inicio
-  return notificacionesFiltradas.value.filter(notif => 
-    notif.tiempo_inicio_horneado
-  );
+  // Filtrar solo notificaciones con tiempos válidos
+  return notificacionesFiltradas.value.filter(notif => {
+    if (!notif.tiempo_inicio_horneado || !notif.created_at) {
+      return false; // No mostrar si no tiene tiempo de inicio
+    }
+    
+    try {
+      const tiempoNotificacion = new Date(notif.created_at);
+      const tiempoInicioHorneado = new Date(notif.tiempo_inicio_horneado);
+      
+      if (isNaN(tiempoNotificacion.getTime()) || isNaN(tiempoInicioHorneado.getTime())) {
+        return false; // No mostrar si las fechas son inválidas
+      }
+      
+      // Verificar que ambas fechas sean del mismo día
+      const fechaNotificacion = tiempoNotificacion.toDateString();
+      const fechaInicio = tiempoInicioHorneado.toDateString();
+      
+      if (fechaNotificacion !== fechaInicio) {
+        return false; // No mostrar si son de días diferentes
+      }
+      
+      // Verificar que el tiempo de inicio sea después de la notificación
+      const diferencia = tiempoInicioHorneado - tiempoNotificacion;
+      const minutos = Math.floor(diferencia / (1000 * 60));
+      
+      // Solo mostrar si el tiempo es válido (positivo y menor a 24 horas)
+      return minutos >= 0 && minutos <= 1440;
+      
+    } catch (error) {
+      console.error('Error al validar notificación:', error);
+      return false; // No mostrar si hay error
+    }
+  });
 });
 
 // Inicializar la fecha al montar el componente
@@ -928,47 +974,138 @@ const calcularTiempoHorneado = (notificacion) => {
       return 'Error: Horneado antes de notificación';
     }
     
-    return `${minutos} min`;
+    // Formato horas:minutos
+    if (minutos < 60) {
+      return `${minutos} min`;
+    } else {
+      const horas = Math.floor(minutos / 60);
+      const minutosRestantes = minutos % 60;
+      return `${horas}:${minutosRestantes.toString().padStart(2, '0')} hrs`;
+    }
   } catch (error) {
     console.error('Error al calcular tiempo de horneado:', error);
     return 'Error';
   }
 };
 
+// Función para calcular tiempo de venta desde que se creo la notificacion hasta la ultima venta
 const calcularTiempoVenta = (notificacion) => {
-  // Debug: mostrar todos los datos de la notificación
-  console.log('Notificación completa:', notificacion);
-  console.log('updated_at:', notificacion.updated_at);
-  console.log('hora_ultima_venta:', notificacion.hora_ultima_venta);
-  console.log('tiempo_ultima_venta:', notificacion.tiempo_ultima_venta);
-  console.log('created_at:', notificacion.created_at);
-  
-  // Usar hora_ultima_venta que es el campo que se actualiza en ventas
-  if (!notificacion.hora_ultima_venta) {
-    return 'Sin ventas';
+  if (!notificacion.created_at) {
+    return 'N/A';
   }
   
   try {
-    //hora local de mexico (server: 2025-08-07 20:32:27)
-    const fecha = new Date(notificacion.hora_ultima_venta);
+    const tiempoNotificacion = new Date(notificacion.created_at);
     
-    // Verificar que la fecha sea válida
-    if (isNaN(fecha.getTime())) {
-      console.log('Fecha inválida:', notificacion.hora_ultima_venta);
+    if (isNaN(tiempoNotificacion.getTime())) {
       return 'Fecha inválida';
     }
     
-    console.log('Fecha válida:', fecha);
-    return fecha.toLocaleString('es-MX', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true,
-      timeZone: 'America/Mexico_City'
-    });
+    // Si no hay ventas, calcular desde la notificación hasta ahora
+    if (!notificacion.hora_ultima_venta) {
+      const ahora = new Date();
+      const diferencia = ahora - tiempoNotificacion;
+      const minutos = Math.floor(diferencia / (1000 * 60));
+      
+      // Verificar que sea del mismo día
+      const fechaNotificacion = tiempoNotificacion.toDateString();
+      const fechaActual = ahora.toDateString();
+      
+      if (fechaNotificacion !== fechaActual) {
+        return 'Diferente día';
+      }
+      
+      // Limitar el tiempo máximo a 24 horas
+      if (minutos > 1440) {
+        return 'Sin ventas del día';
+      }
+      
+      // Formato horas:minutos
+      if (minutos < 60) {
+        return `${minutos} min`;
+      } else {
+        const horas = Math.floor(minutos / 60);
+        const minutosRestantes = minutos % 60;
+        return `${horas}:${minutosRestantes.toString().padStart(2, '0')} hrs`;
+      }
+    }
+    
+    // Si hay ventas, calcular desde la notificación hasta la última venta
+    const tiempoUltimaVenta = new Date(notificacion.hora_ultima_venta);
+    
+    if (isNaN(tiempoUltimaVenta.getTime())) {
+      return 'Fecha de venta inválida';
+    }
+    
+    // Verificar que ambas fechas sean del mismo día
+    const fechaNotificacion = tiempoNotificacion.toDateString();
+    const fechaVenta = tiempoUltimaVenta.toDateString();
+    
+    if (fechaNotificacion !== fechaVenta) {
+      return 'Diferente día';
+    }
+    
+    // Calcular diferencia: última venta - notificación
+    const diferencia = tiempoUltimaVenta - tiempoNotificacion;
+    const minutos = Math.floor(diferencia / (1000 * 60));
+    
+    // Si la venta fue antes que la notificación, es un error lógico
+    if (minutos < 0) {
+      return 'Error: Venta antes de notificación';
+    }
+    
+    // Limitar el tiempo máximo a 24 horas
+    if (minutos > 1440) {
+      return 'Sin ventas del día';
+    }
+    
+    // Formato horas:minutos
+    if (minutos < 60) {
+      return `${minutos} min`;
+    } else {
+      const horas = Math.floor(minutos / 60);
+      const minutosRestantes = minutos % 60;
+      return `${horas}:${minutosRestantes.toString().padStart(2, '0')} hrs`;
+    }
+    
   } catch (error) {
-    console.error('Error al procesar fecha:', error);
-    return 'Error de fecha';
+    console.error('Error al calcular tiempo de venta:', error);
+    return 'Error';
+  }
+};
+
+// Función para verificar si el tiempo de producción es válido
+const esTiempoProduccionValido = (notificacion) => {
+  if (!notificacion.tiempo_inicio_horneado || !notificacion.created_at) {
+    return false;
+  }
+  
+  try {
+    const tiempoNotificacion = new Date(notificacion.created_at);
+    const tiempoInicioHorneado = new Date(notificacion.tiempo_inicio_horneado);
+    
+    if (isNaN(tiempoNotificacion.getTime()) || isNaN(tiempoInicioHorneado.getTime())) {
+      return false;
+    }
+    
+    // Verificar que ambas fechas sean del mismo día
+    const fechaNotificacion = tiempoNotificacion.toDateString();
+    const fechaInicio = tiempoInicioHorneado.toDateString();
+    
+    if (fechaNotificacion !== fechaInicio) {
+      return false;
+    }
+    
+    // Verificar que el tiempo de inicio sea después de la notificación
+    const diferencia = tiempoInicioHorneado - tiempoNotificacion;
+    const minutos = Math.floor(diferencia / (1000 * 60));
+    
+    // Solo es válido si el tiempo es positivo y menor a 24 horas
+    return minutos >= 0 && minutos <= 1440;
+    
+  } catch (error) {
+    console.error('Error al validar tiempo de producción:', error);
+    return false;
   }
 };
 
@@ -977,46 +1114,24 @@ const formatHora = (hora) => {
   if (!hora) return '-';
   
   try {
-    // Si es una fecha completa (ej: "2025-08-17 23:04:52")
-    if (hora.includes('-') && hora.includes(':')) {
-      const fecha = new Date(hora);
-      if (!isNaN(fecha.getTime())) {
-        return fecha.toLocaleString('es-MX', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true,
-          timeZone: 'America/Mexico_City'
-        });
-      }
+    //hora mexico 
+    const fecha = new Date(hora);
+    
+    // Verificar que la fecha sea válida
+    if (isNaN(fecha.getTime())) {
+      return 'Fecha inválida';
     }
     
-    // Si es solo hora (ej: "6:00 pm"), convertir a formato completo
-    if (hora.includes(':') && !hora.includes('-')) {
-      const match = hora.match(/(\d+):(\d+)\s*(am|pm)/i);
-      if (match) {
-        const [, horaPart, minutosPart, periodo] = match;
-        const horaNum = parseInt(horaPart);
-        const minutos = parseInt(minutosPart);
-        
-        if (!isNaN(horaNum) && !isNaN(minutos)) {
-          // Crear fecha con hora específica
-          const fecha = new Date(2000, 0, 1, horaNum, minutos, 0);
-          return fecha.toLocaleString('es-MX', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true,
-            timeZone: 'America/Mexico_City'
-          });
-        }
-      }
-    }
-    
-    return hora;
+    return fecha.toLocaleString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: 'America/Mexico_City'
+    });
   } catch (error) {
     console.error('Error al formatear hora:', hora, error);
-    return hora;
+    return 'Error';
   }
 };
 
