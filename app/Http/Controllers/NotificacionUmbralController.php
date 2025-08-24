@@ -25,7 +25,18 @@ class NotificacionUmbralController extends Controller
 
         $pasteId = explode('-', $validated['notificacion_id']);
         Log::info('Paste ID extraído:', ['pasteId' => $pasteId]);
+if($pasteId[0] == 1){
+    $controlProduccion = ControlProduccion::where('paste_id', $pasteId[0])
+    ->where('hora_notificacion', $pasteId[1])
+    ->where('estado', 'pendiente')
+    ->first();
 
+    if ($controlProduccion) {
+        $controlProduccion->cantidad = $validated['cantidad'];
+        $controlProduccion->save();
+        Log::info('Notificación actualizada:', $controlProduccion->toArray());
+    }
+}else{
         $controlProduccion = new ControlProduccion();
         $controlProduccion->paste_id = $pasteId[0];
         $controlProduccion->sucursal_id = $validated['sucursal_id'];
@@ -34,7 +45,7 @@ class NotificacionUmbralController extends Controller
         $controlProduccion->dia_notificacion = Carbon::now()->locale('es')->dayName;
         $controlProduccion->estado = 'pendiente';
         $controlProduccion->save();
-
+}
         Log::info('Notificación guardada:', $controlProduccion->toArray());
 
         return back()->with('notificaciones', $controlProduccion);
