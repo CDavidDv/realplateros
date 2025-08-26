@@ -105,11 +105,7 @@ class HornoController extends Controller
         $control_produccion = [];
 
         foreach ($pastesHorneados as $paste) {
-            Log::info('Procesando paste:', [
-                'paste_id' => $paste['paste_id'],
-                'cantidad' => $paste['cantidad'],
-                'datos_completos' => $paste
-            ]);
+           
 
             $control = ControlProduccion::where('sucursal_id', $sucursalId)
                 ->where('paste_id', $paste['paste_id'])
@@ -117,19 +113,13 @@ class HornoController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->first();
 
-            Log::info('Control encontrado:', [
-                'control_id' => $control ? $control->id : 'no encontrado',
-                'estado' => $control ? $control->estado : 'no encontrado',
-                'cantidad_horneada_actual' => $control ? $control->cantidad_horneada : 'no encontrado'
-            ]);
-
-                $fechaHorneado = Carbon::parse(Carbon::now()); // Usar la hora actual
-                
-                // Si pasa la validación, asignar el tiempo de la request
+            $fechaHorneado = Carbon::parse(Carbon::now()); // Usar la hora actual
+            
+            //si ya hay tiempo de inicio horneado no se asigna la hora actual
+            if(isset($control->tiempo_inicio_horneado)){
                 $control->tiempo_inicio_horneado = $fechaHorneado;
                 $control->save();
-                
-                Log::info('Guardado tiempo_inicio_horneado con validación temporal');
+            }
             
             if ($control) {
                 $control->estado = 'horneando';
