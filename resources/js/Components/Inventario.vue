@@ -532,17 +532,69 @@ const resetForm = () => {
     }
 
     @page {
-        size: A4 landscape;
-        margin: 0;
+        size: A4 portrait;
+        margin: 1cm;
     }
 
     .tabla {
         width: 100%;
         table-layout: fixed;
+        font-size: 10px;
     }
 
     .tabla th, .tabla td {
         word-wrap: break-word;
+        padding: 2px 4px;
+        font-size: 10px;
+    }
+
+    /* Hacer la letra más compacta */
+    body {
+        font-size: 11px;
+        line-height: 1.2;
+    }
+
+    h1 {
+        font-size: 18px !important;
+        margin-bottom: 10px !important;
+    }
+
+    h2 {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+    }
+
+    h3 {
+        font-size: 12px !important;
+        margin-bottom: 6px !important;
+    }
+
+    /* Compactar espaciado en tablas */
+    .bg-gray-100 {
+        padding: 8px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .mb-8 {
+        margin-bottom: 12px !important;
+    }
+
+    .mb-6 {
+        margin-bottom: 10px !important;
+    }
+
+    .mb-4 {
+        margin-bottom: 6px !important;
+    }
+
+    /* Compactar grid de información */
+    .grid {
+        gap: 8px !important;
+    }
+
+    /* Ajustar altura de contenedores */
+    .h-screen {
+        height: auto !important;
     }
 }
 

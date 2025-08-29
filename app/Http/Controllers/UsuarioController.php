@@ -51,7 +51,7 @@ class UsuarioController extends Controller
         });
 
     // Listado de sucursales
-    $sucursales = Sucursal::all()->map(function ($sucursal) {
+    $sucursales = Sucursal::where('id', '!=', 1000)->where('id', '!=', 0)->get()->map(function ($sucursal) {
         return [
             'id' => $sucursal->id,
             'nombre' => $sucursal->nombre,

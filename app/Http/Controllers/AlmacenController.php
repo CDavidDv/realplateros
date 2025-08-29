@@ -11,17 +11,12 @@ class AlmacenController extends Controller
 {
     public function almacen()
     {
-        if (Auth::user()->hasRole('almacen')) {
-            //SELECT DISTINCT `tipo` FROM `inventarios`
-            $categorias = Inventario::select('tipo')->distinct()->get();
-            $inventarioAlmcane = Inventario::where('sucursal_id', 0)->get();
-            return Inertia::render('Almacen/index', [
-                'categorias' => $categorias
-            ]);
-        }else{
-            
-            return redirect()->route('dashboard');
-        }
-
+        // El middleware 'role:almacen' ya verifica que el usuario tenga el rol correcto
+        //SELECT DISTINCT `tipo` FROM `inventarios`
+        $categorias = Inventario::select('tipo')->distinct()->get();
+        $inventarioAlmcane = Inventario::where('sucursal_id', 0)->get();
+        return Inertia::render('Almacen/index', [
+            'categorias' => $categorias
+        ]);
     }
 }

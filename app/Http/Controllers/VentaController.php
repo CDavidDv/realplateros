@@ -179,6 +179,7 @@ class VentaController extends Controller
             $productos = $request->input('productos');
             $metodoPago = $request->input('metodo_pago');
             $total = $request->input('total');
+            $factura = $request->input('factura');
 
             // Validar existencias antes de procesar la venta
             $errores = [];
@@ -204,6 +205,16 @@ class VentaController extends Controller
             $venta->sucursal_id = auth()->user()->sucursal_id;
             $venta->total = $total;
             $venta->metodo_pago = $metodoPago;
+            $venta->factura = $factura == 'true' ? true : false;
+            
+            // Generar folio automático si es factura con tarjeta
+            if ($venta->factura && $metodoPago === 'tarjeta') {
+                $venta->folio = $this->generarFolioAutomatico(auth()->user()->sucursal_id, Carbon::now());
+            } else {
+                // Si no es factura con tarjeta, poner folio en null
+                $venta->folio = null;
+            }
+            
             $venta->save();
 
             // Registrar cada detalle de la venta
@@ -473,5 +484,40 @@ class VentaController extends Controller
         ]);
     }
 
-
+    /**
+     * Genera un folio automático en formato para facturas con tarjeta
+     * El número se incrementa cronológicamente por día y sucursal
+     */
+    private function generarFolioAutomatico($sucursalId, $fechaHora)
+    {
+        try {
+            // Convertir la fecha a formato Y-m-d para obtener solo el día
+            $fecha = Carbon::parse($fechaHora)->format('Y-m-d');
+            
+            // Obtener el último folio del día para esta sucursal
+            $ultimoFolio = Venta::where('sucursal_id', $sucursalId)
+                ->whereDate('created_at', $fecha)
+                ->where('factura', true)
+                ->where('metodo_pago', 'tarjeta')
+                ->whereNotNull('folio')
+                ->where('folio', '>', 0) // Solo números mayores a 0
+                ->orderBy('folio', 'desc')
+                ->value('folio');
+            
+            if ($ultimoFolio) {
+                // Incrementar el número del último folio
+                $nuevoNumero = (int) $ultimoFolio + 1;
+            } else {
+                // Si no hay folios previos, empezar con 1
+                $nuevoNumero = 1;
+            }
+            
+            // Formato: solo el número secuencial
+            return $nuevoNumero;
+            
+        } catch (\Exception $e) {
+            // En caso de error, generar un folio con timestamp como fallback
+            return time();
+        }
+    }
 }

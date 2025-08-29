@@ -33,11 +33,12 @@ const { props } = usePage()
 // Validaciones seguras para evitar errores de acceso a propiedades undefined
 const user = computed(() => props.auth?.user || null);
 const userRoles = computed(() => user.value?.roles || []);
-const primaryRole = computed(() => userRoles.value[0] || null);
+const primaryRole = computed(() => userRoles.value[0].name || null);
 const isAlmacen = computed(() => primaryRole.value === 'almacen');
 const isTrabajador = computed(() => primaryRole.value === 'trabajador');
 const isSupervisor = computed(() => primaryRole.value === 'supervisor');
 const isAdmin = computed(() => primaryRole.value === 'admin');
+const isGestor = computed(() => primaryRole.value === 'gestor');
 
 </script>
 
@@ -55,7 +56,7 @@ const isAdmin = computed(() => primaryRole.value === 'admin');
                 <!-- Primary Navigation Menu -->
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-1 lg:px-8">
                     <div class="flex justify-between h-16">
-                        <div class="flex">
+                        <div class="flex" v-if="!isGestor">
                             <!-- Logo -->
                             <div class="shrink-0 flex items-center">
                                 <Link v-if="!isAlmacen" :href="route('dashboard')">
@@ -105,7 +106,18 @@ const isAdmin = computed(() => primaryRole.value === 'admin');
                                     Corte
                                 </NavLink>
                             </div>
-                            
+                        </div>
+                        <div class="flex" v-if="isGestor">
+                            <div class="shrink-0 flex items-center">
+                                <Link :href="route('gestor-ventas')" :active="route().current('gestor-ventas')">
+                                    <ApplicationMark class="block h-14 p-1 w-auto" />
+                                </Link>
+                            </div>
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="isGestor">
+                                <NavLink :href="route('gestor-ventas')" :active="route().current('gestor-ventas*')">
+                                    Gestor de Ventas
+                                </NavLink>
+                            </div>
                         </div>
 
                         <div class="hidden sm:flex sm:items-center sm:ms-6">

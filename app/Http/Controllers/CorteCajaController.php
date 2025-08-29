@@ -181,6 +181,7 @@ class CorteCajaController extends Controller
         $ventas = Venta::where('sucursal_id', $sucursalId)
             ->with(['detalles.producto', 'usuario'])
             ->whereBetween('created_at', [$startDate, $endDate])
+            ->orderBy('created_at', 'asc')
             ->get();
 
         // Cálculos adicionales
@@ -302,18 +303,22 @@ class CorteCajaController extends Controller
         $ventas = Venta::where('sucursal_id', $sucursalId)
             ->with(['detalles.producto', 'usuario'])
             ->whereDate('created_at', Carbon::today())
+            ->where('visible', true)
+            ->orderBy('created_at', 'asc')
             ->get();
 
         
         $ventasEfectivo = Venta::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
             ->where('metodo_pago', 'efectivo')
+            ->where('visible', true)
             ->get();
 
       
         $ventasTarjeta = Venta::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
             ->where('metodo_pago', 'tarjeta')
+            ->where('visible', true)
             ->get();
 
 
@@ -325,6 +330,7 @@ class CorteCajaController extends Controller
             ->groupBy('producto_id')
             ->with('producto')
             ->whereDate('created_at', Carbon::today()) // Cambiar el nombre del modelo relacionado si es necesario
+            
             ->get();  
 
       

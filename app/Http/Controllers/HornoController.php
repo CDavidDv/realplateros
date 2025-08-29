@@ -116,7 +116,7 @@ class HornoController extends Controller
             $fechaHorneado = Carbon::parse(Carbon::now()); // Usar la hora actual
             
             //si ya hay tiempo de inicio horneado no se asigna la hora actual
-            if(isset($control->tiempo_inicio_horneado)){
+            if(!isset($control->tiempo_inicio_horneado)){
                 $control->tiempo_inicio_horneado = $fechaHorneado;
                 $control->save();
             }
@@ -128,26 +128,9 @@ class HornoController extends Controller
                 $cantidadActual = is_numeric($control->cantidad_horneada) ? (int)$control->cantidad_horneada : 0;
                 $cantidadNueva = is_numeric($paste['cantidad']) ? (int)$paste['cantidad'] : 0;
                 
-                Log::info('Valores antes de la suma:', [
-                    'control_id' => $control->id,
-                    'cantidad_actual' => $cantidadActual,
-                    'cantidad_nueva' => $cantidadNueva,
-                    'tipo_cantidad_actual' => gettype($cantidadActual),
-                    'tipo_cantidad_nueva' => gettype($cantidadNueva)
-                ]);
-                
                 // Realizar la suma
                 $control->cantidad_horneada = $cantidadActual + $cantidadNueva;
                 
-                // tiempo_inicio_horneado ya se estableció en la validación anterior
-                // No es necesario asignarlo nuevamente aquí
-                
-                Log::info('Después de la suma:', [
-                    'control_id' => $control->id,
-                    'cantidad_total' => $control->cantidad_horneada,
-                    'tiempo_inicio_horneado' => $control->tiempo_inicio_horneado,
-                    'tipo_cantidad_total' => gettype($control->cantidad_horneada)
-                ]);
                 
                 try {
                     $control->save();

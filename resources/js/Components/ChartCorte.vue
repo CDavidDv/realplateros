@@ -1,5 +1,5 @@
 <template>
-    <div class="no-print w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow space-y-6">
+    <div class="no-print w-full  mx-auto p-6 bg-white rounded-lg shadow space-y-6">
         <!-- Filtros -->
         <div class="flex flex-wrap gap-4 mb-6">
 
@@ -145,14 +145,18 @@ const totalSalesAndRevenue = computed(() => {
     }), { totalItems: 0, totalRevenue: 0 });
 });
 
-// Ventas por hora
+// Ventas por hora (solo de 6:00 AM a 11:00 PM)
 const salesByHour = computed(() => {
-    const hourSales = new Array(24).fill(0);
+    const hourSales = new Array(18).fill(0); // 18 horas: 6:00 AM a 11:00 PM
 
     filteredVentas.value.forEach(venta => {
         const date = new Date(venta.created_at);
         const hour = date.getHours();
-        hourSales[hour] += venta.cantidad;
+        // Solo incluir horas entre 6:00 AM (6) y 11:00 PM (23)
+        if (hour >= 6 && hour <= 23) {
+            const adjustedHour = hour - 6; // Ajustar índice: 6:00 AM = índice 0, 11:00 PM = índice 17
+            hourSales[adjustedHour] += venta.cantidad;
+        }
     });
 
     return hourSales;
@@ -172,17 +176,21 @@ const salesByDay = computed(() => {
         .sort((a, b) => b.ventas - a.ventas);
 });
 
-// Ventas por hora de producto específico
+// Ventas por hora de producto específico (solo de 6:00 AM a 11:00 PM)
 const salesByHourForProduct = computed(() => {
-    if (!selectedProduct.value) return new Array(24).fill(0);
+    if (!selectedProduct.value) return new Array(18).fill(0);
 
-    const hourSales = new Array(24).fill(0);
+    const hourSales = new Array(18).fill(0); // 18 horas: 6:00 AM a 11:00 PM
 
     filteredVentas.value
         .filter(venta => venta.producto_id === selectedProduct.value)
         .forEach(venta => {
             const hour = new Date(venta.created_at).getHours();
-            hourSales[hour] += venta.cantidad;
+            // Solo incluir horas entre 6:00 AM (6) y 11:00 PM (23)
+            if (hour >= 6 && hour <= 23) {
+                const adjustedHour = hour - 6; // Ajustar índice: 6:00 AM = índice 0, 11:00 PM = índice 17
+                hourSales[adjustedHour] += venta.cantidad;
+            }
         });
 
     return hourSales;
@@ -236,19 +244,26 @@ const renderCharts = () => {
     // Gráfico de Ventas por Hora
     if (hourChart) hourChart.destroy();
     if (hourChartRef.value) {
-        const hourlyRevenue = Array(24).fill(0);
+        const hourlyRevenue = Array(18).fill(0); // 18 horas: 6:00 AM a 11:00 PM
         filteredVentas.value.forEach(venta => {
             const hour = new Date(venta.created_at).getHours();
-            const producto = props.inventario.find(item => item.id === venta.producto_id);
-            hourlyRevenue[hour] += venta.cantidad * (producto?.precio || 0);
+            // Solo incluir horas entre 6:00 AM (6) y 11:00 PM (23)
+            if (hour >= 6 && hour <= 23) {
+                const adjustedHour = hour - 6; // Ajustar índice: 6:00 AM = índice 0, 11:00 PM = índice 17
+                const producto = props.inventario.find(item => item.id === venta.producto_id);
+                hourlyRevenue[adjustedHour] += venta.cantidad * (producto?.precio || 0);
+            }
         });
 
         hourChart = new Chart(hourChartRef.value, {
             type: 'line',
             data: {
-                labels: Array.from({ length: 24 }, (_, i) => 
-                    `${i}:00 (${salesByHour.value[i]} - $${hourlyRevenue[i].toLocaleString()})`
-                ),
+                labels: Array.from({ length: 18 }, (_, i) => {
+                    const hour = i + 6; // Convertir índice a hora real (6:00 AM a 11:00 PM)
+                    const ampm = hour < 12 ? 'AM' : 'PM';
+                    const displayHour = hour === 12 ? 12 : hour % 12;
+                    return `${displayHour}:00 ${ampm} (${salesByHour.value[i]} - $${hourlyRevenue[i].toLocaleString()})`;
+                }),
                 datasets: [
                     {
                         label: 'Ventas por Hora',
@@ -265,7 +280,7 @@ const renderCharts = () => {
                 scales: {
                     y: { beginAtZero: true },
                     x: { 
-                        title: { display: true, text: 'Hora del Día' },
+                        title: { display: true, text: 'Hora del Día (6:00 AM - 11:00 PM)' },
                         ticks: {
                             maxRotation: 45,
                             minRotation: 45
@@ -322,23 +337,30 @@ const renderCharts = () => {
     if (productByHourChart) productByHourChart.destroy();
     if (productByHourChartRef.value) {
         const selectedProductInfo = props.inventario.find(item => item.id === selectedProduct.value);
-        const productHourlyRevenue = Array(24).fill(0);
+        const productHourlyRevenue = Array(18).fill(0); // 18 horas: 6:00 AM a 11:00 PM
         
         if (selectedProductInfo) {
             filteredVentas.value
                 .filter(venta => venta.producto_id === selectedProduct.value)
                 .forEach(venta => {
                     const hour = new Date(venta.created_at).getHours();
-                    productHourlyRevenue[hour] += venta.cantidad * selectedProductInfo.precio;
+                    // Solo incluir horas entre 6:00 AM (6) y 11:00 PM (23)
+                    if (hour >= 6 && hour <= 23) {
+                        const adjustedHour = hour - 6; // Ajustar índice: 6:00 AM = índice 0, 11:00 PM = índice 17
+                        productHourlyRevenue[adjustedHour] += venta.cantidad * selectedProductInfo.precio;
+                    }
                 });
         }
 
         productByHourChart = new Chart(productByHourChartRef.value, {
             type: 'line',
             data: {
-                labels: Array.from({ length: 24 }, (_, i) => 
-                    `${i}:00 (${salesByHourForProduct.value[i]} - $${productHourlyRevenue[i].toLocaleString()})`
-                ),
+                labels: Array.from({ length: 18 }, (_, i) => {
+                    const hour = i + 6; // Convertir índice a hora real (6:00 AM a 11:00 PM)
+                    const ampm = hour < 12 ? 'AM' : 'PM';
+                    const displayHour = hour === 12 ? 12 : hour % 12;
+                    return `${displayHour}:00 ${ampm} (${salesByHourForProduct.value[i]} - $${productHourlyRevenue[i].toLocaleString()})`;
+                }),
                 datasets: [
                     {
                         label: selectedProductInfo?.nombre || 'Producto',
@@ -355,7 +377,7 @@ const renderCharts = () => {
                 scales: {
                     y: { beginAtZero: true },
                     x: { 
-                        title: { display: true, text: 'Hora del Día' },
+                        title: { display: true, text: 'Hora del Día (6:00 AM - 11:00 PM)' },
                         ticks: {
                             maxRotation: 45,
                             minRotation: 45

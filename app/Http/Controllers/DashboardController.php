@@ -28,7 +28,7 @@ class DashboardController extends Controller
             return redirect()->route('dashboard');
         }
 
-        $sucursales = Sucursal::where('id', '!=', 0)->get();
+        $sucursales = Sucursal::where('id', '!=', 0)->where('id', '!=', 1000)->get();
 
         return Inertia::render('Auth/Login', [
             'canLogin' => Route::has('login'),
@@ -102,26 +102,8 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Debug: verificar filtros aplicados
-        Log::info('Debug filtros backend:', [
-            'fecha_seleccionada' => $fechaSeleccionada,
-            'fecha_filtro' => $fechaHoy,
-            'total_notificaciones_faltantes' => $notificacionesFaltantes->count(),
-            'total_notificaciones_horneados' => $notificacionesHorneados->count(),
-            'sucursal_id' => $sucursalId
-        ]);
 
-        // Debug: verificar qué campos están llegando
-        if ($notificacionesFaltantes->count() > 0) {
-            $primerRegistro = $notificacionesFaltantes->first();
-            Log::info('Debug notificaciones - campos disponibles:', [
-                'campos' => array_keys($primerRegistro->toArray()),
-                'tiene_updated_at' => isset($primerRegistro->updated_at),
-                'updated_at_valor' => $primerRegistro->updated_at ?? 'NULL',
-                'tiene_hora_ultima_venta' => isset($primerRegistro->hora_ultima_venta),
-                'hora_ultima_venta_valor' => $primerRegistro->hora_ultima_venta ?? 'NULL'
-            ]);
-        }
+        
 
         return Inertia::render('Dashboard/index', [
             'inventario' => $inventario,

@@ -91,7 +91,7 @@
           <h2 class="text-xl font-semibold mb-4">Resumen Financiero</h2>
           <div class="grid grid-cols-2 gap-4">
             <!-- Lista de cortes -->
-            <div v-if="props.cortes && props.cortes.length > 0" class="col-span-2 mb-4">
+            <div v-if="props.cortes && props.cortes?.length > 0" class="col-span-2 mb-4">
               <h3 class="text-lg font-semibold mb-2">Cortes del día</h3>
               <div class="grid grid-cols-3 gap-4">
                 <div v-for="(corte, index) in props.cortes" :key="corte.id"
@@ -145,14 +145,118 @@
 
         <!-- Ventas -->
         <div class="mb-6">
-          <div class="flex justify-between">
+                    <div class="flex justify-between">
             <h2 class="text-xl font-semibold mb-4">Ventas</h2>
             <button @click="imprimir" class="no-print size-fit py-1 px-2 mr-8 rounded-md text-white hover:bg-purple-600 bg-purple-500">
               Imprimir
             </button>
           </div>
-          
-          <div v-if="ventasPorCorte.length <= 0" class="text-gray-500">
+
+          <!-- Filtros de búsqueda para columnas -->
+          <div class="mb-4 no-print">
+            <div class="bg-gray-50 p-4 rounded-lg">
+              <h3 class="text-lg font-semibold mb-3">Filtros de Búsqueda</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Filtro ID Venta -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">ID Venta</label>
+                  <input
+                    type="text"
+                    v-model="filtros.idVenta"
+                    placeholder="Buscar por ID..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+
+                <!-- Filtro Creado por -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Creado por</label>
+                  <input
+                    type="text"
+                    v-model="filtros.creadoPor"
+                    placeholder="Buscar por nombre..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+
+                <!-- Filtro Método de Pago -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Método de Pago</label>
+                  <select
+                    v-model="filtros.metodoPago"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Todos</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                  </select>
+                </div>
+
+                <!-- Filtro Factura -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Factura</label>
+                  <select
+                    v-model="filtros.factura"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Todos</option>
+                    <option value="true">Facturado</option>
+                    <option value="false">No facturado</option>
+                  </select>
+                </div>
+
+                <!-- Filtro Rango de Precio -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Rango de Precio</label>
+                  <div class="flex gap-2">
+                    <input
+                      type="number"
+                      v-model="filtros.precioMin"
+                      placeholder="Min"
+                      class="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                    <input
+                      type="number"
+                      v-model="filtros.precioMax"
+                      placeholder="Max"
+                      class="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <!-- Filtro Producto -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Producto</label>
+                  <input
+                    type="text"
+                    v-model="filtros.producto"
+                    placeholder="Buscar por producto..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="flex items-end">
+                  <div class="flex gap-2 w-full">
+                    <button
+                      @click="aplicarFiltros"
+                      class="flex-1 bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 transition-colors"
+                    >
+                      Aplicar Filtros
+                    </button>
+                    <button
+                      @click="limpiarFiltros"
+                      class="flex-1 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="ventasPorCorte?.length <= 0" class="text-gray-500">
             No se han vendido productos en este período.
           </div>
           
@@ -185,6 +289,9 @@
                 <table class="tabla min-w-full divide-y divide-gray-200">
                   <thead class="bg-gray-50">
                     <tr>
+                      <th v-if="$page.props.user.roles[0] === 'admin'" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Folio
+                      </th>
                       <th v-for="tab in tabTitles" :key="tab" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         {{ tab }}
                       </th>
@@ -195,6 +302,9 @@
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
                     <tr class="odd:bg-white even:bg-gray-100" v-for="venta in corte.ventas" :key="venta.id">
+                      <td v-if="$page.props.user.roles[0] === 'admin'" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                        {{ venta.folio ? venta.folio : '-' }}
+                      </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                         {{ venta.idVentaDia || venta.id }}
                       </td>
@@ -228,7 +338,14 @@
                         </div>
                       </td>
                       <td class="px-6 py-4 text-sm text-gray-500 capitalize text-center">
-                        {{ venta.metodo_pago }}
+                        <span :class="[venta.metodo_pago == 'tarjeta' ? 'bg-yellow-500' : 'bg-green-500']" class="px-2 py-1 rounded-md text-white">
+                          {{ venta.metodo_pago }}
+                        </span>
+                      </td>
+                      <td class="px-2 w-fit py-4 text-sm text-gray-500 capitalize text-center">
+                        <span :class="[venta.factura == true ? 'bg-blue-500' : 'bg-red-500']" class="px-2 py-1 rounded-md text-white whitespace-nowrap capitalize">
+                          {{ venta.factura ? 'Facturado' : 'No facturado' }}
+                        </span>
                       </td>
                       <td class="px-6 py-4 text-sm text-gray-900 font-semibold text-right">
                         ${{ venta.total }}
@@ -271,11 +388,13 @@
     :sobrantesInventario="sobrantesInventario" 
   />
 
-  <ChartCorte
-      v-if="$page.props.user.roles[0] != 'trabajador' && $page.props.user.roles[0] != 'supervisor'"
-      :ventasProductos="ventasProductos"
-      :inventario="inventario"
-  />
+  <div class="max-w-7xl mx-auto">
+    <ChartCorte
+        v-if="$page.props.user.roles[0] != 'trabajador' && $page.props.user.roles[0] != 'supervisor'"
+        :ventasProductos="ventasProductos"
+        :inventario="inventario"
+    />
+  </div>
 
   <div v-if="isEditing" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
     <div class="bg-white p-6 rounded-lg overflow-auto w-1/2 max-h-96">
@@ -342,7 +461,7 @@ const initialCashSaved = ref(!!props?.corte?.dinero_inicio)
 const finalCashSaved = ref(!!props?.corte?.dinero_final)
 const savingNewCorte = ref(false)
 
-const tabTitles = ['ID Venta', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Total']
+const tabTitles = ['ID Venta', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Factura', 'Total']
 
 const isToday = computed(() => {
   const today = new Date();
@@ -369,12 +488,12 @@ const SepararVentaPorCorte = () => {
   ventasPorCorte.value = []
   
   // Si no hay ventas, mostrar mensaje
-  if (!ventas.value || ventas.value.length === 0) {
+  if (!ventas.value || ventas.value?.length === 0) {
     return
   }
   
   // Si no hay cortes, mostrar todas las ventas en un solo grupo
-  if (!props.cortes || props.cortes.length === 0) {
+  if (!props.cortes || props.cortes?.length === 0) {
     ventasPorCorte.value = [{
       id: 1,
       ventas: ventas.value,
@@ -439,7 +558,7 @@ const calcularTotalesPorCorte = (ventas) => {
   }
 }
 
-const registrosInventario = ref(props?.registrosInventario)
+const registrosInventario = ref(props?.registrosInventario || [])
 
 const fetchFilteredData = () => {
   isLoading.value = true;
@@ -486,6 +605,8 @@ const fetchFilteredData = () => {
       showToast("success", "Filtro actualizado correctamente");
       calculatePayments(); // Llamar a calculatePayments después de obtener los datos
       SepararVentaPorCorte(); // Llamar a SepararVentaPorCorte después de actualizar los datos
+      // Limpiar datos originales para que se actualicen en el próximo filtro
+      ventasPorCorteOriginal.value = [];
     },
     onError(e) {
       showToast("error", e.props.flash.error || "Error al obtener datos con este filtro");
@@ -526,6 +647,105 @@ const calculatePayments = () => {
 }
 
 const selectedCorteId = ref(null);
+
+// Variables para filtros de búsqueda
+const filtros = ref({
+  idVenta: '',
+  creadoPor: '',
+  metodoPago: '',
+  factura: '',
+  precioMin: '',
+  precioMax: '',
+  producto: ''
+});
+
+// Variable para almacenar los datos originales
+const ventasPorCorteOriginal = ref([]);
+
+// Función para aplicar filtros
+const aplicarFiltros = () => {
+  // Si no hay datos originales, usar los actuales
+  if (!ventasPorCorteOriginal.value || ventasPorCorteOriginal.value.length === 0) {
+    ventasPorCorteOriginal.value = JSON.parse(JSON.stringify(ventasPorCorte.value));
+  }
+
+  // Aplicar filtros sobre los datos originales
+  const datosFiltrados = ventasPorCorteOriginal.value.map(corte => {
+    const ventasFiltradas = corte.ventas.filter(venta => {
+      // Filtro por ID de venta
+      if (filtros.value.idVenta && !venta.idVentaDia?.toString().includes(filtros.value.idVenta) && 
+          !venta.id?.toString().includes(filtros.value.idVenta)) {
+        return false;
+      }
+
+      // Filtro por creador
+      if (filtros.value.creadoPor) {
+        const nombreCompleto = `${venta?.usuario?.name || ''} ${venta?.usuario?.apellido_p || ''} ${venta?.usuario?.apellido_m || ''}`.toLowerCase();
+        if (!nombreCompleto.includes(filtros.value.creadoPor.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // Filtro por método de pago
+      if (filtros.value.metodoPago && venta.metodo_pago !== filtros.value.metodoPago) {
+        return false;
+      }
+
+      // Filtro por factura
+      if (filtros.value.factura !== '') {
+        const facturaBoolean = filtros.value.factura === 'true';
+        if (Boolean(venta.factura) !== facturaBoolean) {
+          return false;
+        }
+      }
+
+      // Filtro por rango de precio
+      if (filtros.value.precioMin && Number(venta.total) < Number(filtros.value.precioMin)) {
+        return false;
+      }
+      if (filtros.value.precioMax && Number(venta.total) > Number(filtros.value.precioMax)) {
+        return false;
+      }
+
+      // Filtro por producto
+      if (filtros.value.producto) {
+        const tieneProducto = venta.detalles?.some(detalle => 
+          detalle.producto?.nombre?.toLowerCase().includes(filtros.value.producto.toLowerCase())
+        );
+        if (!tieneProducto) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    return {
+      ...corte,
+      ventas: ventasFiltradas
+    };
+  });
+
+  // Filtrar cortes que no tengan ventas después del filtrado
+  ventasPorCorte.value = datosFiltrados.filter(corte => corte.ventas.length > 0);
+};
+
+// Función para limpiar filtros
+const limpiarFiltros = () => {
+  filtros.value = {
+    idVenta: '',
+    creadoPor: '',
+    metodoPago: '',
+    factura: '',
+    precioMin: '',
+    precioMax: '',
+    producto: ''
+  };
+  
+  // Restaurar datos originales
+  ventasPorCorteOriginal.value = [];
+  SepararVentaPorCorte();
+};
 
 const filterVentasByCorte = (corteId, createdAt, updatedAt) => {
   // Validar que corteId, createdAt y updatedAt sean válidos
@@ -662,6 +882,8 @@ onMounted(() => {
   
   calculatePayments()
   SepararVentaPorCorte()
+  // Inicializar datos originales
+  ventasPorCorteOriginal.value = JSON.parse(JSON.stringify(ventasPorCorte.value));
 })
 
 const safeToFixed = (value) => {
@@ -685,7 +907,7 @@ const editVenta = (ventaId) => {
   isEditing.value = true;
 };
 
-const saveEditedVenta = () => {
+const saveEditedVenta = async () => {
 
   const data = {
     venta_id: editedVentaId.value,
@@ -698,7 +920,7 @@ const saveEditedVenta = () => {
 
   console.log(data);
   try {
-    const response = axios.post('/ventas/editar', data);
+    const response = await axios.post('/ventas/editar', data);
     if (response.status === 200) {
       showToast("success", "Venta actualizada correctamente");
       fetchFilteredData(); // Recargar los datos para reflejar los cambios
@@ -707,7 +929,12 @@ const saveEditedVenta = () => {
       showToast("error", response.data.error || "Error al actualizar la venta");
     }
   } catch (error) {
-    showToast("error", error.response.data.error || "Error al actualizar la venta");
+    console.error('Error al actualizar venta:', error);
+    if (error.response && error.response.data) {
+      showToast("error", error.response.data.error || "Error al actualizar la venta");
+    } else {
+      showToast("error", "Error al actualizar la venta");
+    }
   }
 };
 
@@ -776,17 +1003,78 @@ const cancelEdit = () => {
     }
 
     @page {
-        size: A4 landscape;
-        margin: 0;
+        size: A4 portrait;
+        margin: 1cm;
     }
 
     .tabla {
         width: 100%;
         table-layout: fixed;
+        font-size: 10px;
     }
 
     .tabla th, .tabla td {
         word-wrap: break-word;
+        padding: 2px 4px;
+        font-size: 10px;
+    }
+
+    /* Hacer la letra más compacta */
+    body {
+        font-size: 11px;
+        line-height: 1.2;
+        color: black !important;
+    }
+
+    text{
+      color: black !important;
+    }
+
+    span{
+      color: black !important;
+    }
+
+    h1 {
+        font-size: 18px !important;
+        margin-bottom: 10px !important;
+    }
+
+    h2 {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+    }
+
+    h3 {
+        font-size: 12px !important;
+        margin-bottom: 6px !important;
+    }
+
+    /* Compactar espaciado en tablas */
+    .bg-gray-100 {
+        padding: 8px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .mb-8 {
+        margin-bottom: 12px !important;
+    }
+
+    .mb-6 {
+        margin-bottom: 10px !important;
+    }
+
+    .mb-4 {
+        margin-bottom: 6px !important;
+    }
+
+    /* Compactar grid de información */
+    .grid {
+        gap: 8px !important;
+    }
+
+    /* Ajustar altura de contenedores */
+    .h-screen {
+        height: auto !important;
     }
 }
 

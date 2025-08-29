@@ -14,6 +14,7 @@ use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\ControlProduccionController;
+use App\Http\Controllers\GestorVentasController;
 use App\Http\Controllers\NotificacionUmbralController;
 use Illuminate\Support\Facades\Route;
 use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
@@ -24,7 +25,7 @@ Route::get('/', [DashboardController::class, 'index']);
 
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', ])->group(function () {
     // AUTH ROUTES
-    Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name("dashboard");
+    Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name("dashboard")->middleware('role:admin');
     Route::post('/ventas', [VentaController::class, 'procesarVenta'])->name('ventas.procesar');
     Route::post('/ventas/editar', [VentaController::class, 'editarVenta'])->name('ventas.editar');
     Route::post('/asignar', [VentaController::class, 'procesarTicket'])->name('ticket.procesar');
@@ -102,7 +103,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/search-check-ins', [CheckInCheckOutController::class, 'search'])->name('search-check-ins');
 
     
-    Route::get('/almacen', [AlmacenController::class, 'almacen'])->name("almacen");
+    Route::get('/almacen', [AlmacenController::class, 'almacen'])->name("almacen")->middleware('role:almacen');
     
     Route::get('/api/control-produccion', [ControlProduccionController::class, 'index']);
     
@@ -116,6 +117,20 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/api/notificaciones/registrar', [NotificacionUmbralController::class, 'registrarNotificacion'])->name('notificaciones.registrar');
     Route::post('/api/notificaciones/actualizar', [NotificacionUmbralController::class, 'actualizarNotificaciones'])->name('notificaciones.actualizar');
     Route::get('/api/notificaciones/obtener', [NotificacionUmbralController::class, 'obtenerNotificacionesFiltradas'])->name('notificaciones.obtener');
+
+
+    Route::get('/gestor-ventas', [GestorVentasController::class, 'index'])->name('gestor-ventas')->middleware('role:gestor');
+    Route::post('/gestor-ventas/filtro', [GestorVentasController::class, 'filtro'])->name('gestor-ventas.filtro')->middleware('role:gestor');
+
+    Route::get('/ventas', [GestorVentasController::class, 'ventas'])->name('ventas');
+    Route::post('/ventas/eliminar', [GestorVentasController::class, 'eliminarVenta'])->name('ventas.eliminar');
+    Route::post('/ventas/renumerar', [GestorVentasController::class, 'renumerarVentas'])->name('ventas.renumerar');
+    Route::post('/ventas/restaurar', [GestorVentasController::class, 'restaurarVenta'])->name('ventas.restaurar');
+    Route::post('/ventas/crear', [GestorVentasController::class, 'crearVenta'])->name('ventas.crear');
+    Route::put('/ventas/{id}', [GestorVentasController::class, 'actualizarVenta'])->name('ventas.actualizar');
+    Route::get('/api/usuarios-sucursal/{sucursalId}', [GestorVentasController::class, 'getUsuariosSucursal']);
+    Route::post('/api/ventas-filtradas', [GestorVentasController::class, 'getVentasFiltradas'])->name('ventas.filtradas');
+    Route::post('/ventas/actualizar-visible', [GestorVentasController::class, 'actualizarVisible'])->name('ventas.actualizar-visible');
 });
 
 // Rutas para notificaciones de umbral

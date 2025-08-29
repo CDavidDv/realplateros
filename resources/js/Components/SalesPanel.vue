@@ -110,7 +110,11 @@
             </tr>
           </tbody>
         </table>
-        <div class="flex justify-end mt-4" v-if="!isAlmacen">
+        <div class="flex justify-end mt-4 gap-2" v-if="!isAlmacen">
+          <select v-model="facturado" class="rounded">
+            <option value="false">No facturado</option>
+            <option value="true">Facturado</option>
+          </select>
           <select v-model="metodoPago" class="rounded">
             <option value="efectivo">Efectivo</option>
             <option value="tarjeta">Tarjeta</option>
@@ -156,6 +160,7 @@ const sucursal_id = ref(0);
 const trabajador_id = ref(0);
 const searchTerm = ref('');
 const metodoPago = ref('efectivo');
+const facturado = ref(false);
 const loading = ref(false);
 const categories = ref()
 const sucursales = ref(
@@ -228,7 +233,8 @@ const completeSale = () => {
   router.post('/ventas', {
     productos: ticket.value,
     total: totalAmount.value,
-    metodo_pago: metodoPago.value
+    metodo_pago: metodoPago.value,
+    factura: facturado.value
   }, {
     preserveScroll: true,
     onSuccess: (a) => {
@@ -240,6 +246,7 @@ const completeSale = () => {
         ticket.value = [];
         searchTerm.value = '';
         metodoPago.value = 'efectivo';
+        facturado.value = false;
         showToast("success", "Registrado correctamente");
         loading.value = false;
       }, 2000);
