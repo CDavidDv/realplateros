@@ -208,7 +208,7 @@ class VentaController extends Controller
             $venta->factura = $factura == 'true' ? true : false;
             
             // Generar folio automático si es factura con tarjeta
-            if ($venta->factura && $metodoPago === 'tarjeta') {
+            if ($venta->factura || $metodoPago === 'tarjeta') {
                 $venta->folio = $this->generarFolioAutomatico(auth()->user()->sucursal_id, Carbon::now());
             } else {
                 // Si no es factura con tarjeta, poner folio en null
@@ -348,8 +348,6 @@ class VentaController extends Controller
                     }
                 }
             }
-
-
 
             // Asegurarnos de que las notificaciones se envíen en la sesión
             session()->flash('notificaciones', $notificaciones);
@@ -499,6 +497,7 @@ class VentaController extends Controller
                 ->whereDate('created_at', $fecha)
                 ->where('factura', true)
                 ->where('metodo_pago', 'tarjeta')
+                ->where('visible', true)
                 ->whereNotNull('folio')
                 ->where('folio', '>', 0) // Solo números mayores a 0
                 ->orderBy('folio', 'desc')

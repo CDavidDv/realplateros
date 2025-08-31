@@ -35,6 +35,19 @@ class GestorVentasController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
 
+        // Cálculos adicionales para el resumen financiero
+        $cashPayments = $ventas->where('metodo_pago', 'efectivo')->sum('total');
+        $cardPayments = $ventas->where('metodo_pago', 'tarjeta')->sum('total');
+
+        // Caja inicial y final
+        $initialCash = CorteCaja::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::today())
+            ->value('dinero_inicio');
+
+        $finalCash = CorteCaja::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::today())
+            ->value('dinero_final');
+
         
         $ventasEfectivo = Venta::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
@@ -139,6 +152,10 @@ class GestorVentasController extends Controller
         
 
         return Inertia::render('GestorVentas/index', [
+            'cashPayments' => $cashPayments,
+            'cardPayments' => $cardPayments,
+            'initialCash' => $initialCash,
+            'finalCash' => $finalCash,
             'inventario' => $inventario,
             'ventas' => $ventas,
             'productosVendidos' => $productosVendidos,
@@ -269,16 +286,22 @@ class GestorVentasController extends Controller
             return response()->json(['error' => 'Filtro no válido.'], 400);
         }
 
-        // Filtrar ventas según el rango de fechas y sucursal
+                // Filtrar ventas según el rango de fechas y sucursal
         $ventas = Venta::where('sucursal_id', $sucursalId)
             ->with(['detalles.producto', 'usuario'])
             ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'asc')
+            ->orderBy('created_at', 'asc') 
             ->get();
 
         // Cálculos adicionales
-        $cashPayments = $ventas->where('metodo_pago', 'efectivo')->sum('total');
-        $cardPayments = $ventas->where('metodo_pago', 'tarjeta')->sum('total');
+        $cashPayments = $ventas->where('metodo_pago', 'efectivo')
+        ->where('estado', '!=', 'eliminada')
+        ->where('visible', true)
+        ->sum('total');
+        $cardPayments = $ventas->where('metodo_pago', 'tarjeta')
+        ->where('estado', '!=', 'eliminada')
+        ->where('visible', true)
+        ->sum('total');
     
         // Productos vendidos
         $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
@@ -566,11 +589,12 @@ class GestorVentasController extends Controller
             $venta->metodo_pago = $request->metodo_pago;
             $venta->factura = $request->factura;
             $venta->folio = $request->folio;
-            $venta->sucursal_id = $request->sucursal_id; // Usar la sucursal filtrada
+            $usuario = User::find($request->usuario_id);
+            $venta->sucursal_id = $usuario->sucursal_id; // Usar la sucursal filtrada
             $venta->estado = 'creada';
             $venta->visible = true;
 
-            if ($request->factura && $request->metodo_pago === 'tarjeta') {
+            if ($request->factura || $request->metodo_pago === 'tarjeta') {
                 $venta->factura = true;
                 // Generar folio automático en formato de numero para facturas con tarjeta
                 $venta->folio = $this->generarFolioAutomatico($request->sucursal_id, $request->fecha_hora);
@@ -832,6 +856,7 @@ class GestorVentasController extends Controller
                 ->whereDate('created_at', $fecha)
                 ->where('factura', true)
                 ->where('metodo_pago', 'tarjeta')
+                ->where('visible', true)
                 ->whereNotNull('folio')
                 ->where('folio', '>', 0) // Solo números mayores a 0
                 ->orderBy('folio', 'desc')

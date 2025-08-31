@@ -963,7 +963,7 @@ const SepararVentaPorCorte = () => {
 const calcularTotalesPorCorte = (ventas) => {
   // Filtrar ventas válidas para el cálculo
   const ventasValidas = ventas.filter(venta => 
-    venta.estado !== 'eliminada' && venta.visible !== false
+    venta.estado !== 'eliminada' && venta.visible === true
   );
   
   return {
@@ -1015,6 +1015,7 @@ const  fetchFilteredData = () => {
         ventas.value = normalizarVentas(response.props.ventas || []);
         initialCash.value = response.props.initialCash || 0;
         finalCash.value = response.props.finalCash || 0;
+
         ventasProductos.value = Array.isArray(response.props.ventasProductos) ? response.props.ventasProductos : [];
         inventario.value = Array.isArray(response.props.inventario) ? response.props.inventario : [];
         registrosInventario.value = Array.isArray(response.props.registrosInventario) ? response.props.registrosInventario : [];
@@ -1033,7 +1034,7 @@ const  fetchFilteredData = () => {
         
         // Solo llamar a estas funciones si hay datos válidos
         if (ventas.value && ventas.value.length > 0) {
-          calculatePayments(); // Llamar a calculatePayments después de obtener los datos
+          // calculatePayments() ya no es necesario porque los datos vienen del backend
         }
         
         if (cortes.value && cortes.value.length > 0 && ventas.value && ventas.value.length > 0) {
@@ -1086,52 +1087,6 @@ const resetFilters = () => {
 
 const imprimir = () => {
   window.print()
-}
-
-const calculatePayments = () => {
-  try {
-    const ventasACalcular = ventas.value || props?.ventas || [];
-    
-    if (!Array.isArray(ventasACalcular)) {
-      console.warn('calculatePayments: ventas no es un array válido');
-      cashPayments.value = 0;
-      cardPayments.value = 0;
-      return;
-    }
-    
-    // Filtrar ventas válidas (no eliminadas y visibles)
-    const ventasValidas = ventasACalcular.filter(venta => 
-      venta && venta.estado !== 'eliminada' && venta.visible !== false
-    );
-    
-    cashPayments.value = ventasValidas.reduce((total, venta) => {
-      if (!venta || typeof venta.metodo_pago !== 'string' || typeof venta.total !== 'number') {
-        return Number(total);
-      }
-      
-      if (venta.metodo_pago === 'efectivo') {
-        return Number(total) + Number(venta.total || 0)
-      }
-      return Number(total)
-    }, 0)
-    
-    cardPayments.value = ventasValidas.reduce((total, venta) => {
-      if (!venta || typeof venta.metodo_pago !== 'string' || typeof venta.total !== 'number') {
-        return Number(total);
-      }
-      
-      if (venta.metodo_pago === 'tarjeta') {
-        return Number(total) + Number(venta.total || 0)
-      }
-      return Number(total)
-    }, 0)
-    
-    
-  } catch (error) {
-    console.error('Error al calcular pagos:', error);
-    cashPayments.value = 0;
-    cardPayments.value = 0;
-  }
 }
 
 const selectedCorteId = ref(null);
@@ -1311,13 +1266,13 @@ const filterVentasByCorte = (corteId, createdAt, updatedAt) => {
   }));
 
   // Actualizar los pagos en efectivo y con tarjeta
-  calculatePayments();
+  // calculatePayments() ya no es necesario porque los datos vienen del backend
 };
 
 const resetCorteSelection = () => {
   selectedCorteId.value = null;
   ventas.value = normalizarVentas(props.ventas); // Mostrar todas las ventas
-  calculatePayments(); // Recalcular pagos
+  // calculatePayments() ya no es necesario porque los datos vienen del backend
 };
 
 const showToast = (icon, title) => {
@@ -1408,7 +1363,6 @@ onMounted(() => {
     ventas.value = normalizarVentas(props.ventas)
   }
   
-  calculatePayments()
   SepararVentaPorCorte()
   // Inicializar datos originales
   ventasPorCorteOriginal.value = JSON.parse(JSON.stringify(ventasPorCorte.value));
@@ -1808,28 +1762,8 @@ const updateVisibleVentas = ( id, visible ) => {
     venta.visible = visible;
   }
   
-  axios.post('/ventas/actualizar-visible', {
-    id: id,
-    visible: visible,
-  }).then(response => {
-    if (response.status === 200) {
-      showToast("success", response.data.message);
-      // No recargar fetchFilteredData() aquí para evitar parpadeo
-      // El estado local ya está actualizado
-    } else {
-      // Revertir el cambio si hay error
-      if (venta) {
-        venta.visible = !visible;
-      }
-      showToast("error", response.data.error || "Error al actualizar las ventas");
-    }
-  }).catch(error => {
-    // Revertir el cambio si hay error
-    if (venta) {
-      venta.visible = !visible;
-    }
-    showToast("error", "Error al actualizar la visibilidad");
-  });
+  // Los datos ya vienen del backend, no necesitamos hacer peticiones adicionales
+  // El resumen financiero se actualiza automáticamente con los datos del backend
 }
 </script>
 
