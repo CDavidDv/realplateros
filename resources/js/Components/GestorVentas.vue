@@ -138,6 +138,14 @@
               <p class="font-medium">${{ cardPayments }}</p>
             </div>
             <div>
+              <p class="text-sm text-gray-600">Efectivo Totales <small class="text-xs text-gray-500 capitalize">(eliminados y no visibles)</small>:</p>
+              <p class="font-medium">${{ safeToFixed(cashPaymentsTotal) }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Tarjetas Totales <small class="text-xs text-gray-500 capitalize">(eliminados y no visibles)</small>:</p>
+              <p class="font-medium">${{ safeToFixed(cardPaymentsTotal) }}</p>
+            </div>
+            <div>
               <p class="text-sm text-gray-600">Total ventas (Efectivo + Tarjetas):</p>
               <p class="font-medium">${{ Number(cashPayments) + Number(cardPayments) }}</p>
             </div>
@@ -388,8 +396,8 @@
                       </th>
                     </tr>
                   </thead>
-                                      <tbody class="bg-white divide-y divide-gray-200">
-                      <tr v-if="corte.ventas.length === 0">
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <tr  v-if="corte.ventas.length === 0 ">
                         <td colspan="10" class="text-center text-gray-500 py-8">
                           <div class="flex flex-col items-center">
                             <svg class="h-8 w-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -407,7 +415,8 @@
                               venta.estado === 'editada' ? 'bg-yellow-100' : 
                               venta.estado === 'creada' ? 'bg-green-100' :
                               'odd:bg-white even:bg-gray-100',
-                              venta.estado === 'eliminada' ? 'bg-red-100 opacity-50 p-0 no-print' : ''
+                              venta.estado === 'eliminada' ? 'bg-red-100 opacity-50 p-0 no-print' : '',
+                              !venta.visible ? 'no-print' : ''
                             ]">
                           <td :class="[venta.estado === 'eliminada' ? 'p-0 m-0' : 'px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center no-print']">
                             <span v-if="venta.estado === 'eliminada'">  
@@ -437,7 +446,7 @@
                                 Eliminado
                               </span>
                             </span>
-                            <span v-else>{{ venta.idVentaDia || venta.id }}</span>
+                            <span v-else>{{ venta.idVentaDia || '-' }}</span>
                           </td>
                       <td class="px-6 py-4 whitespace-nowrap overflow-auto text-sm text-gray-500">
                         <span v-if="venta.estado === 'eliminada'" class="text-xs text-gray-500 italic">
@@ -824,6 +833,10 @@ const initialCashSaved = ref(!!props?.corte?.dinero_inicio)
 const finalCashSaved = ref(!!props?.corte?.dinero_final)
 const savingNewCorte = ref(false)
 
+// total de ventas totales en efectivo y con tarjeta
+const cashPaymentsTotal = ref(props?.cashPaymentsTotal || 0)
+const cardPaymentsTotal = ref(props?.cardPaymentsTotal || 0)
+
 const tabTitles = ['Folio', 'ID Venta', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Factura', 'Total']
 
 const isToday = computed(() => {
@@ -1029,6 +1042,9 @@ const  fetchFilteredData = () => {
         cantidadDeCortes.value = response.props.cantidadDeCortes || 0;
         categoriasInventario.value = Array.isArray(response.props.categoriasInventario) ? response.props.categoriasInventario : [];
         usuariosDisponibles.value = Array.isArray(response.props.users) ? response.props.users : [];
+
+        cashPaymentsTotal.value = response.props.cashPaymentsTotal || 0;
+        cardPaymentsTotal.value = response.props.cardPaymentsTotal || 0;
 
         showToast("success", "Filtro actualizado correctamente");
         
@@ -1701,7 +1717,7 @@ const renumerarVentas = async () => {
     });
     if (response.status === 200) {
       showToast("success", response.data.message);
-      showToast("info", `Se renumeraron ${response.data.ventas_renumeradas} ventas`);
+      //showToast("info", `Se renumeraron ${response.data.ventas_renumeradas} ventas`);
       fetchFilteredData(); // Recargar los datos para reflejar los cambios
     } else {
       showToast("error", response.data.error || "Error al renumerar las ventas");
@@ -1737,7 +1753,7 @@ const renumerarVentasManual = async () => {
           mensaje += `• Venta ${detalle.id}: ${detalle.idVentaDia_anterior} → ${detalle.idVentaDia_nuevo} (${detalle.created_at})\n`;
         });
         
-        showToast("info", mensaje);
+        //showToast("info", mensaje);
       }
       
       // Recargar los datos para reflejar los cambios
@@ -1762,8 +1778,25 @@ const updateVisibleVentas = ( id, visible ) => {
     venta.visible = visible;
   }
   
-  // Los datos ya vienen del backend, no necesitamos hacer peticiones adicionales
-  // El resumen financiero se actualiza automáticamente con los datos del backend
+  // Hacer petición al backend para actualizar la base de datos
+  axios.post('/ventas/actualizar-visible', {
+    id: id,
+    visible: visible,
+  }).then(response => {
+    if (response.status === 200) {
+      showToast("success", response.data.message);
+      fetchFilteredData();
+    } else {
+      showToast("error", response.data.error || "Error al actualizar las ventas");
+    }
+  }).catch(error => {
+    // Revertir el cambio si hay error
+    if (venta) {
+      venta.visible = !visible;
+    }
+    showToast("error", "Error al actualizar la visibilidad");
+    fetchFilteredData();
+  });
 }
 </script>
 

@@ -286,22 +286,28 @@ class GestorVentasController extends Controller
             return response()->json(['error' => 'Filtro no válido.'], 400);
         }
 
-                // Filtrar ventas según el rango de fechas y sucursal
+        // Filtrar ventas según el rango de fechas y sucursal
         $ventas = Venta::where('sucursal_id', $sucursalId)
             ->with(['detalles.producto', 'usuario'])
             ->whereBetween('created_at', [$startDate, $endDate])
             ->orderBy('created_at', 'asc') 
             ->get();
 
-        // Cálculos adicionales
+        // ventas en efectivo y con tarjeta no eliminados y visibles
         $cashPayments = $ventas->where('metodo_pago', 'efectivo')
-        ->where('estado', '!=', 'eliminada')
-        ->where('visible', true)
-        ->sum('total');
+            ->where('estado', '!=', 'eliminada')
+            ->where('visible', true)
+            ->sum('total');
         $cardPayments = $ventas->where('metodo_pago', 'tarjeta')
-        ->where('estado', '!=', 'eliminada')
-        ->where('visible', true)
-        ->sum('total');
+            ->where('estado', '!=', 'eliminada')
+            ->where('visible', true)
+            ->sum('total');
+
+        // todas las ventas no eliminadas y visibles
+        $cashPaymentsTotal = $ventas->where('metodo_pago', 'efectivo')
+            ->sum('total');
+        $cardPaymentsTotal = $ventas->where('metodo_pago', 'tarjeta')
+            ->sum('total');
     
         // Productos vendidos
         $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
@@ -404,6 +410,8 @@ class GestorVentasController extends Controller
             'sucursal_id' => $sucursalId,
             'usuario_id' => $user->id,
             'users' => $usuarios,
+            'cashPaymentsTotal' => $cashPaymentsTotal,
+            'cardPaymentsTotal' => $cardPaymentsTotal,
         ]);
     }
 
@@ -434,10 +442,9 @@ class GestorVentasController extends Controller
                 'fecha' => $fechaVenta
             ]));
             
-            // Si la venta eliminada era facturada con tarjeta, reanudar numeración de folios
-            if ($venta->factura && $venta->metodo_pago === 'tarjeta') {
-                $this->reanudarNumeracionFolios($sucursalId, $fechaVenta);
-            }
+            // Reanudar numeración de folios para todas las ventas del día
+            // Esto asegura que los folios estén en orden secuencial después de cualquier eliminación
+            $this->reanudarNumeracionFolios($sucursalId, $fechaVenta);
             
             // Obtener el conteo de ventas activas para la respuesta
             $ventasActivas = Venta::where('sucursal_id', $sucursalId)
@@ -472,6 +479,9 @@ class GestorVentasController extends Controller
             }
             
             Log::info("Iniciando renumeración para sucursal {$sucursalId} en fecha {$fecha->format('Y-m-d')}");
+
+            
+            
             
             // Obtener todas las ventas activas del día ordenadas cronológicamente
             $ventasActivas = Venta::where('sucursal_id', $sucursalId)
@@ -481,7 +491,10 @@ class GestorVentasController extends Controller
                 ->orderBy('created_at', 'asc') // Ordenar por fecha de creación (más temprana primero)
                 ->get();
             
+            
             Log::info("Encontradas {$ventasActivas->count()} ventas activas para renumerar");
+
+            
             
             // Renumerar secuencialmente desde 1 basado en el orden cronológico
             $contador = 1;
@@ -504,6 +517,18 @@ class GestorVentasController extends Controller
             }
             
             Log::info("Ventas renumeradas para sucursal {$sucursalId} en fecha {$fecha->format('Y-m-d')}: {$contador} ventas procesadas");
+
+            // ventas que no cumplen las condiciones (no factura Y no tarjeta)
+            $ventasNoActivas = Venta::where('sucursal_id', $sucursalId)
+                ->where('visible', false)
+                ->whereDate('created_at', $fecha)
+                ->orderBy('created_at', 'asc') // Ordenar por fecha de creación (más temprana primero)
+                ->get();
+            
+            foreach ($ventasNoActivas as $venta) {
+                $venta->idVentaDia = null;
+                $venta->save();
+            }
             
             return response()->json([
                 'message' => 'Ventas renumeradas correctamente',
@@ -546,6 +571,10 @@ class GestorVentasController extends Controller
                 'sucursal_id' => $venta->sucursal_id,
                 'fecha' => $venta->created_at
             ]));
+
+            // Reanudar numeración de folios para todas las ventas del día
+            // Esto asegura que los folios estén en orden secuencial después de cualquier eliminación
+            $this->reanudarNumeracionFolios($venta->sucursal_id, $venta->created_at);
             
             return response()->json([
                 'message' => 'Venta restaurada correctamente'
@@ -594,7 +623,7 @@ class GestorVentasController extends Controller
             $venta->estado = 'creada';
             $venta->visible = true;
 
-            if ($request->factura || $request->metodo_pago === 'tarjeta') {
+            if ($request->factura || $request->metodo_pago == 'tarjeta') {
                 $venta->factura = true;
                 // Generar folio automático en formato de numero para facturas con tarjeta
                 $venta->folio = $this->generarFolioAutomatico($request->sucursal_id, $request->fecha_hora);
@@ -700,8 +729,8 @@ class GestorVentasController extends Controller
             // Detectar cambios en factura y método de pago para mantener numeración correcta
             $facturaCambio = $facturaOriginal !== $request->factura;
             $metodoPagoCambio = $metodoPagoOriginal !== $request->metodo_pago;
-            $eraFacturaTarjeta = $facturaOriginal && $metodoPagoOriginal === 'tarjeta';
-            $seraFacturaTarjeta = $request->factura && $request->metodo_pago === 'tarjeta';
+            $eraFacturaTarjeta = $facturaOriginal || $metodoPagoOriginal == 'tarjeta';
+            $seraFacturaTarjeta = $request->factura || $request->metodo_pago == 'tarjeta';
             
             // Generar folio automático si es factura con tarjeta
             if ($seraFacturaTarjeta) {
@@ -822,8 +851,27 @@ class GestorVentasController extends Controller
     {
         try {
             $venta = Venta::find($request->id);
+            if (!$venta) {
+                return response()->json(['error' => 'Venta no encontrada'], 404);
+            }
+            
+            // Guardar el estado anterior para detectar cambios
+            $visibleAnterior = $venta->visible;
+            
+            // Actualizar la visibilidad
             $venta->visible = $request->visible;
             $venta->save();
+            
+            // Renumerar todas las ventas del día para mantener el orden cronológico
+            $this->renumerarVentas(new Request([
+                'sucursal_id' => $venta->sucursal_id,
+                'fecha' => $venta->created_at
+            ]));
+            
+            // Reanudar numeración de folios para todas las ventas del día
+            // Esto asegura que los folios estén en orden secuencial después de cualquier cambio de visibilidad
+            $this->reanudarNumeracionFolios($venta->sucursal_id, $venta->created_at);
+            
             return response()->json(['message' => 'Venta actualizada correctamente']);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al actualizar la venta: ' . $e->getMessage()], 500);
@@ -855,7 +903,6 @@ class GestorVentasController extends Controller
             $ultimoFolio = Venta::where('sucursal_id', $sucursalId)
                 ->whereDate('created_at', $fecha)
                 ->where('factura', true)
-                ->where('metodo_pago', 'tarjeta')
                 ->where('visible', true)
                 ->whereNotNull('folio')
                 ->where('folio', '>', 0) // Solo números mayores a 0
@@ -871,6 +918,8 @@ class GestorVentasController extends Controller
                 // Si no hay folios previos, empezar con 1
                 $nuevoNumero = 1;
             }
+
+            
             
             // Formato: solo el número secuencial
             return $nuevoNumero;
@@ -882,8 +931,8 @@ class GestorVentasController extends Controller
     }
 
     /**
-     * Reanuda la numeración de folios para facturas con tarjeta del día
-     * Se usa cuando se elimina una venta facturada con tarjeta o cambia su estado
+     * Reanuda la numeración de folios para todas las ventas que requieren folio del día
+     * Se ejecuta automáticamente en todas las operaciones CRUD para mantener consistencia
      */
     private function reanudarNumeracionFolios($sucursalId, $fechaHora)
     {
@@ -891,11 +940,24 @@ class GestorVentasController extends Controller
             // Convertir la fecha a formato Y-m-d para obtener solo el día
             $fecha = Carbon::parse($fechaHora)->format('Y-m-d');
             
-            // Obtener todas las ventas facturadas con tarjeta del día ordenadas cronológicamente
-            $ventasFacturadasTarjeta = Venta::where('sucursal_id', $sucursalId)
+            // PRIMERO: Poner null todos los folios que no cumplen las condiciones (no factura Y no tarjeta)
+            $ventasSinFolio = Venta::where('sucursal_id', $sucursalId)
                 ->whereDate('created_at', $fecha)
-                ->where('factura', true)
-                ->where('metodo_pago', 'tarjeta')
+                ->where('visible', false)
+                ->get();
+            
+            foreach ($ventasSinFolio as $venta) {
+                $venta->folio = null;
+                $venta->save();
+            }
+            
+            // SEGUNDO: Obtener todas las ventas que requieren folio (factura O tarjeta) del día ordenadas cronológicamente
+            $ventasConFolio = Venta::where('sucursal_id', $sucursalId)
+                ->whereDate('created_at', $fecha)
+                ->where(function($query) {
+                    $query->where('factura', true)
+                          ->orWhere('metodo_pago', 'tarjeta');
+                })
                 ->where('estado', '!=', 'eliminada')
                 ->where('visible', true)
                 ->orderBy('created_at', 'asc')
@@ -905,7 +967,7 @@ class GestorVentasController extends Controller
             $contador = 1;
             $foliosRenumerados = [];
             
-            foreach ($ventasFacturadasTarjeta as $venta) {
+            foreach ($ventasConFolio as $venta) {
                 $folioAnterior = $venta->folio;
                 $nuevoFolio = $contador;
                 $venta->folio = $nuevoFolio;
@@ -915,7 +977,9 @@ class GestorVentasController extends Controller
                     'id' => $venta->id,
                     'folio_anterior' => $folioAnterior,
                     'folio_nuevo' => $nuevoFolio,
-                    'created_at' => $venta->created_at->format('H:i:s')
+                    'created_at' => $venta->created_at->format('H:i:s'),
+                    'factura' => $venta->factura,
+                    'metodo_pago' => $venta->metodo_pago
                 ];
                 
                 $contador++;

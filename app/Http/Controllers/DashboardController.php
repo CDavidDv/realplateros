@@ -25,6 +25,7 @@ class DashboardController extends Controller
     public function index()
     {
         if (Auth::check()) {
+            $user = Auth::user();
             return redirect()->route('dashboard');
         }
 
@@ -43,11 +44,16 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
-        
+
+        if (Auth::user()->hasRole('gestor')) {
+            return redirect()->route('gestor-ventas');
+        } 
         // Obtener fecha seleccionada o usar fecha actual
         $fechaSeleccionada = $request->input('fecha', null);
         $fechaActual = Carbon::now()->setTimezone('America/Mexico_City');
         
+
+
         if ($fechaSeleccionada) {
             try {
                 $fechaFiltro = Carbon::parse($fechaSeleccionada)->setTimezone('America/Mexico_City');
