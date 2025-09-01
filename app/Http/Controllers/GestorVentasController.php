@@ -997,4 +997,46 @@ class GestorVentasController extends Controller
             return [];
         }
     }
+
+    public function renumerarVentasNormales(Request $request)
+    {
+        try {
+            $sucursalId = $request->input('sucursal_id');
+            $fecha = $request->input('fecha', Carbon::today());
+
+            $ventas = Venta::where('sucursal_id', $sucursalId)
+                ->where('factura', false)
+                ->where('metodo_pago', 'efectivo')
+                ->where('visible', true)
+                ->where('estado', '!=', 'eliminada')
+                ->whereDate('created_at', $fecha)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            $contador = 1;
+            foreach ($ventas as $venta) {
+                $venta->idVentaNormal = $contador;
+                $venta->save();
+                $contador++;
+            }
+
+            $ventas = Venta::where('sucursal_id', $sucursalId)
+                ->where('factura', false)
+                ->where('metodo_pago', 'tarjeta')
+                ->where('visible', true)
+                ->where('estado', '!=', 'eliminada')
+                ->whereDate('created_at', $fecha)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            foreach ($ventas as $venta) {
+                $venta->idVentaNormal = null;
+                $venta->save();
+            }
+
+            return response()->json(['message' => 'Ventas normales renumeradas correctamente']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al renumerar ventas normales: ' . $e->getMessage()], 500);
+        }
+    }
 }

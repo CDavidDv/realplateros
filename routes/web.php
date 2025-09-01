@@ -125,6 +125,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::get('/ventas', [GestorVentasController::class, 'ventas'])->name('ventas');
     Route::post('/ventas/eliminar', [GestorVentasController::class, 'eliminarVenta'])->name('ventas.eliminar');
     Route::post('/ventas/renumerar', [GestorVentasController::class, 'renumerarVentas'])->name('ventas.renumerar');
+    Route::post('/ventas/renumerar-normales', [GestorVentasController::class, 'renumerarVentasNormales'])->name('ventas.renumerar-normales');
+    
     Route::post('/ventas/restaurar', [GestorVentasController::class, 'restaurarVenta'])->name('ventas.restaurar');
     Route::post('/ventas/crear', [GestorVentasController::class, 'crearVenta'])->name('ventas.crear');
     Route::put('/ventas/{id}', [GestorVentasController::class, 'actualizarVenta'])->name('ventas.actualizar');

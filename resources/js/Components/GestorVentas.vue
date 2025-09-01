@@ -28,9 +28,9 @@
             <div class="text-xs text-gray-600 text-center mt-1 no-print">
               Seleccione los filtros y haga clic en "Aplicar Filtro"
             </div>
-            <div class="flex gap-1">
-              <button class="no-print text-sm rounded-lg shadow-lg px-3 py-2 bg-orange-500 text-white hover:bg-orange-600" @click="fetchFilteredData">Aplicar Filtro</button>
-              <button class="no-print text-sm rounded-lg shadow-lg px-3 py-2 bg-gray-500 text-white hover:bg-gray-600" @click="resetFilters">Limpiar Filtro</button>
+            <div class="flex gap-1" >
+              <button :disabled="!selectedSucursal" :class="[!selectedSucursal ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600']" class="no-print text-sm rounded-lg shadow-lg px-3 py-2 bg-orange-500 text-white hover:bg-orange-600" @click="fetchFilteredData">Aplicar Filtro</button>
+              <button :disabled="!selectedSucursal" :class="[!selectedSucursal ? 'bg-gray-400 cursor-not-allowed' : 'bg-gray-500 hover:bg-gray-600']" class="no-print text-sm rounded-lg shadow-lg px-3 py-2 bg-gray-500 text-white hover:bg-gray-600" @click="resetFilters">Limpiar Filtro</button>
             </div>
           </div>
         </div>
@@ -161,28 +161,48 @@
         </div>
 
         <!-- Ventas -->
-        <div class="mb-6">
-                    <div class="flex justify-between">
-            <h2 class="text-xl font-semibold mb-4">Ventas</h2>
-            <div  class="flex gap-2">
-              <button 
-                @click="crearNuevaVenta" 
-                :disabled="!props?.sucursal_id"
-                :class="[
-                  'no-print size-fit py-1 px-3 rounded-md text-white',
-                  props?.sucursal_id 
-                    ? 'hover:bg-green-600 bg-green-500' 
-                    : 'bg-gray-400 cursor-not-allowed'
-                ]"
-                :title="!props?.sucursal_id ? 'Seleccione una sucursal primero' : ''"
-              >
-                + Nueva Venta
-              </button>
-              <button @click="imprimir" class="no-print size-fit py-1 px-2 rounded-md text-white hover:bg-purple-600 bg-purple-500">
-                Imprimir
-              </button>
+        <div  class="mb-6">
+            <div class="flex justify-between" >
+              <h2 class="text-xl font-semibold mb-4">Ventas</h2>
+              <div class="flex gap-2">
+                <button 
+                  @click="crearNuevaVenta" 
+                  :disabled="!selectedSucursal"
+                  :class="[
+                    'no-print size-fit py-1 px-3 rounded-md text-white',
+                    selectedSucursal
+                      ? 'hover:bg-green-600 bg-green-500' 
+                      : 'bg-gray-400 cursor-not-allowed'
+                  ]"
+                  :title="!selectedSucursal ? 'Seleccione una sucursal primero' : ''"
+                >
+                  + Nueva Venta
+                </button>
+                <button 
+                  @click="refolearVentasNormales" 
+                  :disabled="!selectedSucursal || isRefoleandoVentasNormales"
+                  :class="[
+                    'no-print size-fit py-1 px-3 rounded-md text-white',
+                    selectedSucursal && !isRefoleandoVentasNormales
+                      ? 'hover:bg-blue-600 bg-blue-500' 
+                      : 'bg-gray-400 cursor-not-allowed'
+                  ]"
+                  :title="!selectedSucursal ? 'Seleccione una sucursal primero' : (isRefoleandoVentasNormales ? 'Refolio en progreso' : '')"
+                  :aria-label="isRefoleandoVentasNormales ? 'Refolio en progreso' : ''"
+                >
+                  <span v-if="isRefoleandoVentasNormales">
+                    <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </span>
+                  Refolio ventas normales
+                </button>
+                <button @click="imprimir" class="no-print size-fit py-1 px-2 rounded-md text-white hover:bg-purple-600 bg-purple-500">
+                  Imprimir
+                </button>
+              </div>
             </div>
-          </div>
 
           <!-- Filtros de búsqueda para columnas -->
           <div class="mb-4 no-print">
@@ -447,6 +467,14 @@
                               </span>
                             </span>
                             <span v-else>{{ venta.idVentaDia || '-' }}</span>
+                          </td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                            <span v-if="venta.estado === 'eliminada'">
+                              <span class="text-xs text-gray-500 italic">
+                                Eliminado
+                              </span>
+                            </span>
+                            <span v-else>{{ venta.idVentaNormal || '-' }}</span>
                           </td>
                       <td class="px-6 py-4 whitespace-nowrap overflow-auto text-sm text-gray-500">
                         <span v-if="venta.estado === 'eliminada'" class="text-xs text-gray-500 italic">
@@ -822,7 +850,7 @@ const gastos = ref(props.gastos || [])
 const totalGastos = ref(props.totalGastos || 0)
 const cantidadCortes = ref(props?.cantidadCortes || 0)
 const sucursales = ref(props?.sucursales || [])
-const selectedSucursal = ref(props?.sucursales[0]?.id || null)
+const selectedSucursal = ref(null)
 const cortes = ref(props?.cortes || [])
 
 
@@ -837,7 +865,7 @@ const savingNewCorte = ref(false)
 const cashPaymentsTotal = ref(props?.cashPaymentsTotal || 0)
 const cardPaymentsTotal = ref(props?.cardPaymentsTotal || 0)
 
-const tabTitles = ['Folio', 'ID Venta', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Factura', 'Total']
+const tabTitles = ['Folio', 'ID Venta', 'ID Venta Normal', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Factura', 'Total']
 
 const isToday = computed(() => {
   const today = new Date();
@@ -1091,9 +1119,9 @@ const resetFilters = () => {
   selectedDate.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   selectedWeek.value = null
   selectedMonth.value = null
-  selectedSucursal.value = props?.sucursales[0]?.id || null
+  selectedSucursal.value = null
   selectedCorteId.value = null // Resetear también la selección de corte
-  
+    
   // Limpiar también los filtros de búsqueda
   limpiarFiltros();
   
@@ -1798,6 +1826,32 @@ const updateVisibleVentas = ( id, visible ) => {
     fetchFilteredData();
   });
 }
+
+const isRefoleandoVentasNormales = ref(false);
+
+const refolearVentasNormales = async () => {
+
+  //mandar sucursal y fecha
+  try {
+    isRefoleandoVentasNormales.value = true;
+    const response = await axios.post('/ventas/renumerar-normales', { 
+      sucursal_id: selectedSucursal.value,
+      fecha: selectedDate.value
+    });
+    if (response.status === 200) {
+      showToast("success", response.data.message);
+      fetchFilteredData();
+    } else {
+      showToast("error", response.data.error || "Error al refolear ventas normales");
+    }
+  } catch (error) {
+    console.error('Error al refolear ventas normales:', error);
+    showToast("error", error.response?.data?.error || "Error al refolear ventas normales");
+  } finally {
+    isRefoleandoVentasNormales.value = false;
+  }
+}
+
 </script>
 
 <style>
