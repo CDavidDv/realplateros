@@ -303,7 +303,7 @@ class CorteCajaController extends Controller
         $ventas = Venta::where('sucursal_id', $sucursalId)
             ->with(['detalles.producto', 'usuario'])
             ->whereDate('created_at', Carbon::today())
-            ->where('estado', true) 
+            ->where('estado', '!=', 'eliminada') 
             ->where('visible', true)
             ->orderBy('created_at', 'asc')
             ->get();
