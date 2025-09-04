@@ -306,7 +306,7 @@
                         {{ venta.folio ? venta.folio : '-' }}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
-                        {{ venta.idVentaDia || venta.id }}
+                        {{ venta.idVentaDia  }}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap overflow-auto text-sm text-gray-500">
                         <span class="print">
