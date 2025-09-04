@@ -249,7 +249,7 @@ const completeSale = () => {
         facturado.value = false;
         showToast("success", "Registrado correctamente");
         loading.value = false;
-      }, 2000);
+      }, 500);
       
     },
     onError: (errors) => {

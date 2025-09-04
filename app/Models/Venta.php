@@ -90,7 +90,7 @@ class Venta extends Model
      */
     public static function renumerarVentasConsecutivas($sucursalId)
     {
-        $fechaInicio = Carbon::create(2024, 9, 1); // 1 de septiembre de 2024
+        $fechaInicio = Carbon::create(2025, 9, 1); // 1 de septiembre de 2024
         
         // Obtener todas las ventas activas desde el 1 de septiembre ordenadas cronológicamente
         $ventas = self::where('sucursal_id', $sucursalId)
