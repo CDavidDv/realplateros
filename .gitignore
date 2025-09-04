@@ -1,3 +1,5 @@
+vite.config.js
+/vite.config.js
 /.phpunit.cache
 /node_modules
 /public/hot
@@ -17,4 +19,3 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
-vite.config.js

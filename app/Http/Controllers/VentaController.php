@@ -151,6 +151,9 @@ class VentaController extends Controller
     
             // Guardar la venta actualizada
             $venta->save();
+
+            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
+            \App\Models\Venta::renumerarVentasConsecutivas($venta->sucursal_id);
     
             // Actualizar el ticket si es necesario
             $ticket = Ticket::where('venta_id', $ventaId)->first();
@@ -216,6 +219,9 @@ class VentaController extends Controller
             }
             
             $venta->save();
+
+            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
+            \App\Models\Venta::renumerarVentasConsecutivas(auth()->user()->sucursal_id);
 
             // Registrar cada detalle de la venta
             foreach ($productos as $producto) {

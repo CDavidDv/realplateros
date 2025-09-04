@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir app\\Http)"
+      "Bash(dir app\\Http)",
+      "Read(/C:\\xampp\\htdocs\\realplateros\\app\\Http\\Controllers/**)",
+      "Read(/C:\\xampp\\htdocs\\realplateros\\app\\Http\\Controllers/**)",
+      "Read(/C:\\xampp\\htdocs\\realplateros\\app\\Http\\Controllers/**)",
+      "Read(/C:\\xampp\\htdocs\\realplateros\\app\\Http\\Controllers/**)"
     ],
     "deny": [],
     "ask": []

@@ -435,12 +435,8 @@ class GestorVentasController extends Controller
             $venta->estado = 'eliminada';
             $venta->save();
 
-            // Renumerar los idVentaDia para que no queden huecos
-            // Usar la función centralizada para mantener consistencia
-            $this->renumerarVentas(new Request([
-                'sucursal_id' => $sucursalId,
-                'fecha' => $fechaVenta
-            ]));
+            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
+            \App\Models\Venta::renumerarVentasConsecutivas($sucursalId);
             
             // Reanudar numeración de folios para todas las ventas del día
             // Esto asegura que los folios estén en orden secuencial después de cualquier eliminación
@@ -464,77 +460,25 @@ class GestorVentasController extends Controller
     }
 
         /**
-     * Renumerar manualmente los idVentaDia de un día específico
+     * Renumerar manualmente todas las ventas de una sucursal de manera consecutiva desde el 1 de septiembre
      * Asigna números secuenciales basados en el orden cronológico (created_at)
      */
     public function renumerarVentas(Request $request)
     {
         try {
             $sucursalId = $request->input('sucursal_id');
-            $fecha = $request->input('fecha', Carbon::today());
             
-            // Convertir la fecha a objeto Carbon si es string
-            if (is_string($fecha)) {
-                $fecha = Carbon::parse($fecha);
-            }
-            
-            Log::info("Iniciando renumeración para sucursal {$sucursalId} en fecha {$fecha->format('Y-m-d')}");
+            Log::info("Iniciando renumeración consecutiva desde 1 de septiembre para sucursal {$sucursalId}");
 
+            // Usar el método del modelo para renumerar de manera consecutiva
+            $ventasRenumeradas = \App\Models\Venta::renumerarVentasConsecutivas($sucursalId);
             
-            
-            
-            // Obtener todas las ventas activas del día ordenadas cronológicamente
-            $ventasActivas = Venta::where('sucursal_id', $sucursalId)
-                ->where('estado', '!=', 'eliminada')
-                ->where('visible', true)
-                ->whereDate('created_at', $fecha)
-                ->orderBy('created_at', 'asc') // Ordenar por fecha de creación (más temprana primero)
-                ->get();
-            
-            
-            Log::info("Encontradas {$ventasActivas->count()} ventas activas para renumerar");
-
-            
-            
-            // Renumerar secuencialmente desde 1 basado en el orden cronológico
-            $contador = 1;
-            $ventasRenumeradas = [];
-            
-            foreach ($ventasActivas as $venta) {
-                $ventaAnterior = $venta->idVentaDia;
-                $venta->idVentaDia = $contador;
-                $venta->save();
-                
-                $ventasRenumeradas[] = [
-                    'id' => $venta->id,
-                    'idVentaDia_anterior' => $ventaAnterior,
-                    'idVentaDia_nuevo' => $contador,
-                    'created_at' => $venta->created_at->format('H:i:s'),
-                    'total' => $venta->total
-                ];
-                
-                $contador++;
-            }
-            
-            Log::info("Ventas renumeradas para sucursal {$sucursalId} en fecha {$fecha->format('Y-m-d')}: {$contador} ventas procesadas");
-
-            // ventas que no cumplen las condiciones (no factura Y no tarjeta)
-            $ventasNoActivas = Venta::where('sucursal_id', $sucursalId)
-                ->where('visible', false)
-                ->whereDate('created_at', $fecha)
-                ->orderBy('created_at', 'asc') // Ordenar por fecha de creación (más temprana primero)
-                ->get();
-            
-            foreach ($ventasNoActivas as $venta) {
-                $venta->idVentaDia = null;
-                $venta->save();
-            }
+            Log::info("Ventas renumeradas para sucursal {$sucursalId}: {$ventasRenumeradas} ventas procesadas");
             
             return response()->json([
-                'message' => 'Ventas renumeradas correctamente',
-                'ventas_renumeradas' => $contador - 1,
-                'orden_cronologico' => 'Las ventas ahora están ordenadas por fecha de creación (created_at)',
-                'detalle_renumeracion' => $ventasRenumeradas
+                'message' => 'Ventas renumeradas correctamente de manera consecutiva desde el 1 de septiembre',
+                'ventas_renumeradas' => $ventasRenumeradas,
+                'orden_cronologico' => 'Las ventas están numeradas consecutivamente desde el 1 de septiembre por orden cronológico (created_at)',
             ]);
             
         } catch (\Exception $e) {
@@ -566,11 +510,8 @@ class GestorVentasController extends Controller
             $venta->datos_originales = null;
             $venta->save();
             
-            // Renumerar todas las ventas del día para incluir la restaurada
-            $this->renumerarVentas(new Request([
-                'sucursal_id' => $venta->sucursal_id,
-                'fecha' => $venta->created_at
-            ]));
+            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
+            \App\Models\Venta::renumerarVentasConsecutivas($venta->sucursal_id);
 
             // Reanudar numeración de folios para todas las ventas del día
             // Esto asegura que los folios estén en orden secuencial después de cualquier eliminación
@@ -666,11 +607,8 @@ class GestorVentasController extends Controller
                 $ventaProducto->save();
             }
 
-            // Renumerar todas las ventas del día para asignar idVentaDia cronológicamente
-            $this->renumerarVentas(new Request([
-                'sucursal_id' => $request->sucursal_id,
-                'fecha' => $request->fecha_hora
-            ]));
+            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
+            \App\Models\Venta::renumerarVentasConsecutivas($request->sucursal_id);
 
             return response()->json([
                 'message' => 'Venta creada correctamente',
@@ -766,25 +704,8 @@ class GestorVentasController extends Controller
                 $ventaProducto->save();
             }
 
-            // Renumerar todas las ventas del día para mantener el orden cronológico
-            // Usar la fecha original de la venta para asegurar que se renumeren todas las ventas del día original
-            $fechaOriginal = $venta->getOriginal('created_at');
-            $fechaActualizada = $request->fecha_hora;
-            
-            // Si la fecha cambió, renumerar tanto el día original como el nuevo día
-            if ($fechaOriginal && $fechaOriginal->format('Y-m-d') !== Carbon::parse($fechaActualizada)->format('Y-m-d')) {
-                // Renumerar ventas del día original
-                $this->renumerarVentas(new Request([
-                    'sucursal_id' => $request->sucursal_id,
-                    'fecha' => $fechaOriginal
-                ]));
-            }
-            
-            // Renumerar ventas del día actualizado
-            $this->renumerarVentas(new Request([
-                'sucursal_id' => $request->sucursal_id,
-                'fecha' => $fechaActualizada
-            ]));
+            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
+            \App\Models\Venta::renumerarVentasConsecutivas($request->sucursal_id);
             
             // Reanudar numeración de folios si hay cambios que afectan la numeración
             if (($facturaCambio || $metodoPagoCambio) && ($eraFacturaTarjeta || $seraFacturaTarjeta)) {
@@ -862,11 +783,8 @@ class GestorVentasController extends Controller
             $venta->visible = $request->visible;
             $venta->save();
             
-            // Renumerar todas las ventas del día para mantener el orden cronológico
-            $this->renumerarVentas(new Request([
-                'sucursal_id' => $venta->sucursal_id,
-                'fecha' => $venta->created_at
-            ]));
+            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
+            \App\Models\Venta::renumerarVentasConsecutivas($venta->sucursal_id);
             
             // Reanudar numeración de folios para todas las ventas del día
             // Esto asegura que los folios estén en orden secuencial después de cualquier cambio de visibilidad
