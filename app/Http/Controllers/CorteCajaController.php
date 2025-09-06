@@ -181,6 +181,8 @@ class CorteCajaController extends Controller
         $ventas = Venta::where('sucursal_id', $sucursalId)
             ->with(['detalles.producto', 'usuario'])
             ->whereBetween('created_at', [$startDate, $endDate])
+            ->where('estado', '!=', 'eliminada') 
+            ->where('visible', true)
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -193,7 +195,9 @@ class CorteCajaController extends Controller
         $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
             ->whereHas('venta', function ($query) use ($sucursalId, $startDate, $endDate) {
                 $query->where('sucursal_id', $sucursalId)
-                    ->whereBetween('created_at', [$startDate, $endDate]);
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->where('estado', '!=', 'eliminada') 
+                    ->where('visible', true);
             })
             ->groupBy('producto_id')
             ->with('producto')
@@ -218,7 +222,9 @@ class CorteCajaController extends Controller
         $ventaProductos = VentaProducto::with('producto')
             ->whereHas('venta', function ($query) use ($sucursalId, $startDate, $endDate) {
                 $query->where('sucursal_id', $sucursalId)
-                    ->whereBetween('created_at', [$startDate, $endDate]);
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->where('estado', '!=', 'eliminada') 
+                    ->where('visible', true);
             })
             ->get();
 
@@ -266,8 +272,12 @@ class CorteCajaController extends Controller
 
         //ventaProdcutos
         $ventaProductos = VentaProducto::with('producto')
-            ->where('sucursal_id', $sucursalId)
-            ->whereBetween('created_at', [$startDate, $endDate])
+            ->whereHas('venta', function ($query) use ($sucursalId, $startDate, $endDate) {
+                $query->where('sucursal_id', $sucursalId)
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->where('estado', '!=', 'eliminada') 
+                    ->where('visible', true);
+            })
             ->get();
             
 
