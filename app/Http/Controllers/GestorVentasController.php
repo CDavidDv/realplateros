@@ -435,8 +435,11 @@ class GestorVentasController extends Controller
             $venta->estado = 'eliminada';
             $venta->save();
 
-            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
-            \App\Models\Venta::renumerarVentasConsecutivas($sucursalId);
+            // Renumerar ventas del día actual
+            \App\Models\Venta::renumerarVentasDelDia($sucursalId, $fechaVenta);
+            
+            // Renumerar ventas normales del día
+            \App\Models\Venta::renumerarVentasNormales($sucursalId, $fechaVenta);
             
             // Reanudar numeración de folios para todas las ventas del día
             // Esto asegura que los folios estén en orden secuencial después de cualquier eliminación
@@ -470,8 +473,8 @@ class GestorVentasController extends Controller
             
             Log::info("Iniciando renumeración consecutiva desde 1 de septiembre para sucursal {$sucursalId}");
 
-            // Usar el método del modelo para renumerar de manera consecutiva
-            $ventasRenumeradas = \App\Models\Venta::renumerarVentasConsecutivas($sucursalId);
+            // Usar el método del modelo para renumerar del día
+            $ventasRenumeradas = \App\Models\Venta::renumerarVentasDelDia($sucursalId);
             
             Log::info("Ventas renumeradas para sucursal {$sucursalId}: {$ventasRenumeradas} ventas procesadas");
             
@@ -510,8 +513,11 @@ class GestorVentasController extends Controller
             $venta->datos_originales = null;
             $venta->save();
             
-            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
-            \App\Models\Venta::renumerarVentasConsecutivas($venta->sucursal_id);
+            // Renumerar ventas del día actual
+            \App\Models\Venta::renumerarVentasDelDia($venta->sucursal_id);
+            
+            // Renumerar ventas normales del día
+            \App\Models\Venta::renumerarVentasNormales($venta->sucursal_id);
 
             // Reanudar numeración de folios para todas las ventas del día
             // Esto asegura que los folios estén en orden secuencial después de cualquier eliminación
@@ -564,12 +570,10 @@ class GestorVentasController extends Controller
             $venta->estado = 'creada';
             $venta->visible = true;
 
+            // Generar folio consecutivo solo para ventas con tarjeta O facturadas
             if ($request->factura || $request->metodo_pago == 'tarjeta') {
-                $venta->factura = true;
-                // Generar folio automático en formato de numero para facturas con tarjeta
-                $venta->folio = $this->generarFolioAutomatico($request->sucursal_id, $request->fecha_hora);
+                $venta->folio = \App\Models\Venta::generarFolioConsecutivo($usuario->sucursal_id);
             } else {
-                // Si no es factura con tarjeta, poner folio en null
                 $venta->folio = null;
             }
             
@@ -670,11 +674,10 @@ class GestorVentasController extends Controller
             $eraFacturaTarjeta = $facturaOriginal || $metodoPagoOriginal == 'tarjeta';
             $seraFacturaTarjeta = $request->factura || $request->metodo_pago == 'tarjeta';
             
-            // Generar folio automático si es factura con tarjeta
-            if ($seraFacturaTarjeta) {
-                $venta->folio = $this->generarFolioAutomatico($request->sucursal_id, $request->fecha_hora);
+            // Generar folio consecutivo solo para ventas con tarjeta O facturadas
+            if ($request->factura || $request->metodo_pago == 'tarjeta') {
+                $venta->folio = \App\Models\Venta::generarFolioConsecutivo($request->sucursal_id);
             } else {
-                // Si no es factura con tarjeta, poner folio en null
                 $venta->folio = null;
             }
             
@@ -783,8 +786,11 @@ class GestorVentasController extends Controller
             $venta->visible = $request->visible;
             $venta->save();
             
-            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
-            \App\Models\Venta::renumerarVentasConsecutivas($venta->sucursal_id);
+            // Renumerar ventas del día actual
+            \App\Models\Venta::renumerarVentasDelDia($venta->sucursal_id);
+            
+            // Renumerar ventas normales del día
+            \App\Models\Venta::renumerarVentasNormales($venta->sucursal_id);
             
             // Reanudar numeración de folios para todas las ventas del día
             // Esto asegura que los folios estén en orden secuencial después de cualquier cambio de visibilidad
@@ -922,37 +928,13 @@ class GestorVentasController extends Controller
             $sucursalId = $request->input('sucursal_id');
             $fecha = $request->input('fecha', Carbon::today());
 
-            $ventas = Venta::where('sucursal_id', $sucursalId)
-                ->where('factura', false)
-                ->where('metodo_pago', 'efectivo')
-                ->where('visible', true)
-                ->where('estado', '!=', 'eliminada')
-                ->whereDate('created_at', $fecha)
-                ->orderBy('created_at', 'asc')
-                ->get();
+            // Usar el nuevo método del modelo
+            $ventasRenumeradas = \App\Models\Venta::renumerarVentasNormales($sucursalId, $fecha);
 
-            $contador = 1;
-            foreach ($ventas as $venta) {
-                $venta->idVentaNormal = $contador;
-                $venta->save();
-                $contador++;
-            }
-
-            $ventas = Venta::where('sucursal_id', $sucursalId)
-                ->where('factura', false)
-                ->where('metodo_pago', 'tarjeta')
-                ->where('visible', true)
-                ->where('estado', '!=', 'eliminada')
-                ->whereDate('created_at', $fecha)
-                ->orderBy('created_at', 'asc')
-                ->get();
-
-            foreach ($ventas as $venta) {
-                $venta->idVentaNormal = null;
-                $venta->save();
-            }
-
-            return response()->json(['message' => 'Ventas normales renumeradas correctamente']);
+            return response()->json([
+                'message' => 'Ventas normales renumeradas correctamente',
+                'ventas_renumeradas' => $ventasRenumeradas
+            ]);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al renumerar ventas normales: ' . $e->getMessage()], 500);
         }

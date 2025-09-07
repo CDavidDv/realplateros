@@ -152,8 +152,11 @@ class VentaController extends Controller
             // Guardar la venta actualizada
             $venta->save();
 
-            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
-            \App\Models\Venta::renumerarVentasConsecutivas($venta->sucursal_id);
+            // Renumerar ventas del día actual
+            \App\Models\Venta::renumerarVentasDelDia($venta->sucursal_id);
+            
+            // Renumerar ventas normales del día
+            \App\Models\Venta::renumerarVentasNormales($venta->sucursal_id);
     
             // Actualizar el ticket si es necesario
             $ticket = Ticket::where('venta_id', $ventaId)->first();
@@ -210,18 +213,20 @@ class VentaController extends Controller
             $venta->metodo_pago = $metodoPago;
             $venta->factura = $factura == 'true' ? true : false;
             
-            // Generar folio automático si es factura con tarjeta
+            // Generar folio consecutivo solo para ventas con tarjeta O facturadas
             if ($venta->factura || $metodoPago == 'tarjeta') {
-                $venta->folio = $this->generarFolioAutomatico(auth()->user()->sucursal_id, Carbon::now());
+                $venta->folio = \App\Models\Venta::generarFolioConsecutivo(auth()->user()->sucursal_id);
             } else {
-                // Si no es factura con tarjeta, poner folio en null
                 $venta->folio = null;
             }
             
             $venta->save();
 
-            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
-            \App\Models\Venta::renumerarVentasConsecutivas(auth()->user()->sucursal_id);
+            // Renumerar ventas del día actual 
+            \App\Models\Venta::renumerarVentasDelDia(auth()->user()->sucursal_id);
+            
+            // Renumerar ventas normales del día
+            \App\Models\Venta::renumerarVentasNormales(auth()->user()->sucursal_id);
 
             // Registrar cada detalle de la venta
             foreach ($productos as $producto) {
@@ -488,41 +493,4 @@ class VentaController extends Controller
         ]);
     }
 
-    /**
-     * Genera un folio automático en formato para facturas con tarjeta
-     * El número se incrementa cronológicamente por día y sucursal
-     */
-    private function generarFolioAutomatico($sucursalId, $fechaHora)
-    {
-        try {
-            // Convertir la fecha a formato Y-m-d para obtener solo el día
-            $fecha = Carbon::parse($fechaHora)->format('Y-m-d');
-            
-            // Obtener el último folio del día para esta sucursal
-            $ultimoFolio = Venta::where('sucursal_id', $sucursalId)
-                ->whereDate('created_at', $fecha)
-                ->where('factura', true)
-                ->where('metodo_pago', 'tarjeta')
-                ->where('visible', true)
-                ->whereNotNull('folio')
-                ->where('folio', '>', 0) // Solo números mayores a 0
-                ->orderBy('folio', 'desc')
-                ->value('folio');
-            
-            if ($ultimoFolio) {
-                // Incrementar el número del último folio
-                $nuevoNumero = (int) $ultimoFolio + 1;
-            } else {
-                // Si no hay folios previos, empezar con 1
-                $nuevoNumero = 1;
-            }
-            
-            // Formato: solo el número secuencial
-            return $nuevoNumero;
-            
-        } catch (\Exception $e) {
-            // En caso de error, generar un folio con timestamp como fallback
-            return time();
-        }
-    }
 }

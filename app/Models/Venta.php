@@ -40,15 +40,15 @@ class Venta extends Model
     }
 
     /**
-     * Genera el ID de venta consecutivo desde el 1 de septiembre por sucursal
+     * Genera el ID de venta del día (se resetea por día)
      */
     public function generarIdVentaDia()
     {
-        $fechaInicio = Carbon::create(2024, 9, 1); // 1 de septiembre de 2024
+        $hoy = Carbon::today();
         
-        // Obtener el último ID de venta desde el 1 de septiembre para esta sucursal
+        // Obtener el último ID de venta del día para esta sucursal
         $ultimoIdVentaDia = self::where('sucursal_id', $this->sucursal_id)
-            ->where('created_at', '>=', $fechaInicio)
+            ->whereDate('created_at', $hoy)
             ->where('visible', true)
             ->where('estado', '!=', 'eliminada')
             ->max('idVentaDia');
@@ -86,21 +86,21 @@ class Venta extends Model
     }
 
     /**
-     * Renumera todas las ventas de una sucursal desde el 1 de septiembre de manera consecutiva
+     * Renumera ventas del día actual (idVentaDia se resetea por día)
      */
-    public static function renumerarVentasConsecutivas($sucursalId)
+    public static function renumerarVentasDelDia($sucursalId, $fecha = null)
     {
-        $fechaInicio = Carbon::create(2025, 9, 1); // 1 de septiembre de 2024
+        $fecha = $fecha ? Carbon::parse($fecha) : Carbon::today();
         
-        // Obtener todas las ventas activas desde el 1 de septiembre ordenadas cronológicamente
+        // Obtener todas las ventas visibles del día ordenadas cronológicamente
         $ventas = self::where('sucursal_id', $sucursalId)
-            ->where('created_at', '>=', $fechaInicio)
+            ->whereDate('created_at', $fecha)
             ->where('visible', true)
             ->where('estado', '!=', 'eliminada')
             ->orderBy('created_at', 'asc')
             ->get();
         
-        // Renumerar secuencialmente
+        // Renumerar secuencialmente empezando desde 1
         $contador = 1;
         foreach ($ventas as $venta) {
             $venta->idVentaDia = $contador;
@@ -108,9 +108,9 @@ class Venta extends Model
             $contador++;
         }
         
-        // Poner null a las ventas no visibles o eliminadas
+        // Poner null a las ventas no visibles o eliminadas del día
         $ventasInactivas = self::where('sucursal_id', $sucursalId)
-            ->where('created_at', '>=', $fechaInicio)
+            ->whereDate('created_at', $fecha)
             ->where(function($query) {
                 $query->where('visible', false)
                       ->orWhere('estado', 'eliminada');
@@ -122,6 +122,71 @@ class Venta extends Model
             $venta->save();
         }
         
-        return $contador - 1; // Retorna el número total de ventas renumeradas
+        return $contador - 1;
+    }
+
+    /**
+     * Genera el folio consecutivo desde el 1 de septiembre (solo para ventas con tarjeta O facturadas)
+     */
+    public static function generarFolioConsecutivo($sucursalId)
+    {
+        $fechaInicio = Carbon::create(2025, 9, 1);
+        
+        // Obtener el último folio desde el 1 de septiembre para esta sucursal
+        // Solo considerar ventas con tarjeta O facturadas
+        $ultimoFolio = self::where('sucursal_id', $sucursalId)
+            ->where('created_at', '>=', $fechaInicio)
+            ->where('visible', true)
+            ->where('estado', '!=', 'eliminada')
+            ->where(function($query) {
+                $query->where('factura', true)
+                      ->orWhere('metodo_pago', 'tarjeta');
+            })
+            ->whereNotNull('folio')
+            ->max('folio');
+
+        return $ultimoFolio ? $ultimoFolio + 1 : 1;
+    }
+
+    /**
+     * Renumera idVentaNormal (solo para ventas no facturadas y visibles, por día)
+     */
+    public static function renumerarVentasNormales($sucursalId, $fecha = null)
+    {
+        $fecha = $fecha ? Carbon::parse($fecha) : Carbon::today();
+        
+        // Obtener ventas no facturadas y visibles del día
+        $ventas = self::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', $fecha)
+            ->where('factura', false)
+            ->where('visible', true)
+            ->where('estado', '!=', 'eliminada')
+            ->orderBy('created_at', 'asc')
+            ->get();
+        
+        // Renumerar secuencialmente empezando desde 1
+        $contador = 1;
+        foreach ($ventas as $venta) {
+            $venta->idVentaNormal = $contador;
+            $venta->save();
+            $contador++;
+        }
+        
+        // Poner null a las ventas facturadas, no visibles o eliminadas del día
+        $ventasOtras = self::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', $fecha)
+            ->where(function($query) {
+                $query->where('factura', true)
+                      ->orWhere('visible', false)
+                      ->orWhere('estado', 'eliminada');
+            })
+            ->get();
+            
+        foreach ($ventasOtras as $venta) {
+            $venta->idVentaNormal = null;
+            $venta->save();
+        }
+        
+        return $contador - 1;
     }
 }
