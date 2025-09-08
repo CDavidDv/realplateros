@@ -48,6 +48,7 @@ class DashboardController extends Controller
         if (Auth::user()->hasRole('gestor')) {
             return redirect()->route('gestor-ventas');
         } 
+
         // Obtener fecha seleccionada o usar fecha actual
         $fechaSeleccionada = $request->input('fecha', null);
         $fechaActual = Carbon::now()->setTimezone('America/Mexico_City');
@@ -239,44 +240,6 @@ class DashboardController extends Controller
             ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
             ->whereDate('created_at', $fechaHoy)
             ->get();
-
-        // Debug: verificar filtros aplicados
-        Log::info('Debug filtros hornear:', [
-            'fecha_seleccionada' => $fechaSeleccionada,
-            'fecha_filtro' => $fechaHoy,
-            'total_notificaciones_faltantes' => $notificacionesFaltantes->count(),
-            'total_notificaciones_horneados' => $notificacionesHorneados->count(),
-            'sucursal_id' => $sucursalId,
-            'fecha_actual_mexico' => $fechaActual->toDateString(),
-            'fecha_hoy_original' => Carbon::now()->toDateString(),
-            'total_todas_notificaciones' => $todasLasNotificaciones->count(),
-            'total_sin_filtro_fecha' => $notificacionesSinFiltroFecha->count(),
-            'ejemplo_registros' => $todasLasNotificaciones->take(3)->map(function($n) {
-                return [
-                    'id' => $n->id,
-                    'created_at' => $n->created_at,
-                    'estado' => $n->estado,
-                    'sucursal_id' => $n->sucursal_id
-                ];
-            })
-        ]);
-        
-        // Debug adicional: verificar consultas SQL
-        Log::info('Debug consultas SQL:', [
-            'consulta_faltantes' => \App\Models\ControlProduccion::select('*')
-                ->with(['paste', 'sucursal'])
-                ->where('sucursal_id', $sucursalId)
-                ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
-                ->whereDate('created_at', $fechaHoy)
-                ->toSql(),
-            'consulta_horneados' => \App\Models\ControlProduccion::select('*')
-                ->with(['paste', 'sucursal'])
-                ->where('sucursal_id', $sucursalId)
-                ->whereIn('estado', ['horneando', 'en_espera', 'vendido'])
-                ->whereNotNull('tiempo_inicio_horneado')
-                ->whereDate('created_at', $fechaHoy)
-                ->toSql()
-        ]);
 
         return Inertia::render('Hornear/index', [
             'inventario' => $inventario,

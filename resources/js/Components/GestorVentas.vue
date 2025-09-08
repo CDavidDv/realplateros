@@ -468,14 +468,14 @@
                             </span>
                             <span v-else>{{ venta.idVentaDia || '-' }}</span>
                           </td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                          <!-- <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                             <span v-if="venta.estado === 'eliminada'">
                               <span class="text-xs text-gray-500 italic">
                                 Eliminado
                               </span>
                             </span>
                             <span v-else>{{ venta.idVentaNormal || '-' }}</span>
-                          </td>
+                          </td> -->
                       <td class="px-6 py-4 whitespace-nowrap overflow-auto text-sm text-gray-500">
                         <span v-if="venta.estado === 'eliminada'" class="text-xs text-gray-500 italic">
                           Eliminado
@@ -865,7 +865,7 @@ const savingNewCorte = ref(false)
 const cashPaymentsTotal = ref(props?.cashPaymentsTotal || 0)
 const cardPaymentsTotal = ref(props?.cardPaymentsTotal || 0)
 
-const tabTitles = ['Folio', 'ID Venta', 'ID Venta Normal', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Factura', 'Total']
+const tabTitles = ['Folio', 'ID Venta', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Factura', 'Total']
 
 const isToday = computed(() => {
   const today = new Date();
