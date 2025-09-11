@@ -513,11 +513,11 @@ class GestorVentasController extends Controller
             $venta->datos_originales = null;
             $venta->save();
             
-            // Renumerar ventas del día actual
-            \App\Models\Venta::renumerarVentasDelDia($venta->sucursal_id);
+            // Renumerar idVentaDia del día (excluye ventas no visibles automáticamente)
+            \App\Models\Venta::renumerarVentasDelDia($venta->sucursal_id, $venta->created_at);
             
             // Renumerar ventas normales del día
-            \App\Models\Venta::renumerarVentasNormales($venta->sucursal_id);
+            \App\Models\Venta::renumerarVentasNormales($venta->sucursal_id, $venta->created_at);
 
             // Reanudar numeración de folios para todas las ventas del día
             // Esto asegura que los folios estén en orden secuencial después de cualquier eliminación
@@ -611,8 +611,8 @@ class GestorVentasController extends Controller
                 $ventaProducto->save();
             }
 
-            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
-            \App\Models\Venta::renumerarVentasConsecutivas($request->sucursal_id);
+            // Renumerar idVentaDia del día (excluye ventas no visibles automáticamente)
+            \App\Models\Venta::renumerarVentasDelDia($venta->sucursal_id, $venta->created_at);
 
             return response()->json([
                 'message' => 'Venta creada correctamente',
@@ -707,12 +707,12 @@ class GestorVentasController extends Controller
                 $ventaProducto->save();
             }
 
-            // Renumerar todas las ventas de la sucursal de manera consecutiva desde el 1 de septiembre
-            \App\Models\Venta::renumerarVentasConsecutivas($request->sucursal_id);
+            // Renumerar idVentaDia del día (excluye ventas no visibles automáticamente)
+            \App\Models\Venta::renumerarVentasDelDia($venta->sucursal_id, $venta->created_at);
             
             // Reanudar numeración de folios si hay cambios que afectan la numeración
             if (($facturaCambio || $metodoPagoCambio) && ($eraFacturaTarjeta || $seraFacturaTarjeta)) {
-                $this->reanudarNumeracionFolios($request->sucursal_id, $fechaActualizada);
+                $this->reanudarNumeracionFolios($request->sucursal_id, $venta->created_at);
             }
 
             return response()->json([
@@ -786,11 +786,11 @@ class GestorVentasController extends Controller
             $venta->visible = $request->visible;
             $venta->save();
             
-            // Renumerar ventas del día actual
-            \App\Models\Venta::renumerarVentasDelDia($venta->sucursal_id);
+            // Renumerar idVentaDia del día (excluye ventas no visibles automáticamente)
+            \App\Models\Venta::renumerarVentasDelDia($venta->sucursal_id, $venta->created_at);
             
             // Renumerar ventas normales del día
-            \App\Models\Venta::renumerarVentasNormales($venta->sucursal_id);
+            \App\Models\Venta::renumerarVentasNormales($venta->sucursal_id, $venta->created_at);
             
             // Reanudar numeración de folios para todas las ventas del día
             // Esto asegura que los folios estén en orden secuencial después de cualquier cambio de visibilidad
