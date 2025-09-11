@@ -238,10 +238,12 @@ const completeSale = () => {
   }, {
     preserveScroll: true,
     onSuccess: (a) => {
-      console.log(a.props) 
+      console.log(a.props)
+
       
       setTimeout(() => {
         printTicket(a.props.ticket_id)
+        console.log('Ticket impreso', a.props.ticket_id)
         inventario.value = a.props.inventario;
         ticket.value = [];
         searchTerm.value = '';

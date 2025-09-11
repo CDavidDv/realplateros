@@ -855,18 +855,18 @@ class GestorVentasController extends Controller
     }
 
     /**
-     * Reanuda la numeración de folios para todas las ventas que requieren folio del día
+     * Reanuda la numeración de folios para todas las ventas que requieren folio desde el 1 de septiembre 2025
      * Se ejecuta automáticamente en todas las operaciones CRUD para mantener consistencia
      */
     private function reanudarNumeracionFolios($sucursalId, $fechaHora)
     {
         try {
-            // Convertir la fecha a formato Y-m-d para obtener solo el día
-            $fecha = Carbon::parse($fechaHora)->format('Y-m-d');
+            // Fecha de inicio: 1 de septiembre de 2025
+            $fechaInicio = '2025-09-01';
             
             // PRIMERO: Poner null todos los folios que no cumplen las condiciones (no factura Y no tarjeta)
             $ventasSinFolio = Venta::where('sucursal_id', $sucursalId)
-                ->whereDate('created_at', $fecha)
+                ->where('created_at', '>=', $fechaInicio)
                 ->where('visible', false)
                 ->get();
             
@@ -875,9 +875,9 @@ class GestorVentasController extends Controller
                 $venta->save();
             }
             
-            // SEGUNDO: Obtener todas las ventas que requieren folio (factura O tarjeta) del día ordenadas cronológicamente
+            // SEGUNDO: Obtener TODAS las ventas que requieren folio (factura O tarjeta) desde el 1 de septiembre 2025 ordenadas cronológicamente
             $ventasConFolio = Venta::where('sucursal_id', $sucursalId)
-                ->whereDate('created_at', $fecha)
+                ->where('created_at', '>=', $fechaInicio)
                 ->where(function($query) {
                     $query->where('factura', true)
                           ->orWhere('metodo_pago', 'tarjeta');
@@ -887,7 +887,7 @@ class GestorVentasController extends Controller
                 ->orderBy('created_at', 'asc')
                 ->get();
             
-            // Renumerar secuencialmente desde 1
+            // Renumerar secuencialmente desde 1 (numeración consecutiva desde el 1 de septiembre)
             $contador = 1;
             $foliosRenumerados = [];
             
@@ -901,7 +901,7 @@ class GestorVentasController extends Controller
                     'id' => $venta->id,
                     'folio_anterior' => $folioAnterior,
                     'folio_nuevo' => $nuevoFolio,
-                    'created_at' => $venta->created_at->format('H:i:s'),
+                    'created_at' => $venta->created_at->format('Y-m-d H:i:s'),
                     'factura' => $venta->factura,
                     'metodo_pago' => $venta->metodo_pago
                 ];
@@ -911,7 +911,7 @@ class GestorVentasController extends Controller
             
             // Log de la reanudación de numeración
             if (count($foliosRenumerados) > 0) {
-                Log::info("Numeración de folios reanudada para sucursal {$sucursalId} en fecha {$fecha}: " . count($foliosRenumerados) . " folios procesados");
+                Log::info("Numeración de folios reanudada para sucursal {$sucursalId} desde el 1 de septiembre 2025: " . count($foliosRenumerados) . " folios procesados");
             }
             
             return $foliosRenumerados;
