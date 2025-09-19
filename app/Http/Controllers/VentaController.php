@@ -219,7 +219,7 @@ class VentaController extends Controller
             } else {
                 $venta->folio = null;
             }
-            
+            $idVenta = $venta->idVentaDia;
             $venta->save();
 
             // Renumerar ventas del día actual 
@@ -363,10 +363,12 @@ class VentaController extends Controller
             // Asegurarnos de que las notificaciones se envíen en la sesión
             session()->flash('notificaciones', $notificaciones);
         
+
             // Retornar una respuesta JSON con las notificaciones
             return redirect()->route('dashboard')->with([
                 'mensaje' => 'Venta procesada correctamente',
                 'ticket_id' => $ticket->id,
+                'venta' => $venta,
                 'notificaciones' => $notificaciones
             ]);
         } catch (\Exception $e) {

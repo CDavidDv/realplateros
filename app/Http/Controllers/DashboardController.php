@@ -109,12 +109,15 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Obtener datos de la sesión flash (cuando viene de una venta procesada)
+        $venta = session('venta');
+        $ticketIdFromSession = session('ticket_id');
 
-        
 
         return Inertia::render('Dashboard/index', [
             'inventario' => $inventario,
             'ticket_id' => $ticketId,
+            'venta' => $venta,
             'categorias' => $categorias,
             'sucursales' => $sucursales,
             'trabajadores' => $trabajadores,
