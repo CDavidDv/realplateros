@@ -33,8 +33,8 @@ const { props } = usePage()
 // Validaciones seguras para evitar errores de acceso a propiedades undefined
 const user = computed(() => props.auth?.user || null);
 const userRoles = computed(() => user.value?.roles || []);
-const primaryRole = computed(() => userRoles.value[0].name || null);
-const isAlmacen = computed(() => primaryRole.value === 'almacen');
+const primaryRole = computed(() => userRoles.value[0]?.name || null);
+const isAlmacen = computed(() => props.auth?.user?.es_almacen || false);
 const isTrabajador = computed(() => primaryRole.value === 'trabajador');
 const isSupervisor = computed(() => primaryRole.value === 'supervisor');
 const isAdmin = computed(() => primaryRole.value === 'admin');
@@ -85,13 +85,13 @@ const isGestor = computed(() => primaryRole.value === 'gestor');
                                     Inventario
                                 </NavLink>
                             </div>
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="!isAlmacen">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" >
                                 <NavLink :href="route('checador')" :active="route().current('checador')">
                                     Checador
                                 </NavLink>
                             </div>
                             
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="!isTrabajador && !isAlmacen && !isSupervisor">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="!isTrabajador && !isSupervisor">
                                 <NavLink :href="route('personal')" :active="route().current('personal')">
                                     Personal
                                 </NavLink>

@@ -55,7 +55,7 @@ const submit = () => {
                     v-model="form.sucursal_id"
                     class="mt-1 block w-full border-gray-300 focus:border-orange-500 focus:ring-orange-500 rounded-md shadow-sm"
                 >   
-                <option v-for="sucursal in sucursales" :value="sucursal.id" :key="sucursal.id">{{ sucursal.nombre }}</option>
+                <option class="capitalize" v-for="sucursal in sucursales" :value="sucursal.id" :key="sucursal.id">{{ sucursal.nombre }}</option>
 
                 </select>
                 <InputError class="mt-2" :message="form.errors.sucursal_id" />

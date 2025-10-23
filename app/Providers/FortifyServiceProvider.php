@@ -73,15 +73,15 @@ class FortifyServiceProvider extends ServiceProvider
         // Redirección personalizada después del login según el rol
         Fortify::redirects('login', function () {
             $user = Auth::user();
-            
+
             if ($user->hasRole('almacen')) {
                 return route('almacen');
             }
-            
+
             if ($user->hasRole('gestor')) {
                 return route('gestor-ventas');
             }
-            
+
             // Para otros roles, ir al dashboard por defecto
             return route('dashboard');
         });

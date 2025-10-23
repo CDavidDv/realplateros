@@ -65,6 +65,171 @@
       />
     </div>
 
+    <!-- Gráficas - Solo para Admin de Almacén -->
+    <div v-if="isAdminAlmacen" class="mt-12">
+      <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">Análisis y Estadísticas</h2>
+
+      <!-- Gráfica 1: Productos enviados por sucursal -->
+      <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Productos Enviados por Sucursal</h3>
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+          <div class="flex flex-col">
+            <label class="text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+            <input
+              type="date"
+              v-model="graficaEnviados.fechaInicio"
+              class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+            <input
+              type="date"
+              v-model="graficaEnviados.fechaFin"
+              class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <button
+            @click="cargarGraficaEnviados"
+            class="mt-6 md:mt-0 px-6 h-fit py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition"
+          >
+            Actualizar
+          </button>
+        </div>
+        <div class="h-96">
+          <canvas ref="chartEnviados"></canvas>
+        </div>
+      </div>
+
+      <!-- Gráfica 2: Productos que ingresan y salen -->
+      <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Movimientos de Inventario (Ingresos vs Salidas)</h3>
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+          <div class="flex flex-col">
+            <label class="text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+            <input
+              type="date"
+              v-model="graficaMovimientos.fechaInicio"
+              class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+            <input
+              type="date"
+              v-model="graficaMovimientos.fechaFin"
+              class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <button
+            @click="cargarGraficaMovimientos"
+            class="mt-6 md:mt-0 px-6 h-fit py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition"
+          >
+            Actualizar
+          </button>
+        </div>
+        <div class="h-96">
+          <canvas ref="chartMovimientos"></canvas>
+        </div>
+      </div>
+
+      <!-- Gráfica 3: Productos individuales enviados por sucursal -->
+      <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Productos Más Enviados por Sucursal</h3>
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+          <div class="flex flex-col">
+            <label class="text-sm font-medium text-gray-700 mb-1">Sucursal</label>
+            <select
+              v-model="graficaProductosPorSucursal.sucursalId"
+              class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="">Seleccione sucursal</option>
+              <option
+                v-for="sucursal in sucursales"
+                :key="sucursal.id"
+                :value="sucursal.id"
+              >
+                {{ sucursal.nombre }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+            <input
+              type="date"
+              v-model="graficaProductosPorSucursal.fechaInicio"
+              class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+            <input
+              type="date"
+              v-model="graficaProductosPorSucursal.fechaFin"
+              class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <button
+            @click="cargarGraficaProductosPorSucursal"
+            class="mt-6 md:mt-0 px-6 h-fit py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition"
+          >
+            Actualizar
+          </button>
+        </div>
+        <div class="h-96">
+          <canvas ref="chartProductosPorSucursal"></canvas>
+        </div>
+      </div>
+
+      <!-- Gráfica 4: Productos que más ingresan y salen por sucursal -->
+      <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Productos con Más Movimientos (Ingresos vs Salidas) por Sucursal</h3>
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+          <div class="flex flex-col">
+            <label class="text-sm font-medium text-gray-700 mb-1">Sucursal</label>
+            <select
+              v-model="graficaMovimientosPorSucursal.sucursalId"
+              class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="">Seleccione sucursal</option>
+              <option
+                v-for="sucursal in sucursales"
+                :key="sucursal.id"
+                :value="sucursal.id"
+              >
+                {{ sucursal.nombre }}
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+            <input
+              type="date"
+              v-model="graficaMovimientosPorSucursal.fechaInicio"
+              class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+            <input
+              type="date"
+              v-model="graficaMovimientosPorSucursal.fechaFin"
+              class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <button
+            @click="cargarGraficaMovimientosPorSucursal"
+            class="mt-6 md:mt-0 px-6 h-fit py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition"
+          >
+            Actualizar
+          </button>
+        </div>
+        <div class="h-96">
+          <canvas ref="chartMovimientosPorSucursal"></canvas>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal para ver detalles -->
     <div
       v-if="showModal"
@@ -113,9 +278,13 @@
 
 <script setup>
 import { router, usePage } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, computed, onMounted } from "vue";
 import TicketCard from "./TicketCard.vue";
 import Swal from "sweetalert2";
+import axios from "axios";
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
 
 const { props } = usePage();
 const ticketsCerrados = ref(props.ticketsCerrados);
@@ -127,6 +296,48 @@ const showModal = ref(false);
 const selectedTicket = ref(null);
 const fecha = ref("");
 const sucursal = ref("");
+
+// Referencias para los canvas de las gráficas
+const chartEnviados = ref(null);
+const chartMovimientos = ref(null);
+const chartProductosPorSucursal = ref(null);
+const chartMovimientosPorSucursal = ref(null);
+let chartEnviadosInstance = null;
+let chartMovimientosInstance = null;
+let chartProductosPorSucursalInstance = null;
+let chartMovimientosPorSucursalInstance = null;
+
+// Verificar si es admin de almacén
+const isAdminAlmacen = computed(() => {
+  const user = props.auth?.user;
+  if (!user) return false;
+  const isAlmacen = user.es_almacen === true || user.es_almacen === 1;
+  const isAdmin = user.roles?.some(role => role.name === 'admin');
+  return isAlmacen && isAdmin;
+});
+
+// Configuración de fechas para gráficas (últimos 30 días por defecto)
+const graficaEnviados = ref({
+  fechaInicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  fechaFin: new Date().toISOString().split('T')[0]
+});
+
+const graficaMovimientos = ref({
+  fechaInicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  fechaFin: new Date().toISOString().split('T')[0]
+});
+
+const graficaProductosPorSucursal = ref({
+  sucursalId: '',
+  fechaInicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  fechaFin: new Date().toISOString().split('T')[0]
+});
+
+const graficaMovimientosPorSucursal = ref({
+  sucursalId: '',
+  fechaInicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  fechaFin: new Date().toISOString().split('T')[0]
+});
 
 const handleTicketDetails = (ticket) => {
   selectedTicket.value = ticket;
@@ -160,6 +371,309 @@ const Toast = Swal.mixin({
   didOpen: (toast) => {
     toast.onmouseenter = Swal.stopTimer;
     toast.onmouseleave = Swal.resumeTimer;
+  }
+});
+
+// Función para cargar gráfica de productos enviados por sucursal
+const cargarGraficaEnviados = async () => {
+  try {
+    const response = await axios.get('/almacen/graficas/productos-por-sucursal', {
+      params: {
+        fecha_inicio: graficaEnviados.value.fechaInicio,
+        fecha_fin: graficaEnviados.value.fechaFin
+      }
+    });
+
+    const datos = response.data.data || [];
+
+    // Destruir gráfica anterior si existe
+    if (chartEnviadosInstance) {
+      chartEnviadosInstance.destroy();
+    }
+
+    const ctx = chartEnviados.value.getContext('2d');
+    chartEnviadosInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: datos.map(d => d.sucursal_nombre),
+        datasets: [{
+          label: 'Productos Enviados',
+          data: datos.map(d => d.total_productos),
+          backgroundColor: 'rgba(249, 115, 22, 0.6)',
+          borderColor: 'rgba(249, 115, 22, 1)',
+          borderWidth: 2
+        }, {
+          label: 'Total Tickets',
+          data: datos.map(d => d.total_tickets),
+          backgroundColor: 'rgba(59, 130, 246, 0.6)',
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          title: {
+            display: true,
+            text: `Productos Enviados (${graficaEnviados.value.fechaInicio} - ${graficaEnviados.value.fechaFin})`
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+
+    Toast.fire({
+      icon: "success",
+      title: "Gráfica actualizada"
+    });
+  } catch (error) {
+    console.error('Error al cargar gráfica:', error);
+    Toast.fire({
+      icon: "error",
+      title: "Error al cargar la gráfica"
+    });
+  }
+};
+
+// Función para cargar gráfica de movimientos (ingresos/salidas)
+const cargarGraficaMovimientos = async () => {
+  try {
+    const response = await axios.get('/almacen/graficas/movimientos-inventario', {
+      params: {
+        fecha_inicio: graficaMovimientos.value.fechaInicio,
+        fecha_fin: graficaMovimientos.value.fechaFin
+      }
+    });
+
+    const datos = response?.data?.data || [];
+
+    // Extraer fechas
+    const fechas = datos.map(d => d.fecha);
+
+    // Destruir gráfica anterior si existe
+    if (chartMovimientosInstance) {
+      chartMovimientosInstance?.destroy();
+    }
+
+    const ctx = chartMovimientos?.value.getContext('2d');
+    chartMovimientosInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: fechas,
+        datasets: [{
+          label: 'Ingresos',
+          data: datos.map(d => d.ingresos),
+          borderColor: 'rgba(34, 197, 94, 1)',
+          backgroundColor: 'rgba(34, 197, 94, 0.2)',
+          tension: 0.4,
+          fill: true
+        }, {
+          label: 'Salidas',
+          data: datos.map(d => d.salidas),
+          borderColor: 'rgba(239, 68, 68, 1)',
+          backgroundColor: 'rgba(239, 68, 68, 0.2)',
+          tension: 0.4,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          title: {
+            display: true,
+            text: `Movimientos de Inventario (${graficaMovimientos.value.fechaInicio} - ${graficaMovimientos.value.fechaFin})`
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+
+    Toast.fire({
+      icon: "success",
+      title: "Gráfica actualizada"
+    });
+  } catch (error) {
+    console.error('Error al cargar gráfica:', error);
+    Toast.fire({
+      icon: "error",
+      title: "Error al cargar la gráfica"
+    });
+  }
+};
+
+// Función para cargar gráfica de productos individuales por sucursal
+const cargarGraficaProductosPorSucursal = async () => {
+  if (!graficaProductosPorSucursal.value.sucursalId) {
+    Toast.fire({
+      icon: "warning",
+      title: "Por favor seleccione una sucursal"
+    });
+    return;
+  }
+
+  try {
+    const response = await axios.get('/almacen/graficas/productos-individuales-por-sucursal', {
+      params: {
+        sucursal_id: graficaProductosPorSucursal.value.sucursalId,
+        fecha_inicio: graficaProductosPorSucursal.value.fechaInicio,
+        fecha_fin: graficaProductosPorSucursal.value.fechaFin
+      }
+    });
+
+    const datos = response.data.data || [];
+
+    // Destruir gráfica anterior si existe
+    if (chartProductosPorSucursalInstance) {
+      chartProductosPorSucursalInstance.destroy();
+    }
+
+    const ctx = chartProductosPorSucursal.value.getContext('2d');
+    chartProductosPorSucursalInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: datos.map(d => d.producto_nombre),
+        datasets: [{
+          label: 'Cantidad Total Enviada',
+          data: datos.map(d => d.total_cantidad),
+          backgroundColor: 'rgba(139, 92, 246, 0.6)',
+          borderColor: 'rgba(139, 92, 246, 1)',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          title: {
+            display: true,
+            text: `Productos Más Enviados (${graficaProductosPorSucursal.value.fechaInicio} - ${graficaProductosPorSucursal.value.fechaFin})`
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+
+    Toast.fire({
+      icon: "success",
+      title: "Gráfica actualizada"
+    });
+  } catch (error) {
+    console.error('Error al cargar gráfica:', error);
+    Toast.fire({
+      icon: "error",
+      title: "Error al cargar la gráfica"
+    });
+  }
+};
+
+// Función para cargar gráfica de movimientos de productos por sucursal
+const cargarGraficaMovimientosPorSucursal = async () => {
+  if (!graficaMovimientosPorSucursal.value.sucursalId) {
+    Toast.fire({
+      icon: "warning",
+      title: "Por favor seleccione una sucursal"
+    });
+    return;
+  }
+
+  try {
+    const response = await axios.get('/almacen/graficas/movimientos-productos-por-sucursal', {
+      params: {
+        sucursal_id: graficaMovimientosPorSucursal.value.sucursalId,
+        fecha_inicio: graficaMovimientosPorSucursal.value.fechaInicio,
+        fecha_fin: graficaMovimientosPorSucursal.value.fechaFin
+      }
+    });
+
+    const datos = response.data.data || [];
+
+    // Destruir gráfica anterior si existe
+    if (chartMovimientosPorSucursalInstance) {
+      chartMovimientosPorSucursalInstance.destroy();
+    }
+
+    const ctx = chartMovimientosPorSucursal.value.getContext('2d');
+    chartMovimientosPorSucursalInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: datos.map(d => d.producto_nombre),
+        datasets: [{
+          label: 'Ingresos',
+          data: datos.map(d => d.total_ingresos),
+          backgroundColor: 'rgba(34, 197, 94, 0.6)',
+          borderColor: 'rgba(34, 197, 94, 1)',
+          borderWidth: 2
+        }, {
+          label: 'Salidas',
+          data: datos.map(d => d.total_salidas),
+          backgroundColor: 'rgba(239, 68, 68, 0.6)',
+          borderColor: 'rgba(239, 68, 68, 1)',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          title: {
+            display: true,
+            text: `Movimientos de Productos (${graficaMovimientosPorSucursal.value.fechaInicio} - ${graficaMovimientosPorSucursal.value.fechaFin})`
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+
+    Toast.fire({
+      icon: "success",
+      title: "Gráfica actualizada"
+    });
+  } catch (error) {
+    console.error('Error al cargar gráfica:', error);
+    Toast.fire({
+      icon: "error",
+      title: "Error al cargar la gráfica"
+    });
+  }
+};
+
+// Cargar gráficas al montar el componente (solo si es admin de almacén)
+onMounted(() => {
+  if (isAdminAlmacen.value) {
+    setTimeout(() => {
+      cargarGraficaEnviados();
+      cargarGraficaMovimientos();
+    }, 500);
   }
 });
 

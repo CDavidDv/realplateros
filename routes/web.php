@@ -78,6 +78,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
     Route::get('/personal', [UsuarioController::class, 'index'])->name("personal");
     Route::resource('users', UsuarioController::class);
+
+    // Rutas específicas para trabajadores de almacén
+    Route::get('/personal/almacen/trabajadores', [UsuarioController::class, 'trabajadoresAlmacen'])->name('personal.almacen.trabajadores');
+    Route::get('/personal/estadisticas', [UsuarioController::class, 'estadisticasPersonal'])->name('personal.estadisticas');
+
     Route::resource('sucursales', SucursalController::class)->parameters([
         'sucursales' => 'sucursal',  // Esto asegura que el parámetro sea 'sucursal'
     ]);
@@ -102,9 +107,15 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/print-ticket', [PrintController::class, 'printTicket']);
     Route::post('/search-check-ins', [CheckInCheckOutController::class, 'search'])->name('search-check-ins');
 
-    
+
     Route::get('/almacen', [AlmacenController::class, 'almacen'])->name("almacen")->middleware('role:almacen');
-    
+
+    // Rutas para gráficas de almacén (solo admin de almacén)
+    Route::get('/almacen/graficas/productos-por-sucursal', [AlmacenController::class, 'productosPorSucursal'])->middleware('role:almacen');
+    Route::get('/almacen/graficas/movimientos-inventario', [AlmacenController::class, 'movimientosInventario'])->middleware('role:almacen');
+    Route::get('/almacen/graficas/productos-individuales-por-sucursal', [AlmacenController::class, 'productosIndividualesPorSucursal'])->middleware('role:almacen');
+    Route::get('/almacen/graficas/movimientos-productos-por-sucursal', [AlmacenController::class, 'movimientosProductosPorSucursal'])->middleware('role:almacen');
+
     Route::get('/api/control-produccion', [ControlProduccionController::class, 'index']);
     
     // Rutas para control de producción

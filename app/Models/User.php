@@ -41,7 +41,7 @@ class User extends Authenticatable
         'inicio_contrato',
         'fin_contrato',
         'active',
-        'role',
+        'es_almacen',
     ];
 
     public function checkInCheckOut()
@@ -78,6 +78,8 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'es_almacen' => 'boolean',
+        'active' => 'boolean',
     ];
 
     /**
@@ -92,5 +94,37 @@ class User extends Authenticatable
     public function cortesDeCaja()
     {
         return $this->hasMany(CorteCaja::class);
-    }   
+    }
+
+    /**
+     * Verifica si el usuario es de almacén
+     */
+    public function esAlmacen(): bool
+    {
+        return $this->es_almacen === true;
+    }
+
+    /**
+     * Verifica si el usuario pertenece a una sucursal normal (no almacén)
+     */
+    public function esSucursal(): bool
+    {
+        return !$this->es_almacen && $this->sucursal_id !== null && $this->sucursal_id !== 0;
+    }
+
+    /**
+     * Scope para filtrar solo usuarios de almacén
+     */
+    public function scopeAlmacen($query)
+    {
+        return $query->where('es_almacen', true);
+    }
+
+    /**
+     * Scope para filtrar solo usuarios de sucursales normales
+     */
+    public function scopeSucursales($query)
+    {
+        return $query->where('es_almacen', false);
+    }
 }

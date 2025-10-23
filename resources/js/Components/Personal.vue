@@ -26,6 +26,7 @@
 
     <!-- Navegación de Tabs -->
     <div class="mb-6 flex justify-center">
+      <!--Que si es almacen solo poder agregar trabajadores-->
       <button 
         v-for="tab in tabs" 
         :key="tab.value"
@@ -150,12 +151,12 @@
 
             <select v-model="form.sucursal_id" class="mt-2 w-full px-3 py-2 border rounded">
               <option value="">Seleccionar Sucursal</option>
-              <option v-for="sucursal in sucursales" :key="sucursal.id" :value="sucursal.id">
+              <option v-for="sucursal in availableSucursales" :key="sucursal.id" :value="sucursal.id">
                 {{ sucursal.nombre }}
               </option>
             </select>
             <span v-if="errors.sucursal_id" class="text-red-500 text-sm">{{ errors.sucursal_id }}</span>
-            
+
             <select v-model="form.role" class="mt-2 w-full px-3 py-2 border rounded">
               <option value="">Seleccionar Rol</option>
               <option v-for="role in availableRoles" :key="role.id" :value="role.name">
@@ -213,10 +214,16 @@ const { props } = usePage();
 const sucursales = ref(props.sucursales);
 const isModalOpen = ref(false);
 
-const tabs = [
-  { label: 'Usuarios', value: 'users' },
-  { label: 'Sucursales', value: 'sucursales' },
-];
+// Si es almacén solo ver tab usuarios
+const tabs = computed(() =>
+  props.auth?.user?.es_almacen
+    ? [{ label: 'Usuarios', value: 'users' }]
+    : [
+        { label: 'Usuarios', value: 'users' },
+        { label: 'Sucursales', value: 'sucursales' },
+      ]
+);
+
 
 const currentTab = ref('users');
 
@@ -243,7 +250,21 @@ const singularTabTitle = computed(() => currentTab.value === 'users' ? 'Usuario'
 const errors = ref({}); 
 const currentItems = computed(() => currentTab.value === 'users' ? props.users : props.sucursales.filter(sucursal => sucursal.id !== 0));
 
-const availableRoles = computed(() => props.roles.filter(role => ['admin', 'trabajador', 'supervisor'].includes(role.name)));
+// Si es almacén solo mostrar roles admin y trabajador
+const availableRoles = computed(() => {
+  const allowedRoles = props.auth?.user?.es_almacen
+    ? ['admin', 'trabajador']
+    : ['admin', 'trabajador', 'supervisor'];
+  return props.roles.filter(role => allowedRoles.includes(role.name));
+});
+
+// Si es almacén solo mostrar sucursal de almacén (id = 0)
+const availableSucursales = computed(() => {
+  if (props.auth?.user?.es_almacen) {
+    return props.sucursales.filter(s => s.id === 0);
+  }
+  return props.sucursales;
+});
 
 const itemName = (item) => item.name || item.email || item.nombre;
 
@@ -297,6 +318,10 @@ const getSucursalSession = (id) => {
 };
 
 const openModal = () => {
+  // Si es usuario de almacén, pre-seleccionar sucursal almacén (id=0)
+  if (props.auth?.user?.es_almacen && currentTab.value === 'users') {
+    form.value.sucursal_id = 0;
+  }
   isModalOpen.value = true;
 };
 

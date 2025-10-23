@@ -151,7 +151,7 @@ import Swal from 'sweetalert2'
 
 
 const { props } = usePage();
-const isAlmacen = ref(props.user.roles[0] === 'almacen')
+const isAlmacen = ref(props.auth.user.es_almacen);
 const inventario = props.inventario;
 
 

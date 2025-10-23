@@ -5,7 +5,10 @@
       "Read(/C:\\xampp\\htdocs\\realplateros\\app\\Http\\Controllers/**)",
       "Read(/C:\\xampp\\htdocs\\realplateros\\app\\Http\\Controllers/**)",
       "Read(/C:\\xampp\\htdocs\\realplateros\\app\\Http\\Controllers/**)",
-      "Read(/C:\\xampp\\htdocs\\realplateros\\app\\Http\\Controllers/**)"
+      "Read(/C:\\xampp\\htdocs\\realplateros\\app\\Http\\Controllers/**)",
+      "Bash(php artisan:*)",
+      "Bash(git checkout:*)",
+      "Bash(php:*)"
     ],
     "deny": [],
     "ask": []
