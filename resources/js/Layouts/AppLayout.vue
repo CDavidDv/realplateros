@@ -35,6 +35,10 @@ const user = computed(() => props.auth?.user || null);
 const userRoles = computed(() => user.value?.roles || []);
 const primaryRole = computed(() => userRoles.value[0]?.name || null);
 const isAlmacen = computed(() => props.auth?.user?.es_almacen || false);
+
+cosole.log('User Roles:', isAlmacen.value);
+console.log('Primary Role:', props);
+
 const isTrabajador = computed(() => primaryRole.value === 'trabajador');
 const isSupervisor = computed(() => primaryRole.value === 'supervisor');
 const isAdmin = computed(() => primaryRole.value === 'admin');
