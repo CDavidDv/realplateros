@@ -276,12 +276,12 @@ const isGestor = computed(() => primaryRole.value === 'gestor');
                         </ResponsiveNavLink>
                     </div>
                     <div class="pt-2 pb-3 space-y-1">
-                        <ResponsiveNavLink :href="route('checador')" :active="route().current('checador')" v-if="!isAlmacen">
+                        <ResponsiveNavLink :href="route('checador')" :active="route().current('checador')">
                             Checador
                         </ResponsiveNavLink>
                     </div>
                     
-                    <div class="pt-2 pb-3 space-y-1" v-if="!isTrabajador && !isAlmacen">
+                    <div class="pt-2 pb-3 space-y-1" v-if="!isTrabajador">
                         
                         <ResponsiveNavLink :href="route('personal')" :active="route().current('personal')" >
                             Personal
