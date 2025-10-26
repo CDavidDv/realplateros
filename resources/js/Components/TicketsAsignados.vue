@@ -312,7 +312,7 @@ const isAdminAlmacen = computed(() => {
   const user = props.auth?.user;
   if (!user) return false;
   const isAlmacen = user.es_almacen === true || user.es_almacen === 1;
-  const isAdmin = user.roles?.some(role => role.name === 'admin');
+  const isAdmin = user.roles?.some(role => role.name === 'admin' || role.name === 'almacen');
   return isAlmacen && isAdmin;
 });
 
