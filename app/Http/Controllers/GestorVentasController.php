@@ -939,4 +939,27 @@ class GestorVentasController extends Controller
             return response()->json(['error' => 'Error al renumerar ventas normales: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Renumera los folios de ventas facturadas o con tarjeta
+     */
+    public function renumerarFolios(Request $request)
+    {
+        try {
+            $sucursalId = $request->input('sucursal_id');
+            $fecha = $request->input('fecha', Carbon::today());
+
+            // Usar el método del modelo para renumerar folios
+            $foliosRenumerados = \App\Models\Venta::renumerarFolios($sucursalId, $fecha);
+
+            return response()->json([
+                'message' => 'Folios renumerados correctamente',
+                'folios_renumerados' => $foliosRenumerados,
+                'detalle' => 'Se han renumerado ' . $foliosRenumerados . ' folios secuencialmente'
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Error al renumerar folios: " . $e->getMessage());
+            return response()->json(['error' => 'Error al renumerar folios: ' . $e->getMessage()], 500);
+        }
+    }
 }

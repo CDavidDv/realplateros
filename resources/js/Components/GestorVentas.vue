@@ -178,13 +178,13 @@
                 >
                   + Nueva Venta
                 </button>
-                <button 
-                  @click="refolearVentasNormales" 
+                <button
+                  @click="refolearVentasNormales"
                   :disabled="!selectedSucursal || isRefoleandoVentasNormales"
                   :class="[
                     'no-print size-fit py-1 px-3 rounded-md text-white',
                     selectedSucursal && !isRefoleandoVentasNormales
-                      ? 'hover:bg-blue-600 bg-blue-500' 
+                      ? 'hover:bg-blue-600 bg-blue-500'
                       : 'bg-gray-400 cursor-not-allowed'
                   ]"
                   :title="!selectedSucursal ? 'Seleccione una sucursal primero' : (isRefoleandoVentasNormales ? 'Refolio en progreso' : '')"
@@ -197,6 +197,26 @@
                     </svg>
                   </span>
                   Refolio ventas normales
+                </button>
+                <button
+                  @click="renumerarFolios"
+                  :disabled="!selectedSucursal || isRenumerandoFolios"
+                  :class="[
+                    'no-print size-fit py-1 px-3 rounded-md text-white',
+                    selectedSucursal && !isRenumerandoFolios
+                      ? 'hover:bg-indigo-600 bg-indigo-500'
+                      : 'bg-gray-400 cursor-not-allowed'
+                  ]"
+                  :title="!selectedSucursal ? 'Seleccione una sucursal primero' : (isRenumerandoFolios ? 'Renumeración en progreso' : '')"
+                  :aria-label="isRenumerandoFolios ? 'Renumeración en progreso' : ''"
+                >
+                  <span v-if="isRenumerandoFolios">
+                    <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </span>
+                  Renumerar folios
                 </button>
                 <button @click="imprimir" class="no-print size-fit py-1 px-2 rounded-md text-white hover:bg-purple-600 bg-purple-500">
                   Imprimir
@@ -1828,13 +1848,14 @@ const updateVisibleVentas = ( id, visible ) => {
 }
 
 const isRefoleandoVentasNormales = ref(false);
+const isRenumerandoFolios = ref(false);
 
 const refolearVentasNormales = async () => {
 
   //mandar sucursal y fecha
   try {
     isRefoleandoVentasNormales.value = true;
-    const response = await axios.post('/ventas/renumerar-normales', { 
+    const response = await axios.post('/ventas/renumerar-normales', {
       sucursal_id: selectedSucursal.value,
       fecha: selectedDate.value
     });
@@ -1849,6 +1870,27 @@ const refolearVentasNormales = async () => {
     showToast("error", error.response?.data?.error || "Error al refolear ventas normales");
   } finally {
     isRefoleandoVentasNormales.value = false;
+  }
+}
+
+const renumerarFolios = async () => {
+  try {
+    isRenumerandoFolios.value = true;
+    const response = await axios.post('/ventas/renumerar-folios', {
+      sucursal_id: selectedSucursal.value,
+      fecha: selectedDate.value
+    });
+    if (response.status === 200) {
+      showToast("success", response.data.message);
+      fetchFilteredData();
+    } else {
+      showToast("error", response.data.error || "Error al renumerar folios");
+    }
+  } catch (error) {
+    console.error('Error al renumerar folios:', error);
+    showToast("error", error.response?.data?.error || "Error al renumerar folios");
+  } finally {
+    isRenumerandoFolios.value = false;
   }
 }
 
