@@ -109,34 +109,38 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Resumen de estados de producción para el contador
-        $resumenProduccion = \App\Models\ControlProduccion::selectRaw('
-            estado,
-            COUNT(*) as cantidad,
-            SUM(cantidad) as total_unidades
-        ')
-            ->where('sucursal_id', $sucursalId)
-            ->whereIn('estado', ['pendiente', 'horneando', 'en_espera'])
-            ->where('created_at', '>=', $fechaHoy . ' 00:00:00')
-            ->where('created_at', '<=', $fechaHoy . ' 23:59:59')
-            ->groupBy('estado')
-            ->get()
-            ->keyBy('estado');
+        // Obtener hornos activos de la sucursal
+        $hornosActivos = Hornos::where('sucursal_id', $sucursalId)
+            ->where('estado', 1)
+            ->get();
 
-        // Convertir a array con valores por defecto
+        $datosHornos = [];
+        $totalPastesEnHornos = 0;
+
+        foreach ($hornosActivos as $horno) {
+            $pastesHorno = $horno->pastesHorneando ?? [];
+            $totalPastesHorno = 0;
+
+            foreach ($pastesHorno as $paste) {
+                $totalPastesHorno += $paste['cantidad'] ?? 0;
+            }
+
+            if (count($pastesHorno) > 0) {
+                $datosHornos[] = [
+                    'horno_id' => $horno->id,
+                    'pastes' => $pastesHorno,
+                    'total_pastes' => $totalPastesHorno,
+                    'tiempo_fin' => $horno->tiempo_fin
+                ];
+                $totalPastesEnHornos += $totalPastesHorno;
+            }
+        }
+
+        // Nueva estructura simplificada
         $contadorEstados = [
-            'pendiente' => [
-                'cantidad' => $resumenProduccion->get('pendiente')->cantidad ?? 0,
-                'total_unidades' => $resumenProduccion->get('pendiente')->total_unidades ?? 0
-            ],
-            'horneando' => [
-                'cantidad' => $resumenProduccion->get('horneando')->cantidad ?? 0,
-                'total_unidades' => $resumenProduccion->get('horneando')->total_unidades ?? 0
-            ],
-            'en_espera' => [
-                'cantidad' => $resumenProduccion->get('en_espera')->cantidad ?? 0,
-                'total_unidades' => $resumenProduccion->get('en_espera')->total_unidades ?? 0
-            ]
+            'hornos_activos' => $datosHornos,
+            'total_en_hornos' => $totalPastesEnHornos,
+            'cantidad_hornos' => count($datosHornos)
         ];
 
         // Obtener datos de la sesión flash (cuando viene de una venta procesada)
@@ -470,5 +474,50 @@ class DashboardController extends Controller
         $horno = Hornos::where('id', $hornoId)->first();
         $horno->delete();
         return back()->with('success', 'Horno eliminado correctamente');
+    }
+
+    /**
+     * Obtener contador de estados de producción en tiempo real (para polling)
+     */
+    public function obtenerContadorEstados(Request $request)
+    {
+        $user = Auth::user();
+        $sucursalId = $user->sucursal_id;
+
+        // Obtener hornos activos de la sucursal
+        $hornosActivos = Hornos::where('sucursal_id', $sucursalId)
+            ->where('estado', 1)
+            ->get();
+
+        $datosHornos = [];
+        $totalPastesEnHornos = 0;
+
+        foreach ($hornosActivos as $horno) {
+            $pastesHorno = $horno->pastesHorneando ?? [];
+            $totalPastesHorno = 0;
+
+            foreach ($pastesHorno as $paste) {
+                $totalPastesHorno += $paste['cantidad'] ?? 0;
+            }
+
+            if (count($pastesHorno) > 0) {
+                $datosHornos[] = [
+                    'horno_id' => $horno->id,
+                    'pastes' => $pastesHorno,
+                    'total_pastes' => $totalPastesHorno,
+                    'tiempo_fin' => $horno->tiempo_fin ? $horno->tiempo_fin->toIso8601String() : null
+                ];
+                $totalPastesEnHornos += $totalPastesHorno;
+            }
+        }
+
+        // Estructura de respuesta simplificada
+        $contadorEstados = [
+            'hornos_activos' => $datosHornos,
+            'total_en_hornos' => $totalPastesEnHornos,
+            'cantidad_hornos' => count($datosHornos)
+        ];
+
+        return response()->json($contadorEstados);
     }
 }

@@ -10,7 +10,9 @@
       "Bash(git checkout:*)",
       "Bash(php:*)",
       "Bash(del \"C:\\xampp\\htdocs\\realplateros\\database\\migrations\\2025_10_27_000001_add_leido_at_to_control_produccion_table.php\")",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(del \"C:\\\\xampp\\\\htdocs\\\\realplateros\\\\diagnostico_control_produccion.php\")",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

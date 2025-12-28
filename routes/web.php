@@ -26,6 +26,7 @@ Route::get('/', [DashboardController::class, 'index']);
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', ])->group(function () {
     // AUTH ROUTES
     Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name("dashboard");
+    Route::get('/api/contador-estados', [DashboardController::class, 'obtenerContadorEstados'])->name('api.contador.estados');
     Route::post('/ventas', [VentaController::class, 'procesarVenta'])->name('ventas.procesar');
     Route::post('/ventas/editar', [VentaController::class, 'editarVenta'])->name('ventas.editar');
     Route::post('/asignar', [VentaController::class, 'procesarTicket'])->name('ticket.procesar');

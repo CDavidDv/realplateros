@@ -1,7 +1,15 @@
 <template>
   <div class="container mx-auto">
-    <h1 class="text-2xl font-bold mb-4" v-if="isAlmacen">Tablero de Asignación</h1>
-    <h1 class="text-2xl font-bold mb-4" v-else>Tablero de Ventas</h1>
+    <div class=" flex justify-between">
+      <div class="flex-1">
+        <h1 class="text-2xl font-bold mb-4" v-if="isAlmacen">Tablero de Asignación</h1>
+        <h1 class="text-2xl font-bold mb-4" v-else>Tablero de Ventas</h1>
+      </div>
+      <EstadoPastes class="flex-1"
+              v-if="$page.props.contadorEstados"
+              :contadores="$page.props.contadorEstados"
+          />
+    </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Inventario -->
       <div class="bg-white shadow rounded-lg p-6">
@@ -13,6 +21,7 @@
             class="w-6/12 p-2 mb-4 border rounded"
           />
         </div>
+        
         <div v-for="category in categories" :key="category" class="mb-6 overflow-scroll md:overflow-hidden">
           <h3 class="text-lg font-semibold mb-2 text-gray-700 capitalize">{{ category }}</h3>
           <table class="min-w-full">
@@ -148,6 +157,7 @@
 import { ref, computed } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2'
+import EstadoPastes from './EstadoPastes.vue';
 
 
 const { props } = usePage();
