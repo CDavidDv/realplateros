@@ -212,13 +212,10 @@ class VentaController extends Controller
             $venta->total = $total;
             $venta->metodo_pago = $metodoPago;
             $venta->factura = $factura == 'true' ? true : false;
-            
-            // Generar folio consecutivo solo para ventas con tarjeta O facturadas
-            if ($venta->factura || $metodoPago == 'tarjeta') {
-                $venta->folio = \App\Models\Venta::generarFolioConsecutivo(auth()->user()->sucursal_id);
-            } else {
-                $venta->folio = null;
-            }
+
+            // Generar folio consecutivo para TODAS las ventas
+            $venta->folio = \App\Models\Venta::generarFolioConsecutivo(auth()->user()->sucursal_id);
+
             $idVenta = $venta->idVentaDia;
             $venta->save();
 

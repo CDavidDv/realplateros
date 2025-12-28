@@ -109,6 +109,36 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Resumen de estados de producción para el contador
+        $resumenProduccion = \App\Models\ControlProduccion::selectRaw('
+            estado,
+            COUNT(*) as cantidad,
+            SUM(cantidad) as total_unidades
+        ')
+            ->where('sucursal_id', $sucursalId)
+            ->whereIn('estado', ['pendiente', 'horneando', 'en_espera'])
+            ->where('created_at', '>=', $fechaHoy . ' 00:00:00')
+            ->where('created_at', '<=', $fechaHoy . ' 23:59:59')
+            ->groupBy('estado')
+            ->get()
+            ->keyBy('estado');
+
+        // Convertir a array con valores por defecto
+        $contadorEstados = [
+            'pendiente' => [
+                'cantidad' => $resumenProduccion->get('pendiente')->cantidad ?? 0,
+                'total_unidades' => $resumenProduccion->get('pendiente')->total_unidades ?? 0
+            ],
+            'horneando' => [
+                'cantidad' => $resumenProduccion->get('horneando')->cantidad ?? 0,
+                'total_unidades' => $resumenProduccion->get('horneando')->total_unidades ?? 0
+            ],
+            'en_espera' => [
+                'cantidad' => $resumenProduccion->get('en_espera')->cantidad ?? 0,
+                'total_unidades' => $resumenProduccion->get('en_espera')->total_unidades ?? 0
+            ]
+        ];
+
         // Obtener datos de la sesión flash (cuando viene de una venta procesada)
         $venta = session('venta');
         $ticketIdFromSession = session('ticket_id');
@@ -127,6 +157,7 @@ class DashboardController extends Controller
                 'faltantes' => $notificacionesFaltantes,
                 'horneados' => $notificacionesHorneados
             ],
+            'contadorEstados' => $contadorEstados,
             'fechaActual' => $fechaHoy,
             'fechaSeleccionada' => $fechaSeleccionada,
             'fechaFiltro' => $fechaHoy

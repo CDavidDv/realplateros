@@ -126,22 +126,18 @@ class Venta extends Model
     }
 
     /**
-     * Genera el folio consecutivo desde el 1 de septiembre (solo para ventas con tarjeta O facturadas)
+     * Genera el folio consecutivo desde el 1 de septiembre (para TODAS las ventas visibles)
      */
     public static function generarFolioConsecutivo($sucursalId)
     {
         $fechaInicio = Carbon::create(2025, 9, 1);
-        
+
         // Obtener el último folio desde el 1 de septiembre para esta sucursal
-        // Solo considerar ventas con tarjeta O facturadas
+        // Considerar TODAS las ventas visibles
         $ultimoFolio = self::where('sucursal_id', $sucursalId)
             ->where('created_at', '>=', $fechaInicio)
             ->where('visible', true)
             ->where('estado', '!=', 'eliminada')
-            ->where(function($query) {
-                $query->where('factura', true)
-                      ->orWhere('metodo_pago', 'tarjeta');
-            })
             ->whereNotNull('folio')
             ->max('folio');
 
@@ -191,22 +187,18 @@ class Venta extends Model
     }
 
     /**
-     * Renumera los folios de ventas facturadas o con tarjeta desde el 1 de septiembre
+     * Renumera los folios de TODAS las ventas visibles desde el 1 de septiembre
      */
     public static function renumerarFolios($sucursalId, $fecha = null)
     {
         $fechaInicio = Carbon::create(2025, 9, 1);
 
-        // PRIMERO: Poner null todos los folios que no cumplen las condiciones (no factura Y no tarjeta)
+        // PRIMERO: Poner null todos los folios de ventas no visibles o eliminadas
         $ventasSinFolio = self::where('sucursal_id', $sucursalId)
             ->where('created_at', '>=', $fechaInicio)
             ->where(function($query) {
-                $query->where(function($q) {
-                    $q->where('factura', false)
-                      ->where('metodo_pago', '!=', 'tarjeta');
-                })
-                ->orWhere('visible', false)
-                ->orWhere('estado', 'eliminada');
+                $query->where('visible', false)
+                      ->orWhere('estado', 'eliminada');
             })
             ->get();
 
@@ -215,13 +207,9 @@ class Venta extends Model
             $venta->save();
         }
 
-        // SEGUNDO: Obtener TODAS las ventas que requieren folio (factura O tarjeta) desde el 1 de septiembre ordenadas cronológicamente
+        // SEGUNDO: Obtener TODAS las ventas visibles desde el 1 de septiembre ordenadas cronológicamente
         $ventasConFolio = self::where('sucursal_id', $sucursalId)
             ->where('created_at', '>=', $fechaInicio)
-            ->where(function($query) {
-                $query->where('factura', true)
-                      ->orWhere('metodo_pago', 'tarjeta');
-            })
             ->where('estado', '!=', 'eliminada')
             ->where('visible', true)
             ->orderBy('created_at', 'asc')

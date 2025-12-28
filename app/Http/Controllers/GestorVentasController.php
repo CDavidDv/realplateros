@@ -272,26 +272,42 @@ class GestorVentasController extends Controller
         $filter = $request->input('filter');
         $value = $request->input('value');
 
+        Log::info('Filtro de ventas iniciado', [
+            'filter' => $filter,
+            'value' => $value,
+            'sucursal_id' => $sucursalId
+        ]);
+
         // Definir el rango de fechas según el filtro
         if ($filter === 'day') {
-            $startDate = Carbon::parse($value)->startOfDay();
-            $endDate = Carbon::parse($value)->endOfDay();
+            $startDate = Carbon::parse($value)->setTimezone('America/Mexico_City')->startOfDay();
+            $endDate = Carbon::parse($value)->setTimezone('America/Mexico_City')->endOfDay();
         } elseif ($filter === 'week') {
-            $startDate = Carbon::parse($value)->startOfWeek();
-            $endDate = Carbon::parse($value)->endOfWeek();
+            $startDate = Carbon::parse($value)->setTimezone('America/Mexico_City')->startOfWeek();
+            $endDate = Carbon::parse($value)->setTimezone('America/Mexico_City')->endOfWeek();
         } elseif ($filter === 'month') {
-            $startDate = Carbon::parse($value)->startOfMonth();
-            $endDate = Carbon::parse($value)->endOfMonth();
+            $startDate = Carbon::parse($value)->setTimezone('America/Mexico_City')->startOfMonth();
+            $endDate = Carbon::parse($value)->setTimezone('America/Mexico_City')->endOfMonth();
         } else {
             return response()->json(['error' => 'Filtro no válido.'], 400);
         }
+
+        Log::info('Rango de fechas para filtro', [
+            'startDate' => $startDate->toDateTimeString(),
+            'endDate' => $endDate->toDateTimeString()
+        ]);
 
         // Filtrar ventas según el rango de fechas y sucursal
         $ventas = Venta::where('sucursal_id', $sucursalId)
             ->with(['detalles.producto', 'usuario'])
             ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'asc') 
+            ->orderBy('created_at', 'asc')
             ->get();
+
+        Log::info('Ventas encontradas en filtro', [
+            'cantidad' => $ventas->count(),
+            'sucursal_id' => $sucursalId
+        ]);
 
         // ventas en efectivo y con tarjeta no eliminados y visibles
         $cashPayments = $ventas->where('metodo_pago', 'efectivo')
@@ -570,12 +586,8 @@ class GestorVentasController extends Controller
             $venta->estado = 'creada';
             $venta->visible = true;
 
-            // Generar folio consecutivo solo para ventas con tarjeta O facturadas
-            if ($request->factura || $request->metodo_pago == 'tarjeta') {
-                $venta->folio = \App\Models\Venta::generarFolioConsecutivo($usuario->sucursal_id);
-            } else {
-                $venta->folio = null;
-            }
+            // Generar folio consecutivo para TODAS las ventas
+            $venta->folio = \App\Models\Venta::generarFolioConsecutivo($usuario->sucursal_id);
             
             // Calcular total
             $total = 0;
@@ -668,18 +680,8 @@ class GestorVentasController extends Controller
             $venta->metodo_pago = $request->metodo_pago;
             $venta->factura = $request->factura;
             
-            // Detectar cambios en factura y método de pago para mantener numeración correcta
-            $facturaCambio = $facturaOriginal !== $request->factura;
-            $metodoPagoCambio = $metodoPagoOriginal !== $request->metodo_pago;
-            $eraFacturaTarjeta = $facturaOriginal || $metodoPagoOriginal == 'tarjeta';
-            $seraFacturaTarjeta = $request->factura || $request->metodo_pago == 'tarjeta';
-            
-            // Generar folio consecutivo solo para ventas con tarjeta O facturadas
-            if ($request->factura || $request->metodo_pago == 'tarjeta') {
-                $venta->folio = \App\Models\Venta::generarFolioConsecutivo($request->sucursal_id);
-            } else {
-                $venta->folio = null;
-            }
+            // Generar folio consecutivo para TODAS las ventas
+            $venta->folio = \App\Models\Venta::generarFolioConsecutivo($request->sucursal_id);
             
             $venta->sucursal_id = $request->sucursal_id; // Actualizar la sucursal si cambió
             $venta->estado = 'editada';
@@ -709,11 +711,9 @@ class GestorVentasController extends Controller
 
             // Renumerar idVentaDia del día (excluye ventas no visibles automáticamente)
             \App\Models\Venta::renumerarVentasDelDia($venta->sucursal_id, $venta->created_at);
-            
-            // Reanudar numeración de folios si hay cambios que afectan la numeración
-            if (($facturaCambio || $metodoPagoCambio) && ($eraFacturaTarjeta || $seraFacturaTarjeta)) {
-                $this->reanudarNumeracionFolios($request->sucursal_id, $venta->created_at);
-            }
+
+            // Renumerar folios (ahora todas las ventas tienen folio)
+            \App\Models\Venta::renumerarFolios($request->sucursal_id, $venta->created_at);
 
             return response()->json([
                 'message' => 'Venta actualizada correctamente'
@@ -760,6 +760,7 @@ class GestorVentasController extends Controller
                 ->orderBy('created_at', 'asc') // Siempre ordenar por fecha de creación
                 ->get();
 
+            
             return response()->json([
                 'ventas' => $ventas,
                 'ordenamiento' => 'Las ventas están ordenadas cronológicamente por fecha de creación (created_at)',
@@ -855,70 +856,22 @@ class GestorVentasController extends Controller
     }
 
     /**
-     * Reanuda la numeración de folios para todas las ventas que requieren folio desde el 1 de septiembre 2025
+     * Reanuda la numeración de folios para TODAS las ventas visibles desde el 1 de septiembre 2025
      * Se ejecuta automáticamente en todas las operaciones CRUD para mantener consistencia
      */
     private function reanudarNumeracionFolios($sucursalId, $fechaHora)
     {
         try {
-            // Fecha de inicio: 1 de septiembre de 2025
-            $fechaInicio = '2025-09-01';
-            
-            // PRIMERO: Poner null todos los folios que no cumplen las condiciones (no factura Y no tarjeta)
-            $ventasSinFolio = Venta::where('sucursal_id', $sucursalId)
-                ->where('created_at', '>=', $fechaInicio)
-                ->where('visible', false)
-                ->get();
-            
-            foreach ($ventasSinFolio as $venta) {
-                $venta->folio = null;
-                $venta->save();
-            }
-            
-            // SEGUNDO: Obtener TODAS las ventas que requieren folio (factura O tarjeta) desde el 1 de septiembre 2025 ordenadas cronológicamente
-            $ventasConFolio = Venta::where('sucursal_id', $sucursalId)
-                ->where('created_at', '>=', $fechaInicio)
-                ->where(function($query) {
-                    $query->where('factura', true)
-                          ->orWhere('metodo_pago', 'tarjeta');
-                })
-                ->where('estado', '!=', 'eliminada')
-                ->where('visible', true)
-                ->orderBy('created_at', 'asc')
-                ->get();
-            
-            // Renumerar secuencialmente desde 1 (numeración consecutiva desde el 1 de septiembre)
-            $contador = 1;
-            $foliosRenumerados = [];
-            
-            foreach ($ventasConFolio as $venta) {
-                $folioAnterior = $venta->folio;
-                $nuevoFolio = $contador;
-                $venta->folio = $nuevoFolio;
-                $venta->save();
-                
-                $foliosRenumerados[] = [
-                    'id' => $venta->id,
-                    'folio_anterior' => $folioAnterior,
-                    'folio_nuevo' => $nuevoFolio,
-                    'created_at' => $venta->created_at->format('Y-m-d H:i:s'),
-                    'factura' => $venta->factura,
-                    'metodo_pago' => $venta->metodo_pago
-                ];
-                
-                $contador++;
-            }
-            
-            // Log de la reanudación de numeración
-            if (count($foliosRenumerados) > 0) {
-                Log::info("Numeración de folios reanudada para sucursal {$sucursalId} desde el 1 de septiembre 2025: " . count($foliosRenumerados) . " folios procesados");
-            }
-            
-            return $foliosRenumerados;
-            
+            // Usar el método del modelo que ya tiene la lógica actualizada
+            \App\Models\Venta::renumerarFolios($sucursalId);
+
+            Log::info("Numeración de folios reanudada para sucursal {$sucursalId} desde el 1 de septiembre 2025");
+
+            return true;
+
         } catch (\Exception $e) {
             Log::error("Error al reanudar numeración de folios: " . $e->getMessage());
-            return [];
+            return false;
         }
     }
 
