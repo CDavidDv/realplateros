@@ -254,6 +254,9 @@ class CorteCajaController extends Controller
 
         $sobrantes = Sobrantes::where('sucursal_id', $sucursalId)
             ->whereBetween('created_at', [$startDate, $endDate])
+            ->whereHas('inventario') // Solo sobrantes con inventario existente
+            ->with('inventario')
+            ->with('corteCaja')
             ->get();
 
         $sobrantesInventario = Inventario::where('sucursal_id', $sucursalId)
@@ -398,6 +401,7 @@ class CorteCajaController extends Controller
 
         $sobrantes = Sobrantes::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
+            ->whereHas('inventario') // Solo sobrantes con inventario existente
             ->with('inventario')
             ->with('corteCaja')
             ->get();

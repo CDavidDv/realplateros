@@ -36,7 +36,19 @@
             <tbody>
               <tr v-for="item in filteredInventory(category)" :key="item.id">
                 <td class="flex flex-col w-full">
-                  <p>{{ item.nombre }}</p>
+                  <div class="flex items-center gap-2">
+                    <p>{{ item.nombre }}</p>
+                    <!-- Indicador de horneado -->
+                    <span
+                      v-if="getCantidadEnHorno(item.nombre) > 0"
+                      class="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full border border-orange-200"
+                    >
+                      <svg class="h-3 w-3 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                      </svg>
+                      {{ getCantidadEnHorno(item.nombre) }} en horno
+                    </span>
+                  </div>
                   <p class="pl-6 text-sm text-gray-500">{{ item.detalle }}</p>
                 </td>
                 <td v-if="!isAlmacen">${{ item.precio }}</td>
@@ -194,12 +206,35 @@ if(isAlmacen.value){
 }
 
 
-const filteredInventory = (category) => 
-  inventario.filter(item => 
+const filteredInventory = (category) =>
+  inventario.filter(item =>
     item.nombre === '-' ? '' :
-    item.tipo === category && 
+    item.tipo === category &&
     item.nombre.toLowerCase().includes(searchTerm.value.toLowerCase())
   );
+
+// Funcion para verificar si un paste esta siendo horneado y obtener la cantidad total
+const getCantidadEnHorno = (pasteNombre) => {
+  if (!props.contadorEstados || !props.contadorEstados.hornos_activos) {
+    return 0;
+  }
+
+  let cantidadTotal = 0;
+
+  // Iterar sobre todos los hornos activos
+  props.contadorEstados.hornos_activos.forEach(horno => {
+    if (horno.pastes && Array.isArray(horno.pastes)) {
+      // Buscar el paste en este horno
+      horno.pastes.forEach(paste => {
+        if (paste.nombre === pasteNombre) {
+          cantidadTotal += paste.cantidad || 0;
+        }
+      });
+    }
+  });
+
+  return cantidadTotal;
+};
 
 const addToTicket = (item) => {
   if (item.cantidad <= 0) return;

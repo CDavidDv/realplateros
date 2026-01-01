@@ -124,10 +124,7 @@ class SucursalController extends Controller
     
     
     public function destroy(Sucursal $sucursal)
-    {   
-        $usuariosCount = User::where('sucursal_id' , $sucursal->id)->count();
-        $inventarioCount = Inventario::where('sucursal_id', $sucursal->id)->count();
-        
+    {
         try {
             // Obtiene el usuario logueado
             $loggedUser = auth()->user();
@@ -136,13 +133,54 @@ class SucursalController extends Controller
             if ($loggedUser->sucursal_id == $sucursal->id) {
                 return redirect()->route('personal')->withErrors(['error' => 'No puedes eliminar la sucursal a la que has ingresado.']);
             }
-            if (($usuariosCount-1) > 0 || $inventarioCount > 0) {
-                return back()->withErrors(['error' => 'No se puede eliminar la sucursal porque tiene usuarios o inventario asociados.']);
+
+            // Verifica todas las relaciones
+            $relaciones = [];
+
+            $usuariosCount = User::where('sucursal_id', $sucursal->id)->count();
+            if (($usuariosCount - 1) > 0) {
+                $relaciones[] = ($usuariosCount - 1) . ' usuario(s)';
+            }
+
+            $inventarioCount = $sucursal->inventario()->count();
+            if ($inventarioCount > 0) {
+                $relaciones[] = $inventarioCount . ' registro(s) de inventario';
+            }
+
+            $ventasCount = $sucursal->ventas()->count();
+            if ($ventasCount > 0) {
+                $relaciones[] = $ventasCount . ' venta(s)';
+            }
+
+            $pedidosCount = $sucursal->pedidos()->count();
+            if ($pedidosCount > 0) {
+                $relaciones[] = $pedidosCount . ' pedido(s)';
+            }
+
+            $cortesCount = $sucursal->cortesDeCaja()->count();
+            if ($cortesCount > 0) {
+                $relaciones[] = $cortesCount . ' corte(s) de caja';
+            }
+
+            $cocinaCount = $sucursal->cocina()->count();
+            if ($cocinaCount > 0) {
+                $relaciones[] = $cocinaCount . ' registro(s) de cocina';
+            }
+
+            $checkInsCount = $sucursal->checkInCheckOuts()->count();
+            if ($checkInsCount > 0) {
+                $relaciones[] = $checkInsCount . ' registro(s) de asistencia';
+            }
+
+            // Si hay relaciones, no permitir la eliminación
+            if (!empty($relaciones)) {
+                $mensaje = 'No se puede eliminar la sucursal porque tiene datos asociados: ' . implode(', ', $relaciones) . '.';
+                return back()->withErrors(['error' => $mensaje]);
             }
 
             // Encuentra al usuario relacionado con el rol 'sucursal' y la sucursal_id
             $user = User::where('sucursal_id', $sucursal->id)->role('sucursal')->first();
-            
+
             // Si se encuentra, elimínalo
             if ($user) {
                 $user->delete();
@@ -151,9 +189,9 @@ class SucursalController extends Controller
             // Elimina la sucursal
             $sucursal->delete();
 
-            Log::info('Sucursal y usuario eliminados correctamente: ' . $user);
+            Log::info('Sucursal y usuario eliminados correctamente: ' . ($user ? $user->id : 'sin usuario'));
             return redirect()->route('personal')->with('success', 'Sucursal y usuario eliminados correctamente');
-            
+
         } catch (\Exception $e) {
             Log::error('Error eliminando la sucursal o el usuario: ' . $e->getMessage());
 
