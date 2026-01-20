@@ -108,18 +108,22 @@ class CorteCajaController extends Controller
             ]);
         }
 
-        return redirect()->route('corte-caja')->with('success', 'Cantidad inicial guardada correctamente.');
+        return back()->with('success', 'Corte de caja inicial guardado correctamente.');
     }
 
 
     public function guardarFinal(Request $request)
     {
         $usuario = auth()->user();
-        
+
         $request->validate([
             'fecha' => 'required|date',
             'dinero_final' => 'required|numeric|min:0',
+            'efectivo_contado' => 'required|numeric|min:0',
+            'tarjeta_contada' => 'required|numeric|min:0',
+            'notas_reconciliacion' => 'nullable|string|max:1000',
         ]);
+
         // Obtener el último corte de caja para esa sucursal y fecha
         $ultimoCorte = CorteCaja::where('sucursal_id', $usuario->sucursal_id)
             ->where('fecha', $request->fecha)
@@ -134,8 +138,54 @@ class CorteCajaController extends Controller
             return back()->with('error', 'Ya existe un dinero final para esta fecha y corte de caja.');
         }
 
+        // Obtener el corte anterior para determinar el inicio del período
+        $corteAnterior = CorteCaja::where('sucursal_id', $usuario->sucursal_id)
+            ->where('fecha', $request->fecha)
+            ->where('id', '!=', $ultimoCorte->id)
+            ->whereNotNull('dinero_final')  // Solo cortes que ya cerraron
+            ->latest('updated_at')
+            ->first();
+
+        // Determinar el inicio del período
+        $inicioPeriodo = $corteAnterior
+            ? $corteAnterior->updated_at  // Desde que terminó el corte anterior
+            : Carbon::parse($request->fecha)->startOfDay();  // Desde inicio del día
+
+        // Fin del período es ahora (momento de cerrar el corte)
+        $finPeriodo = Carbon::now();
+
+        // Calculate system totals from ventas - SOLO del período del corte
+        $ventasEfectivo = Venta::where('sucursal_id', $usuario->sucursal_id)
+            ->whereBetween('created_at', [$inicioPeriodo, $finPeriodo])
+            ->where('metodo_pago', 'efectivo')
+            ->where('visible', true)
+            ->sum('total');
+
+        $ventasTarjeta = Venta::where('sucursal_id', $usuario->sucursal_id)
+            ->whereBetween('created_at', [$inicioPeriodo, $finPeriodo])
+            ->where('metodo_pago', 'tarjeta')
+            ->where('visible', true)
+            ->sum('total');
+
+        // Calculate differences
+        $diferenciaEfectivo = $request->efectivo_contado - $ventasEfectivo;
+        $diferenciaTarjeta = $request->tarjeta_contada - $ventasTarjeta;
+
+        // Validate that notes are provided if there are differences
+        $hayDiferencias = abs($diferenciaEfectivo) > 0.01 || abs($diferenciaTarjeta) > 0.01;
+        if ($hayDiferencias && (is_null($request->notas_reconciliacion) || trim($request->notas_reconciliacion) === '')) {
+            return back()
+                ->withInput()
+                ->with('error', 'Debe proporcionar una justificación cuando hay diferencias en la reconciliación.');
+        }
+
         // Actualiza el dinero final del último corte
         $ultimoCorte->dinero_final = $request->dinero_final;
+        $ultimoCorte->dinero_en_efectivo = $ventasEfectivo;
+        $ultimoCorte->dinero_tarjeta = $ventasTarjeta;
+        $ultimoCorte->efectivo_contado = $request->efectivo_contado;
+        $ultimoCorte->tarjeta_contada = $request->tarjeta_contada;
+        $ultimoCorte->notas_reconciliacion = $request->notas_reconciliacion;
         $ultimoCorte->save();
 
         //guardar los productos sobrantes
@@ -151,7 +201,90 @@ class CorteCajaController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Cantidad final guardada correctamente.');
+        // Recargar el corte actualizado
+        $ultimoCorte->refresh();
+
+        // Obtener todos los datos necesarios para la página (similar a método corte())
+        $inventario = Inventario::where('sucursal_id', $usuario->sucursal_id)->get();
+
+        $ventas = Venta::where('sucursal_id', $usuario->sucursal_id)
+            ->with(['detalles.producto', 'usuario'])
+            ->whereDate('created_at', Carbon::today())
+            ->where('estado', '!=', 'eliminada')
+            ->where('visible', true)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $gastos = Gastos::where('sucursal_id', $usuario->sucursal_id)
+            ->whereDate('created_at', Carbon::today())
+            ->get();
+
+        $totalGastos = $gastos->sum('costo');
+
+        $registrosInventario = EntradasInventario::where('sucursal_id', $usuario->sucursal_id)
+            ->whereDate('created_at', Carbon::today())
+            ->get();
+
+
+
+        $cortes = CorteCaja::where('sucursal_id', $usuario->sucursal_id)
+            ->where('fecha', $request->fecha)
+            ->get();
+
+        $sobrantes = Sobrantes::where('sucursal_id', $usuario->sucursal_id)
+            ->whereHas('corteCaja', function ($query) use ($request) {
+                $query->where('fecha', $request->fecha);
+            })
+            ->with('inventario')
+            ->with('corteCaja')
+            ->get();
+
+        $sobrantesInventario = Inventario::where('sucursal_id', $usuario->sucursal_id)
+            ->whereDate('created_at', Carbon::today())
+            ->get();
+
+        $cantidadDeCortes = CorteCaja::where('sucursal_id', $usuario->sucursal_id)
+            ->where('fecha', $request->fecha)
+            ->count();
+
+        $categoriasInventario = Inventario::where('sucursal_id', $usuario->sucursal_id)
+            ->select('tipo')
+            ->distinct()
+            ->get();
+
+        $ventaProductos = VentaProducto::with('producto')
+            ->whereHas('venta', function ($query) use ($usuario, $request) {
+                $query->where('sucursal_id', $usuario->sucursal_id)
+                    ->whereDate('created_at', $request->fecha)
+                    ->where('estado', '!=', 'eliminada')
+                    ->where('visible', true);
+            })
+            ->get();
+
+        $productosVendidos = [];
+        foreach ($ventaProductos as $ventaProducto) {
+            $productosVendidos[] = [
+                'nombre' => $ventaProducto->producto->nombre,
+                'cantidad' => $ventaProducto->cantidad,
+            ];
+        }
+
+        return Inertia::render('Corte/index', [
+            'corte' => $ultimoCorte,
+            'cortes' => $cortes,
+            'ventas' => $ventas,
+            'inventario' => $inventario,
+            'gastos' => $gastos,
+            'totalGastos' => $totalGastos,
+            'registrosInventario' => $registrosInventario,
+            'sobrantes' => $sobrantes,
+            'sobrantesInventario' => $sobrantesInventario,
+            'categoriasInventario' => $categoriasInventario,
+            'cantidadDeCortes' => $cantidadDeCortes,
+            'ventasProductos' => $ventaProductos,
+            'productosVendidos' => $productosVendidos,
+            'success' => 'Corte final y reconciliación guardados correctamente.',
+        ]);
     }
 
 
@@ -418,6 +551,10 @@ class CorteCajaController extends Controller
             ->whereDate('created_at', Carbon::today())
             ->get();
         
+
+        // Calculate system totals for display
+        $totalEfectivo = $ventasEfectivo->sum('total');
+        $totalTarjeta = $ventasTarjeta->sum('total');
 
         return Inertia::render('Corte/index', [
             'inventario' => $inventario,

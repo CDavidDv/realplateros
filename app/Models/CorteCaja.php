@@ -22,6 +22,9 @@ class CorteCaja extends Model
         'ventas_total',
         'dinero_en_efectivo',
         'dinero_tarjeta',
+        'efectivo_contado',
+        'tarjeta_contada',
+        'notas_reconciliacion',
     ];
 
     // Relación con la tabla Sucursal

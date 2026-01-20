@@ -85,7 +85,12 @@ class HandleInertiaRequests extends Middleware
                 ->get();
 
             return array_merge(parent::share($request), [
-                
+                // Flash messages para que back()->with() funcione con Inertia
+                'flash' => [
+                    'success' => fn () => $request->session()->get('success'),
+                    'error' => fn () => $request->session()->get('error'),
+                ],
+
                 'auth' => [
                     'user' => $request->user() ? [
                         'id' => $request->user()->id,
@@ -110,6 +115,11 @@ class HandleInertiaRequests extends Middleware
         }
 
         return array_merge(parent::share($request), [
+            // Flash messages para que back()->with() funcione con Inertia
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+            ],
             'auth' => [
                 'user' => null,
             ],

@@ -74,6 +74,108 @@
               {{ savingFinalCash ? 'Guardando...' : 'Guardar' }}
             </button>
           </div>
+
+          <!-- Reconciliación de Pagos -->
+          <div class="mt-6 border-t pt-6" v-if="!finalCashSaved">
+            <h3 class="text-lg font-semibold mb-4">Comparación de Pagos</h3>
+
+            <!-- Sistema values (read-only) - Totales del corte actual -->
+            <div class="grid grid-cols-2 gap-4 mb-4 p-4 bg-blue-50 rounded-lg">
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Efectivo (Sistema - Este Corte)</label>
+                <input
+                  type="number"
+                  :value="safeToFixed(totalesCorteActual.efectivo)"
+                  disabled
+                  class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 bg-gray-100 focus:outline-none sm:text-sm rounded-md"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Tarjeta (Sistema - Este Corte)</label>
+                <input
+                  type="number"
+                  :value="safeToFixed(totalesCorteActual.tarjeta)"
+                  disabled
+                  class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 bg-gray-100 focus:outline-none sm:text-sm rounded-md"
+                />
+              </div>
+            </div>
+
+            <!-- Actual values (input) -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label for="efectivoContado" class="block text-sm font-medium text-gray-700">Efectivo Contado *</label>
+                <input
+                  type="number"
+                  id="efectivoContado"
+                  v-model="efectivoContado"
+                  class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+                  min="0"
+                  step="0.01"
+                  placeholder="Ingrese efectivo contado"
+                  :disabled="finalCashSaved"
+                />
+              </div>
+              <div>
+                <label for="tarjetaContada" class="block text-sm font-medium text-gray-700">Terminal/Tarjeta *</label>
+                <input
+                  type="number"
+                  id="tarjetaContada"
+                  v-model="tarjetaContada"
+                  class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+                  min="0"
+                  step="0.01"
+                  placeholder="Ingrese monto de terminal"
+                  :disabled="finalCashSaved"
+                />
+              </div>
+            </div>
+
+            <!-- Differences display -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div class="p-3 rounded-lg" :class="[
+                Math.abs(diferenciaEfectivo) < 0.01 ? 'bg-gray-100' :
+                diferenciaEfectivo > 0 ? 'bg-green-100' : 'bg-red-100'
+              ]">
+                <label class="block text-sm font-medium text-gray-700">Diferencia Efectivo</label>
+                <p :class="[
+                  'text-lg font-bold mt-1',
+                  Math.abs(diferenciaEfectivo) < 0.01 ? 'text-gray-700' :
+                  diferenciaEfectivo > 0 ? 'text-green-700' : 'text-red-700'
+                ]">
+                  ${{ safeToFixed(diferenciaEfectivo) }}
+                </p>
+              </div>
+              <div class="p-3 rounded-lg" :class="[
+                Math.abs(diferenciaTarjeta) < 0.01 ? 'bg-gray-100' :
+                diferenciaTarjeta > 0 ? 'bg-green-100' : 'bg-red-100'
+              ]">
+                <label class="block text-sm font-medium text-gray-700">Diferencia Tarjeta</label>
+                <p :class="[
+                  'text-lg font-bold mt-1',
+                  Math.abs(diferenciaTarjeta) < 0.01 ? 'text-gray-700' :
+                  diferenciaTarjeta > 0 ? 'text-green-700' : 'text-red-700'
+                ]">
+                  ${{ safeToFixed(diferenciaTarjeta) }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Notes field (required if differences exist) -->
+            <div v-if="hayDiferencias" class="mb-4">
+              <label for="notasReconciliacion" class="block text-sm font-medium text-red-700">
+                Justificación de Diferencias <span class="text-red-600">*</span>
+              </label>
+              <textarea
+                id="notasReconciliacion"
+                v-model="notasReconciliacion"
+                placeholder="Explique las diferencias encontradas..."
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                rows="3"
+                :disabled="finalCashSaved"
+              ></textarea>
+            </div>
+          </div>
           <button
             v-if="finalCashSaved && !savingFinalCash && !savingNewCorte"
             @click="handleNewCorte"
@@ -92,21 +194,28 @@
           <div class="grid grid-cols-2 gap-4">
             <!-- Lista de cortes -->
             <div v-if="props.cortes && props.cortes?.length > 0" class="col-span-2 mb-4">
-              <h3 class="text-lg font-semibold mb-2">Cortes del día</h3>
+              <h3 class="text-lg font-semibold mb-2">Cortes del día <span class="text-sm text-gray-500">(click para ver detalle)</span></h3>
               <div class="grid grid-cols-3 gap-4">
                 <div v-for="(corte, index) in props.cortes" :key="corte.id"
-                     class="bg-white p-3 rounded shadow"
+                     class="bg-white p-3 rounded shadow cursor-pointer hover:bg-orange-50 transition-colors"
+                     :class="{ 'ring-2 ring-orange-500 bg-orange-50': selectedCorteId === corte.id }"
+                     @click="filterVentasByCorte(corte.id)"
                      >
                   <h4 class="font-medium">Corte #{{ index + 1 }}</h4>
                   <p class="text-sm text-gray-600">Inicial: ${{ safeToFixed(corte.dinero_inicio || 0) }}</p>
                   <p class="text-sm text-gray-600">Final: ${{ safeToFixed(corte.dinero_final || 0) }}</p>
                   <p class="text-sm text-gray-600">Hora inicio: {{ formatDate(corte.created_at) }}</p>
-                  <p class="text-sm text-gray-600">Hora fin: {{ formatDate(corte.updated_at) }}</p>
+                  <p class="text-sm text-gray-600">Hora fin: {{ corte.dinero_final ? formatDate(corte.updated_at) : 'En curso' }}</p>
+                  <!-- Mostrar totales del corte -->
+                  <div class="mt-2 pt-2 border-t text-xs">
+                    <p class="text-green-600">Efectivo: ${{ safeToFixed(calcularTotalesPorCorte(getVentasDelCorte(corte.id)).efectivo) }}</p>
+                    <p class="text-yellow-600">Tarjeta: ${{ safeToFixed(calcularTotalesPorCorte(getVentasDelCorte(corte.id)).tarjeta) }}</p>
+                  </div>
                 </div>
-                
+
               </div>
-              <button class="no-print mt-2 text-sm rounded-lg shadow-lg px-3 py-2 bg-gray-500 text-white hover:bg-gray-600 mb-4" @click="resetCorteSelection">
-                Restablecer Selección
+              <button v-if="selectedCorteId" class="no-print mt-2 text-sm rounded-lg shadow-lg px-3 py-2 bg-gray-500 text-white hover:bg-gray-600 mb-4" @click="resetCorteSelection">
+                Restablecer Selección (Ver Todo)
               </button>
             </div>
 
@@ -139,6 +248,65 @@
             <div>
               <p class="text-sm text-gray-600">Total menos gastos:</p>
               <p class="font-medium">${{ Number(cashPayments) + Number(cardPayments) - Number(totalGastos) }}</p>
+            </div>
+
+            <!-- Reconciliation Summary -->
+            <div v-if="reconciliationSaved" class="col-span-2 mt-6 pt-6 border-t">
+              <h3 class="text-lg font-semibold mb-4">Resumen de comparación (Este Corte)</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                  <h4 class="font-semibold text-gray-700 mb-2">Sistema (Calculado)</h4>
+                  <p class="text-sm text-gray-600">Efectivo: <span class="font-medium">${{ safeToFixed(totalesCorteActual.efectivo) }}</span></p>
+                  <p class="text-sm text-gray-600">Tarjeta: <span class="font-medium">${{ safeToFixed(totalesCorteActual.tarjeta) }}</span></p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                  <h4 class="font-semibold text-gray-700 mb-2">Contado (Real)</h4>
+                  <p class="text-sm text-gray-600">Efectivo: <span class="font-medium">${{ safeToFixed(efectivoContado) }}</span></p>
+                  <p class="text-sm text-gray-600">Tarjeta: <span class="font-medium">${{ safeToFixed(tarjetaContada) }}</span></p>
+                </div>
+              </div>
+
+              <div class="mt-4 grid grid-cols-2 gap-4">
+                <div :class="[
+                  'p-4 rounded-lg',
+                  Math.abs(diferenciaEfectivo) < 0.01 ? 'bg-gray-100' :
+                  diferenciaEfectivo > 0 ? 'bg-green-100' : 'bg-red-100'
+                ]">
+                  <h4 class="font-semibold text-gray-700 mb-2">Diferencia Efectivo</h4>
+                  <p :class="[
+                    'text-xl font-bold',
+                    Math.abs(diferenciaEfectivo) < 0.01 ? 'text-gray-700' :
+                    diferenciaEfectivo > 0 ? 'text-green-700' : 'text-red-700'
+                  ]">
+                    ${{ safeToFixed(diferenciaEfectivo) }}
+                  </p>
+                  <p class="text-xs text-gray-600 mt-1">
+                    {{ Math.abs(diferenciaEfectivo) < 0.01 ? 'Cuadrado' : diferenciaEfectivo > 0 ? 'Sobrante' : 'Faltante' }}
+                  </p>
+                </div>
+                <div :class="[
+                  'p-4 rounded-lg',
+                  Math.abs(diferenciaTarjeta) < 0.01 ? 'bg-gray-100' :
+                  diferenciaTarjeta > 0 ? 'bg-green-100' : 'bg-red-100'
+                ]">
+                  <h4 class="font-semibold text-gray-700 mb-2">Diferencia Tarjeta</h4>
+                  <p :class="[
+                    'text-xl font-bold',
+                    Math.abs(diferenciaTarjeta) < 0.01 ? 'text-gray-700' :
+                    diferenciaTarjeta > 0 ? 'text-green-700' : 'text-red-700'
+                  ]">
+                    ${{ safeToFixed(diferenciaTarjeta) }}
+                  </p>
+                  <p class="text-xs text-gray-600 mt-1">
+                    {{ Math.abs(diferenciaTarjeta) < 0.01 ? 'Cuadrado' : diferenciaTarjeta > 0 ? 'Sobrante' : 'Faltante' }}
+                  </p>
+                </div>
+              </div>
+
+              <div v-if="notasReconciliacion" class="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                <h4 class="font-semibold text-gray-700 mb-2">Notas de Reconciliación</h4>
+                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ notasReconciliacion }}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -461,6 +629,12 @@ const initialCashSaved = ref(!!props?.corte?.dinero_inicio)
 const finalCashSaved = ref(!!props?.corte?.dinero_final)
 const savingNewCorte = ref(false)
 
+// Reconciliation fields
+const efectivoContado = ref(props?.corte?.efectivo_contado || 0)
+const tarjetaContada = ref(props?.corte?.tarjeta_contada || 0)
+const notasReconciliacion = ref(props?.corte?.notas_reconciliacion || '')
+const reconciliationSaved = ref(!!(props?.corte?.efectivo_contado && props?.corte?.tarjeta_contada))
+
 const tabTitles = ['ID Venta', 'Creado por', 'Hora', 'Productos vendidos', 'Metodo de pago', 'Factura', 'Total']
 
 const isToday = computed(() => {
@@ -468,6 +642,37 @@ const isToday = computed(() => {
   const formattedToday = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   return selectedFilter.value === 'day' && selectedDate.value === formattedToday;
 });
+
+// Obtener las ventas del corte actual (el último corte abierto)
+const ventasCorteActual = computed(() => {
+  // Buscar el corte actual en ventasPorCorte
+  const corteActual = ventasPorCorte.value.find(c => c.id === props.corte?.id)
+  return corteActual?.ventas || []
+})
+
+// Totales del corte actual (solo las ventas del período de este corte)
+const totalesCorteActual = computed(() => {
+  const ventas = ventasCorteActual.value
+  return {
+    efectivo: ventas.reduce((total, venta) =>
+      venta.metodo_pago === 'efectivo' ? total + Number(venta.total) : total, 0),
+    tarjeta: ventas.reduce((total, venta) =>
+      venta.metodo_pago === 'tarjeta' ? total + Number(venta.total) : total, 0),
+  }
+})
+
+// Reconciliation computed properties - usa totales del corte actual, no de todo el día
+const diferenciaEfectivo = computed(() => {
+  return Number(efectivoContado.value) - Number(totalesCorteActual.value.efectivo)
+})
+
+const diferenciaTarjeta = computed(() => {
+  return Number(tarjetaContada.value) - Number(totalesCorteActual.value.tarjeta)
+})
+
+const hayDiferencias = computed(() => {
+  return Math.abs(diferenciaEfectivo.value) > 0.01 || Math.abs(diferenciaTarjeta.value) > 0.01
+})
 
 const formatDate = (dateString) => {
   if (!dateString) return '-';
@@ -482,16 +687,17 @@ const formatDate = (dateString) => {
 }
 
 const ventasPorCorte = ref([])
+const allVentasPorCorte = ref([]) // Para guardar todos los cortes cuando se filtra por uno específico
 
 //separar ventar por cada corte
 const SepararVentaPorCorte = () => {
   ventasPorCorte.value = []
-  
+
   // Si no hay ventas, mostrar mensaje
   if (!ventas.value || ventas.value?.length === 0) {
     return
   }
-  
+
   // Si no hay cortes, mostrar todas las ventas en un solo grupo
   if (!props.cortes || props.cortes?.length === 0) {
     ventasPorCorte.value = [{
@@ -504,35 +710,34 @@ const SepararVentaPorCorte = () => {
   }
 
   // Ordenar los cortes por fecha de creación
-  const cortesOrdenados = [...props.cortes].sort((a, b) => 
+  const cortesOrdenados = [...props.cortes].sort((a, b) =>
     new Date(a.created_at) - new Date(b.created_at)
   )
 
   // Procesar cada corte
   cortesOrdenados.forEach((corte, index) => {
-    const corteFin = corte.updated_at ? new Date(corte.updated_at) : null
+    // Un corte está cerrado si tiene dinero_final
+    const corteCerrado = corte.dinero_final !== null && corte.dinero_final !== undefined
+    // Si el corte está cerrado, usar updated_at como fin. Si no, usar ahora
+    const corteFin = corteCerrado ? new Date(corte.updated_at) : new Date()
+
     const corteAnterior = index > 0 ? cortesOrdenados[index - 1] : null
+    // El corte anterior siempre debería estar cerrado para que exista otro después
     const corteAnteriorFin = corteAnterior?.updated_at ? new Date(corteAnterior.updated_at) : null
 
     let ventasDelCorte = []
 
     if (index === 0) {
-      // Primer corte: incluir todas las ventas desde el inicio del día hasta el final del primer corte
+      // Primer corte: incluir todas las ventas desde el inicio del día hasta el final del corte
       ventasDelCorte = ventas.value.filter(venta => {
         const ventaDate = new Date(venta.created_at)
-        return ventaDate <= (corteFin || new Date())
+        return ventaDate <= corteFin
       })
-    } else if (corteFin) {
-      // Corte intermedio con hora de finalización: incluir ventas desde el final del corte anterior hasta el final de este corte
+    } else {
+      // Cortes posteriores: desde el fin del corte anterior hasta el fin de este corte
       ventasDelCorte = ventas.value.filter(venta => {
         const ventaDate = new Date(venta.created_at)
         return ventaDate > corteAnteriorFin && ventaDate <= corteFin
-      })
-    } else {
-      // Último corte sin hora de finalización: incluir todas las ventas después del final del corte anterior
-      ventasDelCorte = ventas.value.filter(venta => {
-        const ventaDate = new Date(venta.created_at)
-        return ventaDate > corteAnteriorFin
       })
     }
 
@@ -548,14 +753,25 @@ const SepararVentaPorCorte = () => {
 }
 
 // Calcular totales por corte
-const calcularTotalesPorCorte = (ventas) => {
-  return {
-    efectivo: ventas.reduce((total, venta) => 
-      venta.metodo_pago === 'efectivo' ? total + Number(venta.total) : total, 0),
-    tarjeta: ventas.reduce((total, venta) => 
-      venta.metodo_pago === 'tarjeta' ? total + Number(venta.total) : total, 0),
-    total: ventas.reduce((total, venta) => total + Number(venta.total), 0)
+const calcularTotalesPorCorte = (ventasCorte) => {
+  if (!ventasCorte || !Array.isArray(ventasCorte)) {
+    return { efectivo: 0, tarjeta: 0, total: 0 }
   }
+  return {
+    efectivo: ventasCorte.reduce((total, venta) =>
+      venta.metodo_pago === 'efectivo' ? total + Number(venta.total) : total, 0),
+    tarjeta: ventasCorte.reduce((total, venta) =>
+      venta.metodo_pago === 'tarjeta' ? total + Number(venta.total) : total, 0),
+    total: ventasCorte.reduce((total, venta) => total + Number(venta.total), 0)
+  }
+}
+
+// Obtener ventas de un corte específico por ID
+const getVentasDelCorte = (corteId) => {
+  // Usar datos originales si están disponibles, sino usar ventasPorCorte
+  const datos = allVentasPorCorte.value.length > 0 ? allVentasPorCorte.value : ventasPorCorte.value
+  const corte = datos.find(c => c.id === corteId)
+  return corte?.ventas || []
 }
 
 const registrosInventario = ref(props?.registrosInventario || [])
@@ -607,6 +823,8 @@ const fetchFilteredData = () => {
       SepararVentaPorCorte(); // Llamar a SepararVentaPorCorte después de actualizar los datos
       // Limpiar datos originales para que se actualicen en el próximo filtro
       ventasPorCorteOriginal.value = [];
+      allVentasPorCorte.value = [];
+      selectedCorteId.value = null;
     },
     onError(e) {
       showToast("error", e.props.flash.error || "Error al obtener datos con este filtro");
@@ -621,6 +839,8 @@ const resetFilters = () => {
   selectedDate.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   selectedWeek.value = null
   selectedMonth.value = null
+  selectedCorteId.value = null
+  allVentasPorCorte.value = []
   fetchFilteredData()
 }
 
@@ -747,40 +967,26 @@ const limpiarFiltros = () => {
   SepararVentaPorCorte();
 };
 
-const filterVentasByCorte = (corteId, createdAt, updatedAt) => {
-  // Validar que corteId, createdAt y updatedAt sean válidos
-  if (!corteId || !createdAt || !updatedAt) {
-    console.error("Parámetros inválidos:", { corteId, createdAt, updatedAt });
+const filterVentasByCorte = (corteId) => {
+  if (!corteId) {
+    console.error("corteId inválido");
     return;
   }
 
-  console.log(createdAt, updatedAt)
-  //hora en mexico es 6 horas mas
-  const createdAtMexico = new Date(createdAt).getTime() + 6 * 60 * 60 * 1000;
-  const updatedAtMexico = new Date(updatedAt).getTime() + 6 * 60 * 60 * 1000;
-  console.log(createdAtMexico, updatedAtMexico)
-  const createdAtMexicoDate = new Date(createdAtMexico);
-  const updatedAtMexicoDate = new Date(updatedAtMexico);
-  console.log(createdAtMexicoDate, updatedAtMexicoDate)
+  // Guardar todos los cortes si aún no se ha guardado
+  if (allVentasPorCorte.value.length === 0) {
+    allVentasPorCorte.value = JSON.parse(JSON.stringify(ventasPorCorte.value));
+  }
 
   selectedCorteId.value = corteId;
 
-  // Filtrar las ventas que están dentro del rango de tiempo del corte
-  ventas.value = props.ventas.filter(venta => {
-    // Verifica que venta.created_at sea una cadena de fecha válida
-    if (!venta.created_at) {
-      return false;
-    }
-
-    const ventaDate = new Date(venta.created_at);
-    if (isNaN(ventaDate)) {
-      return false;
-    }
-
-    return ventaDate >= new Date(createdAt) && ventaDate <= new Date(updatedAt);
-  });
-
-  console.log("Ventas filtradas:", ventas.value);
+  // Obtener las ventas del corte seleccionado
+  const corteSeleccionado = allVentasPorCorte.value.find(c => c.id === corteId);
+  if (corteSeleccionado) {
+    // Mostrar solo el corte seleccionado en la tabla de ventas
+    ventasPorCorte.value = [corteSeleccionado];
+    ventas.value = corteSeleccionado.ventas;
+  }
 
   // Actualizar los pagos en efectivo y con tarjeta
   calculatePayments();
@@ -788,6 +994,13 @@ const filterVentasByCorte = (corteId, createdAt, updatedAt) => {
 
 const resetCorteSelection = () => {
   selectedCorteId.value = null;
+
+  // Restaurar todos los cortes
+  if (allVentasPorCorte.value.length > 0) {
+    ventasPorCorte.value = JSON.parse(JSON.stringify(allVentasPorCorte.value));
+  } else {
+    SepararVentaPorCorte();
+  }
   ventas.value = props.ventas; // Mostrar todas las ventas
   calculatePayments(); // Recalcular pagos
 };
@@ -824,6 +1037,7 @@ const handleSaveInitialCash = () => {
     router.post(route('corte-caja.guardar-inicial'), data, {
       preserveScroll: true,
       onSuccess: (e) => {
+        console.log(e);
         if(e.props.flash.success){
           if (e.props.corte) {
             initialCash.value = e.props.corte.dinero_inicio;
@@ -843,11 +1057,31 @@ const handleSaveInitialCash = () => {
 };
 
 const handleSaveFinalCash = () => {
+  // Validate reconciliation fields
+  if (!efectivoContado.value || Number(efectivoContado.value) < 0) {
+    showToast("error", "Debe ingresar el efectivo contado");
+    return;
+  }
+
+  if (!tarjetaContada.value || Number(tarjetaContada.value) < 0) {
+    showToast("error", "Debe ingresar el monto de tarjeta");
+    return;
+  }
+
+  // Validate notes if there are differences
+  if (hayDiferencias.value && (!notasReconciliacion.value || trim(notasReconciliacion.value) === '')) {
+    showToast("error", "Debe justificar las diferencias encontradas");
+    return;
+  }
+
   const data = {
     sucursal_id: props?.sucursal_id,
     usuario_id: props?.usuario_id,
     fecha: selectedDate.value,
-    dinero_final: finalCash.value
+    dinero_final: finalCash.value,
+    efectivo_contado: efectivoContado.value,
+    tarjeta_contada: tarjetaContada.value,
+    notas_reconciliacion: notasReconciliacion.value
   };
 
   savingFinalCash.value = true;
@@ -855,15 +1089,35 @@ const handleSaveFinalCash = () => {
   try {
     router.post('/corte-caja/guardar-final', data, { preserveScroll: true,
       onSuccess: (e) => {
-        if(e.props.flash.success){
+        console.log('Response:', e.props);
+        // Acceder a la respuesta Inertia
+        if(e.props.success || e.props.corte){
           // Actualizar el corte en los datos locales
           if (e.props.corte) {
             finalCash.value = e.props.corte.dinero_final;
+            efectivoContado.value = e.props.corte.efectivo_contado;
+            tarjetaContada.value = e.props.corte.tarjeta_contada;
+            notasReconciliacion.value = e.props.corte.notas_reconciliacion;
             finalCashSaved.value = true;
+            reconciliationSaved.value = true;
           }
-          showToast("success", e.props.flash.success);
+          showToast("success", e.props.success || "Corte final y reconciliación guardados correctamente.");
         }else{
-          showToast("error", e.props.flash.error);
+          // Intenta con Jetstream flash
+          const flash = e.props?.jetstream?.flash || e.props?.flash || {};
+          if(flash.success){
+            showToast("success", flash.success);
+            if (e.props.corte) {
+              finalCash.value = e.props.corte.dinero_final;
+              efectivoContado.value = e.props.corte.efectivo_contado;
+              tarjetaContada.value = e.props.corte.tarjeta_contada;
+              notasReconciliacion.value = e.props.corte.notas_reconciliacion;
+              finalCashSaved.value = true;
+              reconciliationSaved.value = true;
+            }
+          }else if(flash.error){
+            showToast("error", flash.error);
+          }
         }
         savingFinalCash.value = false;
       },
@@ -873,6 +1127,8 @@ const handleSaveFinalCash = () => {
     savingFinalCash.value = false;
   }
 };
+
+const trim = (str) => str?.trim() || '';
 
 onMounted(() => {
   // Asegurarse de que los datos estén inicializados
