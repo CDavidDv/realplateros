@@ -4,6 +4,20 @@
   >
     <h1 class="text-3xl font-semibold mb-6 text-center">Gestión de Personal</h1>
 
+    <!-- Botón Actividad Personal (solo admin) -->
+    <div class="flex justify-center mb-6" v-if="esAdmin">
+      <a
+        href="/actividad-personal"
+        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-md"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+          <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
+        </svg>
+        Ver Actividad del Personal
+      </a>
+    </div>
+
     <!--Notificaciones de contrato-->
     <div>
       <div class="container my-10 grid gap-2" v-if="contratosVencidos.length > 0 || contratosPorVencer.length > 0">
@@ -264,6 +278,12 @@ const availableSucursales = computed(() => {
     return props.sucursales.filter(s => s.id === 0);
   }
   return props.sucursales;
+});
+
+// Verificar si el usuario es admin
+const esAdmin = computed(() => {
+  const roles = props.user?.roles || [];
+  return roles.includes('admin') || roles[0] === 'admin';
 });
 
 const itemName = (item) => item.name || item.email || item.nombre;

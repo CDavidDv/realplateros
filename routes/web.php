@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActividadPersonalController;
 use App\Http\Controllers\AlmacenController;
 use App\Http\Controllers\CheckInCheckOutController;
 use App\Http\Controllers\CorteCajaController;
@@ -83,6 +84,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     // Rutas específicas para trabajadores de almacén
     Route::get('/personal/almacen/trabajadores', [UsuarioController::class, 'trabajadoresAlmacen'])->name('personal.almacen.trabajadores');
     Route::get('/personal/estadisticas', [UsuarioController::class, 'estadisticasPersonal'])->name('personal.estadisticas');
+
+    // Rutas para actividad del personal
+    Route::get('/actividad-personal', [ActividadPersonalController::class, 'index'])->name('actividad-personal');
+    Route::post('/actividad-personal/filtro', [ActividadPersonalController::class, 'filtro'])->name('actividad-personal.filtro');
 
     Route::resource('sucursales', SucursalController::class)->parameters([
         'sucursales' => 'sucursal',  // Esto asegura que el parámetro sea 'sucursal'
