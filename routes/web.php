@@ -17,6 +17,7 @@ use App\Http\Controllers\VentaController;
 use App\Http\Controllers\ControlProduccionController;
 use App\Http\Controllers\GestorVentasController;
 use App\Http\Controllers\NotificacionUmbralController;
+use App\Http\Controllers\NotificacionPersonalController;
 use Illuminate\Support\Facades\Route;
 use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 
@@ -121,6 +122,15 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::get('/almacen/graficas/movimientos-inventario', [AlmacenController::class, 'movimientosInventario'])->middleware('role:almacen');
     Route::get('/almacen/graficas/productos-individuales-por-sucursal', [AlmacenController::class, 'productosIndividualesPorSucursal'])->middleware('role:almacen');
     Route::get('/almacen/graficas/movimientos-productos-por-sucursal', [AlmacenController::class, 'movimientosProductosPorSucursal'])->middleware('role:almacen');
+
+    // Hoja de corte almacén
+    Route::get('/almacen/hoja-corte', [AlmacenController::class, 'hojaCorte'])->name('almacen.hoja-corte')->middleware('role:almacen');
+    Route::post('/almacen/hoja-corte', [AlmacenController::class, 'hojaCorte'])->middleware('role:almacen');
+    Route::get('/almacen/hoja-corte/export', [AlmacenController::class, 'hojaCorteExport'])->name('almacen.hoja-corte.export')->middleware('role:almacen');
+
+    // Notificaciones de turno (personal)
+    Route::get('/api/notificaciones-personal', [NotificacionPersonalController::class, 'index'])->name('notificaciones-personal.index');
+    Route::post('/api/notificaciones-personal/{notificacion}/atender', [NotificacionPersonalController::class, 'atender'])->name('notificaciones-personal.atender');
 
     Route::get('/api/control-produccion', [ControlProduccionController::class, 'index']);
     

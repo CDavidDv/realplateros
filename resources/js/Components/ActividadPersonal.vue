@@ -2,6 +2,126 @@
   <div class="relative px-6 py-8 bg-white shadow-lg sm:rounded-3xl sm:p-12">
     <h1 class="text-3xl font-semibold mb-6 text-center">Actividad del Personal</h1>
 
+    <!-- Tabs -->
+    <div class="flex border-b border-gray-200 mb-6">
+      <button
+        @click="tabActivo = 'actividades'"
+        :class="tabActivo === 'actividades' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
+      >
+        Actividades
+      </button>
+      <button
+        v-if="isAdmin"
+        @click="tabActivo = 'notificaciones'; cargarNotificaciones()"
+        :class="tabActivo === 'notificaciones' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
+      >
+        Notificaciones de Turno
+      </button>
+    </div>
+
+    <!-- Tab: Notificaciones de Turno -->
+    <div v-if="tabActivo === 'notificaciones' && isAdmin">
+      <!-- Filtros notificaciones -->
+      <div class="mb-4 bg-gray-50 p-4 rounded-lg">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+            <input type="date" v-model="filtrosNotif.fecha_inicio"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+            <input type="date" v-model="filtrosNotif.fecha_fin"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sucursal</label>
+            <select v-model="filtrosNotif.sucursal_id"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+              <option :value="null">Todas</option>
+              <option v-for="s in sucursales" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+            <select v-model="filtrosNotif.tipo"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+              <option :value="null">Todos</option>
+              <option value="faltante">Faltante</option>
+              <option value="excedente">Excedente</option>
+              <option value="horneado">Horneado</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+            <select v-model="filtrosNotif.atendida"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+              <option :value="null">Todos</option>
+              <option value="0">Sin atender</option>
+              <option value="1">Atendidas</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-4 flex justify-end">
+          <button @click="cargarNotificaciones" :disabled="cargandoNotif"
+            class="bg-orange-500 text-white px-6 py-2 rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50">
+            <span v-if="cargandoNotif">Cargando...</span>
+            <span v-else>Filtrar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabla notificaciones -->
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Fecha/Hora</th>
+              <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Trabajador</th>
+              <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Sucursal</th>
+              <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Tipo</th>
+              <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Descripción</th>
+              <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Atendida</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="notif in notificaciones" :key="notif.id" class="hover:bg-gray-50 transition-colors">
+              <td class="px-4 py-3 border-b">
+                <div class="text-sm font-medium text-gray-900">{{ notif.fecha }}</div>
+                <div class="text-xs text-gray-500">{{ notif.hora }}</div>
+              </td>
+              <td class="px-4 py-3 border-b text-sm text-gray-700">{{ notif.trabajador }}</td>
+              <td class="px-4 py-3 border-b text-sm text-gray-700">{{ notif.sucursal }}</td>
+              <td class="px-4 py-3 border-b">
+                <span :class="getTipoNotifBadge(notif.tipo)" class="px-2 py-1 text-xs font-medium rounded-full">
+                  {{ notif.tipo }}
+                </span>
+              </td>
+              <td class="px-4 py-3 border-b text-sm text-gray-700">{{ notif.descripcion }}</td>
+              <td class="px-4 py-3 border-b">
+                <span v-if="notif.atendida" class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                  Atendida
+                </span>
+                <button v-else @click="atenderNotificacion(notif)"
+                  class="px-3 py-1 text-xs font-medium bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-colors">
+                  Atender
+                </button>
+              </td>
+            </tr>
+            <tr v-if="notificaciones.length === 0">
+              <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                No se encontraron notificaciones para los filtros seleccionados
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Actividades -->
+    <div v-if="tabActivo === 'actividades'">
     <!-- Filtros -->
     <div class="mb-6 bg-gray-50 p-4 rounded-lg">
       <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -193,6 +313,7 @@
     <div class="mt-2 text-center text-sm text-gray-500">
       Mostrando {{ actividadesPaginadas.length }} de {{ actividades.length }} actividades
     </div>
+    </div><!-- fin tab actividades -->
   </div>
 </template>
 
@@ -209,6 +330,62 @@ const usuarios = ref(props.usuarios || []);
 const sucursales = ref(props.sucursales || []);
 const actividades = ref(props.actividades || []);
 const resumen = ref(props.resumen || {});
+
+// Tabs
+const tabActivo = ref('actividades');
+const isAdmin = computed(() => {
+  const roles = props.auth?.user?.roles || [];
+  return roles.some(r => (r.name || r) === 'admin');
+});
+
+// Notificaciones de turno
+const notificaciones = ref([]);
+const cargandoNotif = ref(false);
+const filtrosNotif = ref({
+  fecha_inicio: new Date().toISOString().split('T')[0],
+  fecha_fin: new Date().toISOString().split('T')[0],
+  sucursal_id: null,
+  tipo: null,
+  atendida: null,
+});
+
+const cargarNotificaciones = async () => {
+  cargandoNotif.value = true;
+  try {
+    const params = {};
+    if (filtrosNotif.value.fecha_inicio) params.fecha_inicio = filtrosNotif.value.fecha_inicio;
+    if (filtrosNotif.value.fecha_fin) params.fecha_fin = filtrosNotif.value.fecha_fin;
+    if (filtrosNotif.value.sucursal_id) params.sucursal_id = filtrosNotif.value.sucursal_id;
+    if (filtrosNotif.value.tipo) params.tipo = filtrosNotif.value.tipo;
+    if (filtrosNotif.value.atendida !== null) params.atendida = filtrosNotif.value.atendida;
+    const response = await axios.get('/api/notificaciones-personal', { params });
+    notificaciones.value = response.data.notificaciones;
+  } catch (error) {
+    console.error('Error al cargar notificaciones:', error);
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar las notificaciones', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+  } finally {
+    cargandoNotif.value = false;
+  }
+};
+
+const atenderNotificacion = async (notif) => {
+  try {
+    await axios.post(`/api/notificaciones-personal/${notif.id}/atender`);
+    notif.atendida = true;
+    Swal.fire({ icon: 'success', title: 'Atendida', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+  } catch (error) {
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo marcar como atendida', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+  }
+};
+
+const getTipoNotifBadge = (tipo) => {
+  const classes = {
+    faltante: 'bg-red-100 text-red-800',
+    excedente: 'bg-yellow-100 text-yellow-800',
+    horneado: 'bg-orange-100 text-orange-800',
+  };
+  return classes[tipo] || 'bg-gray-100 text-gray-800';
+};
 
 // Estado de filtros
 const filtros = ref({

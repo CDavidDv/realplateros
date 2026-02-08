@@ -142,7 +142,7 @@
           </select>
         </div>
         <div class="mt-2" v-if="!isAlmacen">
-          <label class="text-xs text-gray-500">Vendedor (matrícula/email)</label>
+          <label class="text-xs text-gray-500">Vendedor (matrícula)</label>
           <input
             v-model="vendedorEmail"
             type="text"

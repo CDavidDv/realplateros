@@ -273,6 +273,174 @@ class AlmacenController extends Controller
     }
 
     /**
+     * Hoja de corte: ingresos vs salidas de inventario
+     */
+    public function hojaCorte(Request $request)
+    {
+        $fechaInicio = $request->input('fecha_inicio', now()->toDateString());
+        $fechaFin = $request->input('fecha_fin', now()->toDateString());
+        $sucursalId = $request->input('sucursal_id');
+
+        $sucursales = Sucursal::orderBy('nombre')->get(['id', 'nombre']);
+
+        $ingresos = EntradasInventario::select(
+            DB::raw('DATE(entradas_inventario.created_at) as fecha'),
+            'entradas_inventario.inventario_id',
+            'inventarios.nombre as producto',
+            'entradas_inventario.cantidad',
+            'entradas_inventario.trabajador_id',
+            DB::raw("'Ingreso' as tipo"),
+            'entradas_inventario.sucursal_id'
+        )
+        ->join('inventarios', 'entradas_inventario.inventario_id', '=', 'inventarios.id')
+        ->whereDate('entradas_inventario.created_at', '>=', $fechaInicio)
+        ->whereDate('entradas_inventario.created_at', '<=', $fechaFin)
+        ->when($sucursalId, fn($q) => $q->where('entradas_inventario.sucursal_id', $sucursalId))
+        ->get()
+        ->map(function ($row) {
+            $trabajador = User::find($row->trabajador_id);
+            return [
+                'fecha' => $row->fecha,
+                'tipo' => 'Ingreso',
+                'producto' => $row->producto,
+                'cantidad' => $row->cantidad,
+                'origen_destino' => 'Almacén',
+                'trabajador' => $trabajador?->name ?? '-',
+            ];
+        });
+
+        $salidas = TicketProductosAsignacion::select(
+            DB::raw('DATE(tickets_asignacion.created_at) as fecha'),
+            'ticket_productos_asignacion.producto_id',
+            'inventarios.nombre as producto',
+            'ticket_productos_asignacion.cantidad',
+            'tickets_asignacion.sucursal_id',
+            'tickets_asignacion.empleado_id'
+        )
+        ->join('tickets_asignacion', 'ticket_productos_asignacion.ticket_asignacion_id', '=', 'tickets_asignacion.id')
+        ->join('inventarios', 'ticket_productos_asignacion.producto_id', '=', 'inventarios.id')
+        ->whereDate('tickets_asignacion.created_at', '>=', $fechaInicio)
+        ->whereDate('tickets_asignacion.created_at', '<=', $fechaFin)
+        ->whereNotNull('tickets_asignacion.sucursal_id')
+        ->when($sucursalId, fn($q) => $q->where('tickets_asignacion.sucursal_id', $sucursalId))
+        ->get()
+        ->map(function ($row) {
+            $sucursal = Sucursal::find($row->sucursal_id);
+            $empleado = User::find($row->empleado_id);
+            return [
+                'fecha' => $row->fecha,
+                'tipo' => 'Salida',
+                'producto' => $row->producto,
+                'cantidad' => $row->cantidad,
+                'origen_destino' => $sucursal?->nombre ?? '-',
+                'trabajador' => $empleado?->name ?? '-',
+            ];
+        });
+
+        $movimientos = $ingresos->concat($salidas)->sortBy('fecha')->values();
+
+        $totalIngresos = $ingresos->sum('cantidad');
+        $totalSalidas = $salidas->sum('cantidad');
+
+        // Agrupaciones para gráficas
+        $porDia = $movimientos->groupBy('fecha')->map(function ($grupo, $fecha) {
+            return [
+                'fecha' => $fecha,
+                'ingresos' => $grupo->where('tipo', 'Ingreso')->sum('cantidad'),
+                'salidas' => $grupo->where('tipo', 'Salida')->sum('cantidad'),
+            ];
+        })->values();
+
+        $topProductos = $movimientos->groupBy('producto')->map(function ($grupo, $nombre) {
+            return ['producto' => $nombre, 'total' => $grupo->sum('cantidad')];
+        })->sortByDesc('total')->take(10)->values();
+
+        $porSucursal = $salidas->groupBy('origen_destino')->map(function ($grupo, $nombre) {
+            return ['sucursal' => $nombre, 'total' => $grupo->sum('cantidad')];
+        })->sortByDesc('total')->values();
+
+        return Inertia::render('Almacen/HojaCorte', [
+            'movimientos' => $movimientos,
+            'resumen' => [
+                'total_ingresos' => $totalIngresos,
+                'total_salidas' => $totalSalidas,
+                'balance' => $totalIngresos - $totalSalidas,
+            ],
+            'graficas' => [
+                'por_dia' => $porDia,
+                'top_productos' => $topProductos,
+                'por_sucursal' => $porSucursal,
+            ],
+            'sucursales' => $sucursales,
+            'filtros' => [
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
+                'sucursal_id' => $sucursalId,
+            ],
+        ]);
+    }
+
+    /**
+     * Exportar hoja de corte como CSV
+     */
+    public function hojaCorteExport(Request $request)
+    {
+        $fechaInicio = $request->input('fecha_inicio', now()->toDateString());
+        $fechaFin = $request->input('fecha_fin', now()->toDateString());
+        $sucursalId = $request->input('sucursal_id');
+
+        $ingresos = EntradasInventario::select(
+            DB::raw('DATE(entradas_inventario.created_at) as fecha'),
+            'inventarios.nombre as producto',
+            'entradas_inventario.cantidad',
+            'entradas_inventario.trabajador_id',
+            'entradas_inventario.sucursal_id'
+        )
+        ->join('inventarios', 'entradas_inventario.inventario_id', '=', 'inventarios.id')
+        ->whereDate('entradas_inventario.created_at', '>=', $fechaInicio)
+        ->whereDate('entradas_inventario.created_at', '<=', $fechaFin)
+        ->when($sucursalId, fn($q) => $q->where('entradas_inventario.sucursal_id', $sucursalId))
+        ->get()
+        ->map(fn($row) => [
+            $row->fecha, 'Ingreso', $row->producto, $row->cantidad,
+            'Almacén', User::find($row->trabajador_id)?->name ?? '-',
+        ]);
+
+        $salidas = TicketProductosAsignacion::select(
+            DB::raw('DATE(tickets_asignacion.created_at) as fecha'),
+            'inventarios.nombre as producto',
+            'ticket_productos_asignacion.cantidad',
+            'tickets_asignacion.sucursal_id',
+            'tickets_asignacion.empleado_id'
+        )
+        ->join('tickets_asignacion', 'ticket_productos_asignacion.ticket_asignacion_id', '=', 'tickets_asignacion.id')
+        ->join('inventarios', 'ticket_productos_asignacion.producto_id', '=', 'inventarios.id')
+        ->whereDate('tickets_asignacion.created_at', '>=', $fechaInicio)
+        ->whereDate('tickets_asignacion.created_at', '<=', $fechaFin)
+        ->whereNotNull('tickets_asignacion.sucursal_id')
+        ->when($sucursalId, fn($q) => $q->where('tickets_asignacion.sucursal_id', $sucursalId))
+        ->get()
+        ->map(fn($row) => [
+            $row->fecha, 'Salida', $row->producto, $row->cantidad,
+            Sucursal::find($row->sucursal_id)?->nombre ?? '-',
+            User::find($row->empleado_id)?->name ?? '-',
+        ]);
+
+        $filas = $ingresos->concat($salidas)->sortBy(fn($r) => $r[0])->values();
+
+        $nombre = "hoja_corte_{$fechaInicio}_{$fechaFin}.csv";
+
+        return response()->streamDownload(function () use ($filas) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Fecha', 'Tipo', 'Producto', 'Cantidad', 'Origen/Destino', 'Trabajador']);
+            foreach ($filas as $fila) {
+                fputcsv($handle, $fila);
+            }
+            fclose($handle);
+        }, $nombre, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
      * Gráfica de movimientos (ingresos vs salidas) de productos por sucursal
      * Solo accesible para admin de almacén
      */

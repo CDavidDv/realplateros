@@ -105,6 +105,11 @@ const isGestor = computed(() => primaryRole.value === 'gestor');
                                     Tickets Asignados
                                 </NavLink>
                             </div>
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="isAlmacen">
+                                <NavLink :href="route('almacen.hoja-corte')" :active="route().current('almacen.hoja-corte')">
+                                    Hoja de Corte
+                                </NavLink>
+                            </div>
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="!isAlmacen">
                                 <NavLink :href="route('corte-caja')" :active="route().current('corte-caja')">
                                     Corte
@@ -290,6 +295,11 @@ const isGestor = computed(() => primaryRole.value === 'gestor');
                     <div class="pt-2 pb-3 space-y-1" v-if="isAlmacen">
                         <ResponsiveNavLink :href="route('tickets')" :active="route().current('tickets')">
                             Tickets Asignados
+                        </ResponsiveNavLink>
+                    </div>
+                    <div class="pt-2 pb-3 space-y-1" v-if="isAlmacen">
+                        <ResponsiveNavLink :href="route('almacen.hoja-corte')" :active="route().current('almacen.hoja-corte')">
+                            Hoja de Corte
                         </ResponsiveNavLink>
                     </div>
                     <div class="pt-2 pb-3 space-y-1" v-if="!isAlmacen">

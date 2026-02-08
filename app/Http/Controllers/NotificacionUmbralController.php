@@ -6,6 +6,8 @@ use App\Models\NotificacionUmbral;
 use App\Models\Estimaciones;
 use App\Models\Inventario;
 use App\Models\ControlProduccion;
+use App\Models\NotificacionPersonal;
+use App\Models\CheckInCheckOut;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -48,7 +50,49 @@ if($pasteId[0] == 1){
 }
         Log::info('Notificación guardada:', $controlProduccion->toArray());
 
+        $this->crearNotificacionPersonal($controlProduccion);
+
         return back()->with('notificaciones', $controlProduccion);
+    }
+
+    private function crearNotificacionPersonal(ControlProduccion $cp): void
+    {
+        try {
+            $turno = CheckInCheckOut::where('sucursal_id', $cp->sucursal_id)
+                ->whereDate('check_in', Carbon::today())
+                ->whereNull('check_out')
+                ->first();
+
+            if (!$turno) {
+                return;
+            }
+
+            $tipoMap = [
+                'pendiente' => 'faltante',
+                'desperdicio' => 'excedente',
+                'horneando' => 'horneado',
+                'en_espera' => 'horneado',
+            ];
+
+            $tipo = $tipoMap[$cp->estado] ?? null;
+            if (!$tipo) {
+                return;
+            }
+
+            $paste = $cp->paste;
+            $nombrePaste = $paste?->nombre ?? 'Paste #' . $cp->paste_id;
+            $descripcion = "Paste: {$nombrePaste} | Cantidad: {$cp->cantidad} | Estado: {$cp->estado}";
+
+            NotificacionPersonal::create([
+                'control_produccion_id' => $cp->id,
+                'sucursal_id' => $cp->sucursal_id,
+                'user_id' => $turno->user_id,
+                'tipo' => $tipo,
+                'descripcion' => $descripcion,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al crear notificación personal:', ['error' => $e->getMessage()]);
+        }
     }
 
     public function actualizarNotificaciones(Request $request)
