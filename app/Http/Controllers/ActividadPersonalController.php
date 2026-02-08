@@ -24,8 +24,9 @@ class ActividadPersonalController extends Controller
     {
         $user = Auth::user();
 
-        // Obtener usuarios activos
+        // Obtener usuarios activos (excluir cuentas de sucursal)
         $usuarios = User::where('active', true)
+            ->whereDoesntHave('roles', fn($q) => $q->where('name', 'sucursal'))
             ->with(['roles', 'sucursal'])
             ->orderBy('name')
             ->get()
@@ -135,7 +136,7 @@ class ActividadPersonalController extends Controller
 
         // 2. Ventas
         if (!$tipoActividad || $tipoActividad === 'venta') {
-            $ventas = Venta::with(['usuario', 'sucursal'])
+            $ventas = Venta::with(['usuario', 'sucursal', 'detalles.producto'])
                 ->whereBetween('created_at', [$startDate, $endDate])
                 ->when($sucursalId, fn($q) => $q->where('sucursal_id', $sucursalId))
                 ->when($usuarioId, fn($q) => $q->where('usuario_id', $usuarioId))
@@ -167,6 +168,11 @@ class ActividadPersonalController extends Controller
                             'factura' => $item->factura,
                             'folio' => $item->folio,
                             'estado' => $item->estado,
+                            'productos' => $item->detalles->map(fn($d) => [
+                                'nombre' => $d->producto->nombre ?? 'Desconocido',
+                                'cantidad' => $d->cantidad,
+                                'precio_unitario' => $d->precio_unitario,
+                            ])->toArray(),
                         ],
                     ];
                 });
@@ -321,12 +327,13 @@ class ActividadPersonalController extends Controller
                         'tipo_label' => 'Corte de Caja',
                         'subtipo' => 'registro',
                         'subtipo_label' => 'Registro',
-                        'detalles' => 'Ventas: $' . number_format($item->ventas_total ?? 0, 2),
+                        'detalles' => 'Total: $' . number_format(($item->dinero_en_efectivo ?? 0) + ($item->dinero_tarjeta ?? 0), 2) . ' (Ef: $' . number_format($item->dinero_en_efectivo ?? 0, 2) . ' / Tj: $' . number_format($item->dinero_tarjeta ?? 0, 2) . ')',
                         'cantidad' => 1,
                         'extra' => [
                             'dinero_inicio' => $item->dinero_inicio,
                             'dinero_final' => $item->dinero_final,
-                            'ventas_total' => $item->ventas_total,
+                            'dinero_en_efectivo' => $item->dinero_en_efectivo,
+                            'dinero_tarjeta' => $item->dinero_tarjeta,
                         ],
                     ];
                 });

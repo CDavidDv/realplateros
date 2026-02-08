@@ -205,9 +205,19 @@ class VentaController extends Controller
                 return redirect()->route('dashboard')->with('error', implode(', ', $errores));
             }
 
+            // Resolver vendedor: usar email proporcionado o el usuario logueado
+            $vendedorEmail = $request->input('vendedor_email');
+            $vendedorId = auth()->id();
+            if ($vendedorEmail) {
+                $vendedor = \App\Models\User::where('email', $vendedorEmail)->where('active', true)->first();
+                if ($vendedor) {
+                    $vendedorId = $vendedor->id;
+                }
+            }
+
             // Crear el registro de la venta
             $venta = new Venta();
-            $venta->usuario_id = auth()->id();
+            $venta->usuario_id = $vendedorId;
             $venta->sucursal_id = auth()->user()->sucursal_id;
             $venta->total = $total;
             $venta->metodo_pago = $metodoPago;

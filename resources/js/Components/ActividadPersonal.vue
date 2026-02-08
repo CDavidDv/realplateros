@@ -148,7 +148,16 @@
                 {{ actividad.subtipo_label }}
               </span>
             </td>
-            <td class="px-4 py-3 border-b text-sm text-gray-700">{{ actividad.detalles }}</td>
+            <td class="px-4 py-3 border-b text-sm text-gray-700">
+              <span
+                v-if="actividad.tipo === 'venta' && actividad.extra?.productos?.length"
+                :title="actividad.extra.productos.map(p => `${p.nombre} x${p.cantidad} = $${(p.cantidad * p.precio_unitario).toFixed(2)}`).join('\n')"
+                class="cursor-help underline decoration-dotted"
+              >
+                {{ actividad.detalles }}
+              </span>
+              <span v-else>{{ actividad.detalles }}</span>
+            </td>
           </tr>
           <tr v-if="actividades.length === 0">
             <td colspan="6" class="px-4 py-8 text-center text-gray-500">

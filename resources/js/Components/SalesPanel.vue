@@ -141,6 +141,15 @@
             <option value="tarjeta">Tarjeta</option>
           </select>
         </div>
+        <div class="mt-2" v-if="!isAlmacen">
+          <label class="text-xs text-gray-500">Vendedor (matrícula/email)</label>
+          <input
+            v-model="vendedorEmail"
+            type="text"
+            placeholder="Vacío = usuario actual"
+            class="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+          />
+        </div>
         <div :class="['mt-4 flex  items-center', isAlmacen ? 'justify-end' : 'justify-between']">
           <span class="text-lg font-bold" v-if="!isAlmacen">Total: ${{ totalAmount.toFixed(2) }}</span>
           <button
@@ -184,6 +193,7 @@ const searchTerm = ref('');
 const metodoPago = ref('efectivo');
 const facturado = ref(false);
 const loading = ref(false);
+const vendedorEmail = ref('');
 const categories = ref()
 const sucursales = ref(
   props.sucursales.filter(item => item.nombre !== 'almacen')
@@ -279,7 +289,8 @@ const completeSale = () => {
     productos: ticket.value,
     total: totalAmount.value,
     metodo_pago: metodoPago.value,
-    factura: facturado.value
+    factura: facturado.value,
+    vendedor_email: vendedorEmail.value || null,
   }, {
     preserveScroll: true,
     onSuccess: (a) => {
@@ -294,6 +305,7 @@ const completeSale = () => {
         searchTerm.value = '';
         metodoPago.value = 'efectivo';
         facturado.value = false;
+        vendedorEmail.value = '';
         showToast("success", "Registrado correctamente");
         loading.value = false;
       }, 500);

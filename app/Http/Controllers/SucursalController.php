@@ -126,76 +126,32 @@ class SucursalController extends Controller
     public function destroy(Sucursal $sucursal)
     {
         try {
-            // Obtiene el usuario logueado
             $loggedUser = auth()->user();
 
-            // Verifica si la sucursal que se intenta eliminar es la misma del usuario logueado
             if ($loggedUser->sucursal_id == $sucursal->id) {
-                return redirect()->route('personal')->withErrors(['error' => 'No puedes eliminar la sucursal a la que has ingresado.']);
+                return back()->withErrors(['error' => 'No puedes eliminar la sucursal a la que has ingresado.']);
             }
 
-            // Verifica todas las relaciones
-            $relaciones = [];
+            DB::transaction(function () use ($sucursal) {
+                $sucursal->checkInCheckOuts()->delete();
+                $sucursal->cocina()->delete();
+                $sucursal->cortesDeCaja()->delete();
+                $sucursal->ventas()->delete();
+                $sucursal->pedidos()->delete();
+                $sucursal->inventario()->delete();
+                $sucursal->usuarios()->detach();
 
-            $usuariosCount = User::where('sucursal_id', $sucursal->id)->count();
-            if (($usuariosCount - 1) > 0) {
-                $relaciones[] = ($usuariosCount - 1) . ' usuario(s)';
-            }
+                User::where('sucursal_id', $sucursal->id)->role('sucursal')->delete();
 
-            $inventarioCount = $sucursal->inventario()->count();
-            if ($inventarioCount > 0) {
-                $relaciones[] = $inventarioCount . ' registro(s) de inventario';
-            }
+                $sucursal->delete();
+            });
 
-            $ventasCount = $sucursal->ventas()->count();
-            if ($ventasCount > 0) {
-                $relaciones[] = $ventasCount . ' venta(s)';
-            }
-
-            $pedidosCount = $sucursal->pedidos()->count();
-            if ($pedidosCount > 0) {
-                $relaciones[] = $pedidosCount . ' pedido(s)';
-            }
-
-            $cortesCount = $sucursal->cortesDeCaja()->count();
-            if ($cortesCount > 0) {
-                $relaciones[] = $cortesCount . ' corte(s) de caja';
-            }
-
-            $cocinaCount = $sucursal->cocina()->count();
-            if ($cocinaCount > 0) {
-                $relaciones[] = $cocinaCount . ' registro(s) de cocina';
-            }
-
-            $checkInsCount = $sucursal->checkInCheckOuts()->count();
-            if ($checkInsCount > 0) {
-                $relaciones[] = $checkInsCount . ' registro(s) de asistencia';
-            }
-
-            // Si hay relaciones, no permitir la eliminación
-            if (!empty($relaciones)) {
-                $mensaje = 'No se puede eliminar la sucursal porque tiene datos asociados: ' . implode(', ', $relaciones) . '.';
-                return back()->withErrors(['error' => $mensaje]);
-            }
-
-            // Encuentra al usuario relacionado con el rol 'sucursal' y la sucursal_id
-            $user = User::where('sucursal_id', $sucursal->id)->role('sucursal')->first();
-
-            // Si se encuentra, elimínalo
-            if ($user) {
-                $user->delete();
-            }
-
-            // Elimina la sucursal
-            $sucursal->delete();
-
-            Log::info('Sucursal y usuario eliminados correctamente: ' . ($user ? $user->id : 'sin usuario'));
-            return redirect()->route('personal')->with('success', 'Sucursal y usuario eliminados correctamente');
+            Log::info('Sucursal eliminada con todos sus registros: ' . $sucursal->id);
+            return redirect()->route('personal')->with('success', 'Sucursal y todos sus datos eliminados correctamente.');
 
         } catch (\Exception $e) {
-            Log::error('Error eliminando la sucursal o el usuario: ' . $e->getMessage());
-
-            return redirect()->route('personal')->withErrors(['error' => 'No se pudo eliminar la sucursal o el usuario: ' . $e->getMessage()]);
+            Log::error('Error eliminando la sucursal: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'No se pudo eliminar la sucursal: ' . $e->getMessage()]);
         }
     }
 
