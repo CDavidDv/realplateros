@@ -128,9 +128,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/almacen/hoja-corte', [AlmacenController::class, 'hojaCorte'])->middleware('role:almacen');
     Route::get('/almacen/hoja-corte/export', [AlmacenController::class, 'hojaCorteExport'])->name('almacen.hoja-corte.export')->middleware('role:almacen');
 
-    // Notificaciones de turno (personal)
+    // Notificaciones de turno (personal) - basado en control_produccion
     Route::get('/api/notificaciones-personal', [NotificacionPersonalController::class, 'index'])->name('notificaciones-personal.index');
-    Route::post('/api/notificaciones-personal/{notificacion}/atender', [NotificacionPersonalController::class, 'atender'])->name('notificaciones-personal.atender');
+    Route::post('/api/notificaciones-personal/{id}/atender', [NotificacionPersonalController::class, 'atender'])->name('notificaciones-personal.atender');
 
     Route::get('/api/control-produccion', [ControlProduccionController::class, 'index']);
     
