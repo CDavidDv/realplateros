@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\ControlProduccion;
 use App\Models\NotificacionPersonal;
 use App\Models\CheckInCheckOut;
+use App\Models\Inventario;
+use App\Models\Sucursal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class NotificacionPersonalController extends Controller
@@ -31,7 +34,8 @@ class NotificacionPersonalController extends Controller
         // Estados que generan notificaciones
         $estadosNotificables = ['pendiente', 'desperdicio', 'horneando', 'en_espera'];
 
-        $query = ControlProduccion::with(['paste', 'sucursal'])
+        // Usar DB directamente para evitar problemas con el modelo
+        $query = DB::table('control_produccion')
             ->whereIn('estado', $estadosNotificables)
             ->whereDate('created_at', '>=', $fechaInicio)
             ->whereDate('created_at', '<=', $fechaFin)
@@ -51,36 +55,49 @@ class NotificacionPersonalController extends Controller
         $controlProducciones = $query->get();
 
         // Obtener IDs de notificaciones atendidas
-        $atendidas = NotificacionPersonal::whereIn('control_produccion_id', $controlProducciones->pluck('id'))
+        $idsControlProduccion = $controlProducciones->pluck('id')->toArray();
+        $atendidas = NotificacionPersonal::whereIn('control_produccion_id', $idsControlProduccion)
             ->where('atendida', true)
             ->get()
             ->keyBy('control_produccion_id');
 
+        // Precargar sucursales y pastes para evitar N+1
+        $sucursalIds = $controlProducciones->pluck('sucursal_id')->unique()->toArray();
+        $pasteIds = $controlProducciones->pluck('paste_id')->unique()->toArray();
+
+        $sucursales = Sucursal::whereIn('id', $sucursalIds)->get()->keyBy('id');
+        $pastes = Inventario::whereIn('id', $pasteIds)->get()->keyBy('id');
+
         // Filtrar por estado atendida si se solicita
         $filtroAtendida = $request->input('atendida');
 
-        $notificaciones = $controlProducciones->map(function ($cp) use ($tipoMap, $atendidas) {
+        $notificaciones = $controlProducciones->map(function ($cp) use ($tipoMap, $atendidas, $sucursales, $pastes) {
             $atendidaRecord = $atendidas->get($cp->id);
             $estaAtendida = $atendidaRecord !== null;
 
             // Buscar el trabajador de turno en esa sucursal en esa fecha
-            $turno = CheckInCheckOut::where('sucursal_id', $cp->sucursal_id)
-                ->whereDate('check_in', $cp->created_at->toDateString())
+            $fechaCreacion = Carbon::parse($cp->created_at)->toDateString();
+            $turno = CheckInCheckOut::with('user')
+                ->where('sucursal_id', $cp->sucursal_id)
+                ->whereDate('check_in', $fechaCreacion)
                 ->first();
+
+            $sucursal = $sucursales->get($cp->sucursal_id);
+            $paste = $pastes->get($cp->paste_id);
 
             return [
                 'id' => $cp->id,
                 'control_produccion_id' => $cp->id,
-                'fecha' => $cp->created_at->format('Y-m-d'),
-                'hora' => $cp->created_at->format('H:i'),
+                'fecha' => Carbon::parse($cp->created_at)->format('Y-m-d'),
+                'hora' => Carbon::parse($cp->created_at)->format('H:i'),
                 'trabajador' => $turno?->user?->name ?? 'Sin turno registrado',
-                'sucursal' => $cp->sucursal?->nombre ?? '-',
+                'sucursal' => $sucursal?->nombre ?? '-',
                 'tipo' => $tipoMap[$cp->estado] ?? $cp->estado,
                 'estado_original' => $cp->estado,
-                'descripcion' => ($cp->paste?->nombre ?? 'Producto') . ' | Cantidad: ' . $cp->cantidad . ' | Estado: ' . $cp->estado,
+                'descripcion' => ($paste?->nombre ?? 'Producto') . ' | Cantidad: ' . $cp->cantidad . ' | Estado: ' . $cp->estado,
                 'atendida' => $estaAtendida,
                 'atendida_at' => $atendidaRecord?->atendida_at?->format('Y-m-d H:i'),
-                'atendida_por' => $atendidaRecord?->atendidaPor?->name,
+                'atendida_por' => $atendidaRecord?->atendidaPor?->name ?? null,
             ];
         });
 
@@ -90,7 +107,15 @@ class NotificacionPersonalController extends Controller
             $notificaciones = $notificaciones->filter(fn($n) => $n['atendida'] === $valorAtendida)->values();
         }
 
-        return response()->json(['success' => true, 'notificaciones' => $notificaciones]);
+        return response()->json([
+            'success' => true,
+            'notificaciones' => $notificaciones->values(),
+            'debug' => [
+                'total_encontrados' => $controlProducciones->count(),
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
+            ]
+        ]);
     }
 
     /**
