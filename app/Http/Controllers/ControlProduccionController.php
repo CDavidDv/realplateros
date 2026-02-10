@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use App\Services\PuntosService;
 
 class ControlProduccionController extends Controller
 {
@@ -316,9 +317,20 @@ class ControlProduccionController extends Controller
         $controlProduccion->estado = 'horneando';
         $controlProduccion->tiempo_inicio_horneado = $request->tiempo_inicio_horneado;
         $controlProduccion->cantidad_horneada = $request->cantidad_horneada;
-        // No usar diferencia_notificacion_inicio, ya se establece en tiempo_inicio_horneado
-        
+        $controlProduccion->empleado_id = Auth::id();
+
         $controlProduccion->save();
+
+        // Registrar puntos por horneado
+        $puntosService = new PuntosService();
+        $puntosService->registrar(
+            Auth::id(),
+            $controlProduccion->sucursal_id,
+            'horneado',
+            $controlProduccion->id,
+            'control_produccion',
+            'Horneado: ' . ($controlProduccion->paste?->nombre ?? 'Producto')
+        );
 
         return response()->json([
             'success' => true,

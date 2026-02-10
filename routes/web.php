@@ -18,6 +18,7 @@ use App\Http\Controllers\ControlProduccionController;
 use App\Http\Controllers\GestorVentasController;
 use App\Http\Controllers\NotificacionUmbralController;
 use App\Http\Controllers\NotificacionPersonalController;
+use App\Http\Controllers\EvaluacionEmpleadoController;
 use Illuminate\Support\Facades\Route;
 use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 
@@ -161,6 +162,16 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::get('/api/usuarios-sucursal/{sucursalId}', [GestorVentasController::class, 'getUsuariosSucursal']);
     Route::post('/api/ventas-filtradas', [GestorVentasController::class, 'getVentasFiltradas'])->name('ventas.filtradas');
     Route::post('/ventas/actualizar-visible', [GestorVentasController::class, 'actualizarVisible'])->name('ventas.actualizar-visible');
+
+    // Rutas para evaluacion de empleados (solo admin)
+    Route::get('/evaluacion-empleados', [EvaluacionEmpleadoController::class, 'index'])->name('evaluacion-empleados')->middleware('role:admin');
+    Route::get('/evaluacion-empleados/ranking', [EvaluacionEmpleadoController::class, 'ranking'])->middleware('role:admin');
+    Route::get('/evaluacion-empleados/exportar', [EvaluacionEmpleadoController::class, 'exportar'])->middleware('role:admin');
+    Route::get('/evaluacion-empleados/{user}', [EvaluacionEmpleadoController::class, 'detalle'])->middleware('role:admin');
+
+    // API para configuracion de puntos
+    Route::get('/api/puntos-configuracion', [EvaluacionEmpleadoController::class, 'configuracion'])->middleware('role:admin');
+    Route::put('/api/puntos-configuracion/{id}', [EvaluacionEmpleadoController::class, 'actualizarConfiguracion'])->middleware('role:admin');
 });
 
 // Rutas para notificaciones de umbral

@@ -115,6 +115,11 @@ const isGestor = computed(() => primaryRole.value === 'gestor');
                                     Corte
                                 </NavLink>
                             </div>
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex" v-if="isAdmin">
+                                <NavLink :href="route('evaluacion-empleados')" :active="route().current('evaluacion-empleados')">
+                                    Evaluacion
+                                </NavLink>
+                            </div>
                         </div>
                         <div class="flex" v-if="isGestor">
                             <div class="shrink-0 flex items-center">
@@ -305,6 +310,11 @@ const isGestor = computed(() => primaryRole.value === 'gestor');
                     <div class="pt-2 pb-3 space-y-1" v-if="!isAlmacen">
                         <ResponsiveNavLink :href="route('corte-caja')" :active="route().current('corte-caja')">
                             Corte
+                        </ResponsiveNavLink>
+                    </div>
+                    <div class="pt-2 pb-3 space-y-1" v-if="isAdmin">
+                        <ResponsiveNavLink :href="route('evaluacion-empleados')" :active="route().current('evaluacion-empleados')">
+                            Evaluacion
                         </ResponsiveNavLink>
                     </div>
 

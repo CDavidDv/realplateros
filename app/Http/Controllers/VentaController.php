@@ -17,6 +17,7 @@ use Inertia\Inertia;
 use PhpParser\Node\Stmt\Return_;
 use App\Models\Estimaciones;
 use Illuminate\Support\Facades\DB;
+use App\Services\PuntosService;
 
 class VentaController extends Controller
 {
@@ -321,9 +322,20 @@ class VentaController extends Controller
                 'numero_ticket' => time(),
                 'total' => $venta->total,
                 'creado_por' => auth()->user()->id,
-                'sucursal_id' => auth()->user()->sucursal_id, 
+                'sucursal_id' => auth()->user()->sucursal_id,
                 'metodo_pago' => $request->metodo_pago,
             ]);
+
+            // Registrar puntos por la venta
+            $puntosService = new PuntosService();
+            $puntosService->registrar(
+                $vendedorId,
+                auth()->user()->sucursal_id,
+                'venta',
+                $venta->id,
+                'venta',
+                'Venta #' . $venta->folio
+            );
 
             // Evaluar notificaciones después de la venta
             $sucursalId = auth()->user()->sucursal_id;

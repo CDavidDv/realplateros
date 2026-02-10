@@ -12,6 +12,7 @@ class ControlProduccion extends Model
         'horno_id',
         'paste_id',
         'sucursal_id',
+        'empleado_id',
         'cantidad',
         'tiempo_inicio_horneado',
         'tiempo_fin_horneado',
@@ -22,7 +23,7 @@ class ControlProduccion extends Model
         'hora_notificacion',
         'dia_notificacion',
         'updated_at',
-        'created_at'    
+        'created_at'
     ];
 
     protected $casts = [
@@ -45,6 +46,11 @@ class ControlProduccion extends Model
     public function sucursal()
     {
         return $this->belongsTo(Sucursal::class);
+    }
+
+    public function empleado()
+    {
+        return $this->belongsTo(User::class, 'empleado_id');
     }
 
     public function actualizarVenta($cantidad)

@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Services\PuntosService;
 
 class CorteCajaController extends Controller
 {
@@ -200,6 +201,17 @@ class CorteCajaController extends Controller
                 'corte_caja_id' => $ultimoCorte->id,
             ]);
         }
+
+        // Registrar puntos por corte de caja
+        $puntosService = new PuntosService();
+        $puntosService->registrar(
+            $usuario->id,
+            $usuario->sucursal_id,
+            'corte_caja',
+            $ultimoCorte->id,
+            'corte_caja',
+            'Corte de caja realizado'
+        );
 
         // Recargar el corte actualizado
         $ultimoCorte->refresh();

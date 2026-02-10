@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Sobrantes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Services\PuntosService;
 
 class SobrantesController extends Controller
 {
@@ -26,18 +27,34 @@ class SobrantesController extends Controller
         $sobrantesExistentes = Sobrantes::where('sucursal_id', $sucursalId)->where('created_at', '>=', now()->startOfDay())->where('created_at', '<=', now()->endOfDay())->get();
         //si existe actualizar si no crear
         
+        $puntosService = new PuntosService();
+
         if($sobrantesExistentes->count() > 0){
             foreach ($sobrantesExistentes as $sobraExistente) {
                 $sobraExistente->cantidad = 0;
+                $sobraExistente->trabajador_id = $user->id;
                 $sobraExistente->save();
             }
         }else{
             foreach ($sobrantes as $sobra) {
-                Sobrantes::create([
+                $sobrante = Sobrantes::create([
                     'cantidad' => $sobra['cantidad'],
                     'sucursal_id' => $sucursalId,
+                    'trabajador_id' => $user->id,
                     'inventario_id' => $sobra['inventario_id'],
                 ]);
+
+                // Registrar puntos negativos por sobrante (solo si hay cantidad > 0)
+                if ($sobra['cantidad'] > 0) {
+                    $puntosService->registrar(
+                        $user->id,
+                        $sucursalId,
+                        'sobrante',
+                        $sobrante->id,
+                        'sobrante',
+                        'Sobrante: ' . ($sobra['nombre'] ?? 'Producto') . ' - Cantidad: ' . $sobra['cantidad']
+                    );
+                }
             }
         }
 

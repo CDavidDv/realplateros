@@ -12,6 +12,7 @@ class Sobrantes extends Model
     protected $fillable = [
         'inventario_id',
         'sucursal_id',
+        'trabajador_id',
         'cantidad',
         'corte_caja_id',
     ];
@@ -26,5 +27,10 @@ class Sobrantes extends Model
     public function corteCaja()
     {
         return $this->belongsTo(CorteCaja::class, 'corte_caja_id', 'id');
+    }
+
+    public function trabajador()
+    {
+        return $this->belongsTo(User::class, 'trabajador_id');
     }
 }

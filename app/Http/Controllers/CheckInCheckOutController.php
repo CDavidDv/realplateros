@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
+use App\Services\PuntosService;
 
 class CheckInCheckOutController extends Controller
 {
@@ -118,7 +119,18 @@ public function checkInOut(Request $request) {
         $checkInOut->estado = 'Presente';
         $checkInOut->check_in = now();
         $checkInOut->save();
-        
+
+        // Registrar puntos por check-in
+        $puntosService = new PuntosService();
+        $puntosService->registrar(
+            $user->id,
+            $user->sucursal_id,
+            'check_in',
+            $checkInOut->id,
+            'check_in',
+            'Check-in registrado'
+        );
+
         return redirect()->back()->with('success', 'Entrada registrada correctamente.');
     } else {
         // Check-out
