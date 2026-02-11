@@ -13,7 +13,9 @@
       "Bash(npm run build:*)",
       "Bash(del \"C:\\\\xampp\\\\htdocs\\\\realplateros\\\\diagnostico_control_produccion.php\")",
       "Bash(ls:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
