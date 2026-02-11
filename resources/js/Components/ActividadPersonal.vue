@@ -2,7 +2,7 @@
   <div class="relative px-6 py-8 bg-white shadow-lg sm:rounded-3xl sm:p-12">
     <h1 class="text-3xl font-semibold mb-6 text-center">Actividad del Personal</h1>
 
-    <!-- Tabs (solo admin ve la segunda pestaña) -->
+    <!-- Tabs (solo admin ve las pestañas adicionales) -->
     <div class="flex border-b border-gray-200 mb-6" v-if="isAdmin">
       <button
         @click="tabActivo = 'actividades'"
@@ -17,6 +17,13 @@
         class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
       >
         Notificaciones de Turno
+      </button>
+      <button
+        @click="abrirEvaluacion"
+        :class="tabActivo === 'evaluacion' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
+      >
+        Evaluacion
       </button>
     </div>
 
@@ -295,6 +302,238 @@
       </div>
 
     </div>
+
+    <!-- =================== TAB: EVALUACION =================== -->
+    <div v-show="tabActivo === 'evaluacion'">
+      <!-- Filtros -->
+      <div class="mb-6 bg-gray-50 p-4 rounded-lg">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+            <input type="date" v-model="filtrosEval.fecha_inicio"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+            <input type="date" v-model="filtrosEval.fecha_fin"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sucursal</label>
+            <select v-model="filtrosEval.sucursal_id"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+              <option :value="null">Todas</option>
+              <option v-for="s in sucursales" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+            </select>
+          </div>
+          <div class="flex items-end gap-2">
+            <button @click="cargarEvaluacion" :disabled="cargandoEval"
+              class="flex-1 bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50">
+              <span v-if="cargandoEval">Cargando...</span>
+              <span v-else>Filtrar</span>
+            </button>
+            <button @click="exportarEvaluacion"
+              class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+              CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tarjetas Resumen (mismo estilo que actividades) -->
+      <div class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+          <div class="text-sm text-yellow-600 font-medium">Mejor Empleado</div>
+          <div class="text-xl font-bold text-yellow-800 truncate">{{ evalMejores?.mejor_general?.nombre || '-' }}</div>
+          <div class="text-sm text-yellow-600">{{ evalMejores?.mejor_general?.total_puntos || 0 }} puntos</div>
+        </div>
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <div class="text-sm text-blue-600 font-medium">Mas Ventas</div>
+          <div class="text-xl font-bold text-blue-800 truncate">{{ evalMejores?.mas_ventas?.nombre || '-' }}</div>
+          <div class="text-sm text-blue-600">{{ evalMejores?.mas_ventas?.total_ventas || 0 }} ventas</div>
+        </div>
+        <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
+          <div class="text-sm text-orange-600 font-medium">Mas Horneados</div>
+          <div class="text-xl font-bold text-orange-800 truncate">{{ evalMejores?.mas_horneados?.nombre || '-' }}</div>
+          <div class="text-sm text-orange-600">{{ evalMejores?.mas_horneados?.total_horneados || 0 }} lotes</div>
+        </div>
+        <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+          <div class="text-sm text-purple-600 font-medium">Promedio Horas</div>
+          <div class="text-xl font-bold text-purple-800">{{ evalEstadisticas?.promedio_horas_trabajadas || 0 }}h</div>
+          <div class="text-sm text-purple-600">{{ evalEstadisticas?.total_empleados || 0 }} empleados</div>
+        </div>
+      </div>
+
+      <!-- Tabla Ranking -->
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">#</th>
+              <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Empleado</th>
+              <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Sucursal</th>
+              <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b">Puntos</th>
+              <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b">Ventas</th>
+              <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b">Horneados</th>
+              <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b">Notif.</th>
+              <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b">Horas</th>
+              <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="empleado in evalRanking" :key="empleado.user_id"
+              :class="{
+                'bg-yellow-50': empleado.posicion === 1,
+                'bg-gray-50': empleado.posicion === 2,
+                'bg-orange-50': empleado.posicion === 3,
+              }"
+              class="hover:bg-gray-100 transition-colors">
+              <td class="px-4 py-3 border-b">
+                <span :class="{
+                  'text-yellow-600 font-bold text-lg': empleado.posicion === 1,
+                  'text-gray-500 font-semibold': empleado.posicion === 2,
+                  'text-orange-600 font-semibold': empleado.posicion === 3,
+                  'text-gray-700': empleado.posicion > 3,
+                }" v-html="empleado.posicion === 1 ? '&#127942;' : empleado.posicion === 2 ? '&#129352;' : empleado.posicion === 3 ? '&#129353;' : empleado.posicion">
+                </span>
+              </td>
+              <td class="px-4 py-3 border-b">
+                <div class="text-sm font-medium text-gray-900">{{ empleado.nombre }}</div>
+                <div class="text-xs text-gray-500">{{ empleado.email }}</div>
+              </td>
+              <td class="px-4 py-3 border-b text-sm text-gray-700">{{ empleado.sucursal }}</td>
+              <td class="px-4 py-3 border-b text-center">
+                <span class="px-2 py-1 text-sm font-semibold rounded-full"
+                  :class="empleado.total_puntos >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                  {{ empleado.total_puntos }}
+                </span>
+              </td>
+              <td class="px-4 py-3 border-b text-center text-sm text-gray-700">{{ empleado.total_ventas }}</td>
+              <td class="px-4 py-3 border-b text-center text-sm text-gray-700">{{ empleado.total_horneados }}</td>
+              <td class="px-4 py-3 border-b text-center text-sm text-gray-700">{{ empleado.notificaciones_atendidas }}</td>
+              <td class="px-4 py-3 border-b text-center text-sm text-gray-700">{{ empleado.horas_trabajadas }}h</td>
+              <td class="px-4 py-3 border-b text-center">
+                <button @click="verDetalleEmpleado(empleado.user_id)"
+                  class="text-orange-600 hover:text-orange-800 text-sm font-medium">
+                  Ver detalle
+                </button>
+              </td>
+            </tr>
+            <tr v-if="!evalRanking?.length">
+              <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                No hay datos para mostrar en el rango de fechas seleccionado.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Modal Detalle Empleado -->
+      <div v-if="mostrarDetalleEmpleado"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        @click.self="cerrarDetalleEmpleado">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-900">
+              Detalle de {{ empleadoDetalle?.empleado?.nombre }}
+            </h3>
+            <button @click="cerrarDetalleEmpleado" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div class="p-6" v-if="empleadoDetalle">
+            <div class="mb-6">
+              <p class="text-gray-600">{{ empleadoDetalle.empleado?.email }}</p>
+              <p class="text-gray-600">Sucursal: {{ empleadoDetalle.empleado?.sucursal }}</p>
+              <!-- Indicador de tiempo real o sin datos -->
+              <div v-if="empleadoDetalle.datos_ranking?.total_puntos === 0" class="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p class="text-xs text-yellow-700">
+                  <strong>Sin datos:</strong> Este empleado no tiene registros de actividad en el período seleccionado.
+                </p>
+              </div>
+              <div v-else-if="empleadoDetalle.metricas?.es_tiempo_real" class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p class="text-xs text-blue-700">
+                  <strong>Nota:</strong> Los datos se calculan en tiempo real basados en ventas, check-ins, horneados y notificaciones registradas en el período seleccionado.
+                </p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" :class="{ 'opacity-50': empleadoDetalle.datos_ranking?.total_puntos === 0 }">
+              <div class="bg-gray-50 rounded-lg p-3 text-center border border-gray-200">
+                <p :class="empleadoDetalle.datos_ranking?.total_puntos === 0 ? 'text-gray-400' : 'text-orange-600'" class="text-2xl font-bold">{{ empleadoDetalle.datos_ranking?.total_puntos || empleadoDetalle.metricas?.total_puntos || 0 }}</p>
+                <p class="text-xs text-gray-500">Puntos Totales</p>
+              </div>
+              <div class="bg-gray-50 rounded-lg p-3 text-center border border-gray-200">
+                <p :class="empleadoDetalle.datos_ranking?.total_puntos === 0 ? 'text-gray-400' : 'text-blue-600'" class="text-2xl font-bold">{{ empleadoDetalle.datos_ranking?.total_ventas || empleadoDetalle.metricas?.resumen?.ventas || 0 }}</p>
+                <p class="text-xs text-gray-500">Ventas</p>
+              </div>
+              <div class="bg-gray-50 rounded-lg p-3 text-center border border-gray-200">
+                <p :class="empleadoDetalle.datos_ranking?.total_puntos === 0 ? 'text-gray-400' : 'text-orange-600'" class="text-2xl font-bold">{{ empleadoDetalle.datos_ranking?.total_horneados || empleadoDetalle.metricas?.resumen?.horneados || 0 }}</p>
+                <p class="text-xs text-gray-500">Horneados</p>
+              </div>
+              <div class="bg-gray-50 rounded-lg p-3 text-center border border-gray-200">
+                <p :class="empleadoDetalle.datos_ranking?.total_puntos === 0 ? 'text-gray-400' : 'text-purple-600'" class="text-2xl font-bold">{{ empleadoDetalle.datos_ranking?.horas_trabajadas || empleadoDetalle.metricas?.horas_trabajadas || 0 }}h</p>
+                <p class="text-xs text-gray-500">Horas</p>
+              </div>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-900 mb-3">Historial de Puntos</h4>
+              <div class="max-h-64 overflow-y-auto">
+                <!-- Sin datos disponibles -->
+                <div v-if="empleadoDetalle.datos_ranking?.total_puntos === 0" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                  <p class="text-sm text-yellow-700">
+                    No hay registros de actividad en el período seleccionado
+                  </p>
+                </div>
+                <!-- Cálculo en tiempo real con datos -->
+                <div v-else-if="empleadoDetalle.metricas?.es_tiempo_real" class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                  <p class="text-sm text-blue-700 mb-3">
+                    Los puntos se calculan en tiempo real basados en:
+                  </p>
+                  <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-white rounded p-2 border border-blue-100">
+                      <p class="font-semibold text-blue-900">Check-ins</p>
+                      <p class="text-blue-700">{{ empleadoDetalle.datos_ranking?.total_check_ins || 0 }} × 5 = {{ (empleadoDetalle.datos_ranking?.total_check_ins || 0) * 5 }}pts</p>
+                    </div>
+                    <div class="bg-white rounded p-2 border border-blue-100">
+                      <p class="font-semibold text-blue-900">Ventas</p>
+                      <p class="text-blue-700">{{ empleadoDetalle.datos_ranking?.total_ventas || 0 }} × 2 = {{ (empleadoDetalle.datos_ranking?.total_ventas || 0) * 2 }}pts</p>
+                    </div>
+                    <div class="bg-white rounded p-2 border border-blue-100">
+                      <p class="font-semibold text-blue-900">Horneados</p>
+                      <p class="text-blue-700">{{ empleadoDetalle.datos_ranking?.total_horneados || 0 }} × 3 = {{ (empleadoDetalle.datos_ranking?.total_horneados || 0) * 3 }}pts</p>
+                    </div>
+                    <div class="bg-white rounded p-2 border border-blue-100">
+                      <p class="font-semibold text-blue-900">Notif. Atendidas</p>
+                      <p class="text-blue-700">{{ empleadoDetalle.datos_ranking?.notificaciones_atendidas || 0 }} × 10 = {{ (empleadoDetalle.datos_ranking?.notificaciones_atendidas || 0) * 10 }}pts</p>
+                    </div>
+                  </div>
+                </div>
+                <div v-else>
+                  <div v-for="punto in empleadoDetalle.metricas?.historial" :key="punto.id"
+                    class="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div>
+                      <p class="text-sm font-medium text-gray-900">{{ formatConcepto(punto.concepto) }}</p>
+                      <p class="text-xs text-gray-500">{{ punto.descripcion || '-' }}</p>
+                      <p class="text-xs text-gray-400">{{ new Date(punto.created_at).toLocaleString() }}</p>
+                    </div>
+                    <span class="px-2 py-1 text-sm font-semibold rounded-full"
+                      :class="punto.puntos >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                      {{ punto.puntos >= 0 ? '+' : '' }}{{ punto.puntos }}
+                    </span>
+                  </div>
+                  <p v-if="!empleadoDetalle.metricas?.historial?.length" class="text-gray-500 text-center py-4">
+                    Sin historial de puntos
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -467,5 +706,101 @@ const getSubtipoBadgeClass = (tipo, subtipo) => {
     return colors[subtipo] || 'bg-gray-100 text-gray-800';
   }
   return 'bg-gray-100 text-gray-800';
+};
+
+// =================== EVALUACION DE EMPLEADOS ===================
+const evalRanking = ref(props.evaluacion?.ranking || []);
+const evalMejores = ref(props.evaluacion?.mejores || {});
+const evalEstadisticas = ref(props.evaluacion?.estadisticas || {});
+const cargandoEval = ref(false);
+const mostrarDetalleEmpleado = ref(false);
+const empleadoDetalle = ref(null);
+
+// Filtros de evaluacion
+const fechaInicioMes = () => {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+};
+
+const filtrosEval = ref({
+  fecha_inicio: fechaInicioMes(),
+  fecha_fin: new Date().toISOString().split('T')[0],
+  sucursal_id: null,
+});
+
+const abrirEvaluacion = () => {
+  tabActivo.value = 'evaluacion';
+  if (!evalRanking.value?.length) {
+    cargarEvaluacion();
+  }
+};
+
+const cargarEvaluacion = async () => {
+  cargandoEval.value = true;
+  try {
+    const response = await axios.post('/actividad-personal/evaluacion', filtrosEval.value);
+    evalRanking.value = response.data.ranking || [];
+    evalMejores.value = response.data.mejores || {};
+    evalEstadisticas.value = response.data.estadisticas || {};
+  } catch (error) {
+    console.error('Error al cargar evaluacion:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'No se pudo cargar la evaluacion',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 3000,
+    });
+  } finally {
+    cargandoEval.value = false;
+  }
+};
+
+const verDetalleEmpleado = async (userId) => {
+  try {
+    const params = {
+      fecha_inicio: filtrosEval.value.fecha_inicio,
+      fecha_fin: filtrosEval.value.fecha_fin,
+    };
+    const response = await axios.get(`/actividad-personal/evaluacion/detalle/${userId}`, { params });
+    empleadoDetalle.value = response.data;
+    mostrarDetalleEmpleado.value = true;
+  } catch (error) {
+    console.error('Error al cargar detalle:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'No se pudo cargar el detalle del empleado',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 3000,
+    });
+  }
+};
+
+const cerrarDetalleEmpleado = () => {
+  mostrarDetalleEmpleado.value = false;
+  empleadoDetalle.value = null;
+};
+
+const exportarEvaluacion = () => {
+  const params = new URLSearchParams(filtrosEval.value);
+  window.open(`/actividad-personal/evaluacion/exportar?${params.toString()}`, '_blank');
+};
+
+const formatConcepto = (concepto) => {
+  const labels = {
+    check_in: 'Check-in',
+    venta: 'Venta',
+    horneado: 'Horneado',
+    notificacion_atendida: 'Notificacion Atendida',
+    notificacion_no_atendida: 'Notificacion No Atendida',
+    sobrante: 'Sobrante',
+    corte_caja: 'Corte de Caja',
+  };
+  return labels[concepto] || concepto;
 };
 </script>

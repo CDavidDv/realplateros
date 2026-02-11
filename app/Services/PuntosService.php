@@ -286,4 +286,201 @@ class PuntosService
             'puntos_por_concepto' => $puntosPorConcepto,
         ];
     }
+
+    /**
+     * Calcular puntos en tiempo real desde datos existentes (si no hay registros en puntos_empleado)
+     */
+    private function calcularPuntosEnTiempoReal(int $userId, string $fechaInicio, string $fechaFin): array
+    {
+        $config = PuntosConfiguracion::activos()->get()->keyBy('concepto');
+
+        $startDate = Carbon::parse($fechaInicio)->startOfDay();
+        $endDate = Carbon::parse($fechaFin)->endOfDay();
+
+        // Contar eventos por concepto
+        $checkIns = CheckInCheckOut::where('user_id', $userId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $ventas = Venta::where('usuario_id', $userId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $horneados = ControlProduccion::where('empleado_id', $userId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $notificacionesAtendidas = NotificacionPersonal::where('user_id', $userId)
+            ->where('atendida', true)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        // Calcular puntos
+        $puntos = 0;
+        $puntos += ($checkIns * ($config->get('check_in')?->puntos ?? 5));
+        $puntos += ($ventas * ($config->get('venta')?->puntos ?? 2));
+        $puntos += ($horneados * ($config->get('horneado')?->puntos ?? 3));
+        $puntos += ($notificacionesAtendidas * ($config->get('notificacion_atendida')?->puntos ?? 10));
+
+        return [
+            'total_puntos' => $puntos,
+            'check_ins' => $checkIns,
+            'ventas' => $ventas,
+            'horneados' => $horneados,
+            'notificaciones_atendidas' => $notificacionesAtendidas,
+        ];
+    }
+
+    /**
+     * Obtener datos de evaluación (con fallback a tiempo real si no hay registros)
+     */
+    private function obtenerDatosEvaluacion(int $userId, string $fechaInicio, string $fechaFin): array
+    {
+        // Primero intentar desde registros de puntos
+        $puntos = PuntosEmpleado::where('user_id', $userId)
+            ->entreFechas($fechaInicio, $fechaFin)
+            ->get();
+
+        // Si no hay registros, calcular en tiempo real
+        if ($puntos->isEmpty()) {
+            return $this->calcularPuntosEnTiempoReal($userId, $fechaInicio, $fechaFin);
+        }
+
+        // Si hay registros, usar los datos registrados
+        return [
+            'total_puntos' => $puntos->sum('puntos'),
+            'check_ins' => $puntos->where('concepto', 'check_in')->count(),
+            'ventas' => $puntos->where('concepto', 'venta')->count(),
+            'horneados' => $puntos->where('concepto', 'horneado')->count(),
+            'notificaciones_atendidas' => $puntos->where('concepto', 'notificacion_atendida')->count(),
+        ];
+    }
+
+    /**
+     * Obtener ranking con cálculo en tiempo real como fallback
+     */
+    public function obtenerRankingConTiempoReal(string $fechaInicio, string $fechaFin, ?int $sucursalId = null): array
+    {
+        // Obtener todos los usuarios activos, excluyendo roles específicos
+        $rolesExcluir = ['sucursal', 'almacen', 'gestor.ventas'];
+
+        $usuarios = User::where('active', true)
+            ->when($sucursalId, fn($q) => $q->where('sucursal_id', $sucursalId))
+            ->with(['sucursal', 'roles'])
+            ->get()
+            ->filter(function ($user) use ($rolesExcluir) {
+                // Excluir usuarios que tengan alguno de los roles especificados
+                $userRoles = $user->roles->pluck('name')->toArray();
+                foreach ($rolesExcluir as $role) {
+                    if (in_array($role, $userRoles)) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+        $ranking = [];
+
+        foreach ($usuarios as $user) {
+            $datos = $this->obtenerDatosEvaluacion($user->id, $fechaInicio, $fechaFin);
+            $horasTrabajadas = $this->calcularHorasTrabajadas($user->id, $fechaInicio, $fechaFin);
+
+            // Filtrar empleados sin actividades en el período
+            $tieneActividad = $datos['total_puntos'] > 0 ||
+                             $datos['check_ins'] > 0 ||
+                             $datos['ventas'] > 0 ||
+                             $datos['horneados'] > 0 ||
+                             $horasTrabajadas > 0;
+
+            if (!$tieneActividad) {
+                continue;
+            }
+
+            $ranking[] = [
+                'posicion' => 0, // Se asignará después
+                'user_id' => $user->id,
+                'nombre' => $user->name,
+                'email' => $user->email,
+                'sucursal' => $user->sucursal?->nombre ?? '-',
+                'sucursal_id' => $user->sucursal_id,
+                'total_puntos' => $datos['total_puntos'],
+                'total_ventas' => $datos['ventas'],
+                'total_horneados' => $datos['horneados'],
+                'notificaciones_atendidas' => $datos['notificaciones_atendidas'],
+                'total_check_ins' => $datos['check_ins'],
+                'horas_trabajadas' => $horasTrabajadas,
+            ];
+        }
+
+        // Ordenar por puntos y asignar posiciones
+        usort($ranking, fn($a, $b) => $b['total_puntos'] <=> $a['total_puntos']);
+
+        foreach ($ranking as &$item) {
+            static $posicion = 1;
+            $item['posicion'] = $posicion++;
+        }
+        unset($posicion);
+
+        return $ranking;
+    }
+
+    /**
+     * Obtener mejores empleados con cálculo en tiempo real
+     */
+    public function obtenerMejoresPorCategoriaConTiempoReal(string $fechaInicio, string $fechaFin, ?int $sucursalId = null): array
+    {
+        $ranking = $this->obtenerRankingConTiempoReal($fechaInicio, $fechaFin, $sucursalId);
+
+        if (empty($ranking)) {
+            return [
+                'mejor_general' => null,
+                'mas_ventas' => null,
+                'mas_horneados' => null,
+            ];
+        }
+
+        // Mejor general
+        $mejorGeneral = $ranking[0] ?? null;
+
+        // Más ventas
+        $masVentas = collect($ranking)->sortByDesc('total_ventas')->first();
+
+        // Más horneados
+        $masHorneados = collect($ranking)->sortByDesc('total_horneados')->first();
+
+        return [
+            'mejor_general' => $mejorGeneral,
+            'mas_ventas' => $masVentas,
+            'mas_horneados' => $masHorneados,
+        ];
+    }
+
+    /**
+     * Obtener estadísticas generales con cálculo en tiempo real
+     */
+    public function obtenerEstadisticasGeneralesConTiempoReal(string $fechaInicio, string $fechaFin, ?int $sucursalId = null): array
+    {
+        $ranking = $this->obtenerRankingConTiempoReal($fechaInicio, $fechaFin, $sucursalId);
+
+        if (empty($ranking)) {
+            return [
+                'total_puntos' => 0,
+                'total_empleados' => 0,
+                'promedio_puntos' => 0,
+                'promedio_horas_trabajadas' => 0,
+            ];
+        }
+
+        $totalPuntos = collect($ranking)->sum('total_puntos');
+        $totalEmpleados = count($ranking);
+        $promedioPuntos = round($totalPuntos / $totalEmpleados, 2);
+        $promedioHoras = round(collect($ranking)->avg('horas_trabajadas'), 2);
+
+        return [
+            'total_puntos' => $totalPuntos,
+            'total_empleados' => $totalEmpleados,
+            'promedio_puntos' => $promedioPuntos,
+            'promedio_horas_trabajadas' => $promedioHoras,
+        ];
+    }
 }

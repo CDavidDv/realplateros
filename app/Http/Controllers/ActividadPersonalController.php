@@ -7,9 +7,11 @@ use App\Models\ControlProduccion;
 use App\Models\CorteCaja;
 use App\Models\EntradasInventario;
 use App\Models\Gastos;
+use App\Models\PuntosConfiguracion;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\Venta;
+use App\Services\PuntosService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -61,6 +63,20 @@ class ActividadPersonalController extends Controller
         // Calcular resumen
         $resumen = $this->calcularResumen($actividades);
 
+        // Datos de evaluación (solo para admin)
+        $evaluacionData = [];
+        if ($user->hasRole('admin')) {
+            $puntosService = new PuntosService();
+            $fechaInicioMes = Carbon::today()->startOfMonth()->toDateString();
+
+            $evaluacionData = [
+                'ranking' => $puntosService->obtenerRankingConTiempoReal($fechaInicioMes, $fechaHoy),
+                'mejores' => $puntosService->obtenerMejoresPorCategoriaConTiempoReal($fechaInicioMes, $fechaHoy),
+                'estadisticas' => $puntosService->obtenerEstadisticasGeneralesConTiempoReal($fechaInicioMes, $fechaHoy),
+                'configuracion' => PuntosConfiguracion::activos()->get(),
+            ];
+        }
+
         return Inertia::render('ActividadPersonal/index', [
             'usuarios' => $usuarios,
             'sucursales' => $sucursales,
@@ -68,6 +84,7 @@ class ActividadPersonalController extends Controller
             'resumen' => $resumen,
             'fechaInicio' => $fechaHoy,
             'fechaFin' => $fechaHoy,
+            'evaluacion' => $evaluacionData,
         ]);
     }
 
@@ -397,5 +414,116 @@ class ActividadPersonalController extends Controller
             'retirado' => 'Retirado',
             default => ucfirst($estado),
         };
+    }
+
+    /**
+     * Filtrar evaluación de empleados
+     */
+    public function filtroEvaluacion(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user->hasRole('admin')) {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
+        $fechaInicio = $request->input('fecha_inicio', Carbon::today()->startOfMonth()->toDateString());
+        $fechaFin = $request->input('fecha_fin', Carbon::today()->toDateString());
+        $sucursalId = $request->input('sucursal_id');
+
+        $puntosService = new PuntosService();
+
+        return response()->json([
+            'ranking' => $puntosService->obtenerRankingConTiempoReal($fechaInicio, $fechaFin, $sucursalId),
+            'mejores' => $puntosService->obtenerMejoresPorCategoriaConTiempoReal($fechaInicio, $fechaFin, $sucursalId),
+            'estadisticas' => $puntosService->obtenerEstadisticasGeneralesConTiempoReal($fechaInicio, $fechaFin, $sucursalId),
+        ]);
+    }
+
+    /**
+     * Obtener detalle de un empleado
+     */
+    public function detalleEmpleado(Request $request, int $userId)
+    {
+        $user = Auth::user();
+
+        if (!$user->hasRole('admin')) {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
+        $fechaInicio = $request->input('fecha_inicio', Carbon::today()->startOfMonth()->toDateString());
+        $fechaFin = $request->input('fecha_fin', Carbon::today()->toDateString());
+
+        $empleado = User::with('sucursal')->findOrFail($userId);
+        $puntosService = new PuntosService();
+
+        // Usar obtenerMetricas con fallback a tiempo real
+        // Primero obtener del ranking con tiempo real
+        $ranking = $puntosService->obtenerRankingConTiempoReal($fechaInicio, $fechaFin);
+        $datosEmpleado = collect($ranking)->firstWhere('user_id', $userId);
+
+        // Obtener métricas detalladas
+        $metricas = $puntosService->obtenerMetricas($userId, $fechaInicio, $fechaFin);
+
+        // Si no hay historial de puntos registrados, mostrar aviso
+        if (empty($metricas['historial'])) {
+            $metricas['historial'] = [];
+            $metricas['es_tiempo_real'] = true;
+        }
+
+        return response()->json([
+            'success' => true,
+            'empleado' => [
+                'id' => $empleado->id,
+                'nombre' => $empleado->name,
+                'email' => $empleado->email,
+                'sucursal' => $empleado->sucursal?->nombre ?? '-',
+            ],
+            'metricas' => $metricas,
+            'datos_ranking' => $datosEmpleado,
+        ]);
+    }
+
+    /**
+     * Exportar ranking a CSV
+     */
+    public function exportarEvaluacion(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user->hasRole('admin')) {
+            abort(403);
+        }
+
+        $fechaInicio = $request->input('fecha_inicio', Carbon::today()->startOfMonth()->toDateString());
+        $fechaFin = $request->input('fecha_fin', Carbon::today()->toDateString());
+        $sucursalId = $request->input('sucursal_id');
+
+        $puntosService = new PuntosService();
+        $ranking = $puntosService->obtenerRankingConTiempoReal($fechaInicio, $fechaFin, $sucursalId);
+
+        $csvContent = "Posicion,Nombre,Email,Sucursal,Puntos Totales,Ventas,Horneados,Notificaciones Atendidas,Check-ins,Horas Trabajadas\n";
+
+        foreach ($ranking as $empleado) {
+            $csvContent .= implode(',', [
+                $empleado['posicion'],
+                '"' . str_replace('"', '""', $empleado['nombre']) . '"',
+                $empleado['email'],
+                '"' . str_replace('"', '""', $empleado['sucursal']) . '"',
+                $empleado['total_puntos'],
+                $empleado['total_ventas'],
+                $empleado['total_horneados'],
+                $empleado['notificaciones_atendidas'],
+                $empleado['total_check_ins'],
+                $empleado['horas_trabajadas'],
+            ]) . "\n";
+        }
+
+        $filename = 'evaluacion_empleados_' . $fechaInicio . '_' . $fechaFin . '.csv';
+
+        return response($csvContent, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 }
