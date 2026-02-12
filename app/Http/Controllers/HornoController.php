@@ -203,7 +203,8 @@ class HornoController extends Controller
     {
         $request->validate([
             'horno_id' => 'required|exists:horno,id',
-            'pastes' => 'required|array'
+            'pastes' => 'required|array',
+            'matricula' => 'nullable|string'
         ]);
 
         $user = Auth::user();
@@ -211,8 +212,17 @@ class HornoController extends Controller
         $pastesHorneados = $request->input('pastes');
         $hornoId = $request->input('horno_id');
 
+        // Determinar el responsable: usar matrícula si se proporcionó, sino el usuario logueado
+        $responsable = $user;
+        if ($request->matricula) {
+            $empleadoPorMatricula = \App\Models\User::where('email', $request->matricula)->first();
+            if ($empleadoPorMatricula) {
+                $responsable = $empleadoPorMatricula;
+            }
+        }
+
         // Usar un bloqueo de base de datos para este horno específico
-        return DB::transaction(function () use ($hornoId, $sucursalId, $pastesHorneados, $user, $request) {
+        return DB::transaction(function () use ($hornoId, $sucursalId, $pastesHorneados, $user, $responsable, $request) {
             // Obtener el horno con bloqueo
             $horno = Hornos::where('id', $hornoId)
                 ->where('sucursal_id', $sucursalId)
@@ -230,7 +240,7 @@ class HornoController extends Controller
             // Verificar si ya existe un registro de horneado para este grupo
             $horneadoExistente = Horneados::where('sucursal_id', $sucursalId)
                 ->where('created_at', '>=', now()->subMinutes(5))
-                ->where('responsable_id', $user->id)
+                ->where('responsable_id', $responsable->id)
                 ->whereIn('relleno', collect($pastesHorneados)->pluck('nombre'))
                 ->exists();
 
@@ -257,7 +267,7 @@ class HornoController extends Controller
                         'sucursal_id' => $sucursalId,
                         'relleno' => $paste['nombre'],
                         'created_at' => Carbon::now(),
-                        'responsable_id' => $user->id,
+                        'responsable_id' => $responsable->id,
                         'piezas' => $paste['cantidad']
                     ]);
 
@@ -269,6 +279,11 @@ class HornoController extends Controller
 
                     if ($control) {
                         $control->estado = 'en_espera';
+                        // Asignar el responsable del horneo como empleado_id
+                        // para que sume en la producción de horneados aunque no tenga check-in
+                        if (!$control->empleado_id) {
+                            $control->empleado_id = $responsable->id;
+                        }
                         $control->save();
                     }
 

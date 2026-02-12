@@ -236,7 +236,8 @@ const finalizarHorneado = async (hornoId) => {
     clearInterval(horno.timer);
     
     const pastesFinalizados = [...horno.pastesHorneando];
-    
+    const operarioMatricula = horno.operario || null;
+
     // Actualizar el estado del horno inmediatamente
     horno.horneando = false;
     horno.pastesHorneando = [];
@@ -249,8 +250,8 @@ const finalizarHorneado = async (hornoId) => {
     // Registrar en control de producción
     for (const paste of pastesFinalizados) {
       // Buscar el ID del paste en el inventario
-      const pasteEnInventario = inventario.find(item => 
-        item.nombre.toLowerCase() === paste.nombre.toLowerCase() && 
+      const pasteEnInventario = inventario.find(item =>
+        item.nombre.toLowerCase() === paste.nombre.toLowerCase() &&
         (item.tipo === 'pastes' || item.tipo === 'empanadas saladas' || item.tipo === 'empanadas dulces')
       );
 
@@ -272,7 +273,8 @@ const finalizarHorneado = async (hornoId) => {
     // Actualizar el estado del horno y registrar horneado
     axios.post('/hornear', {
       horno_id: hornoId,
-      pastes: pastesFinalizados
+      pastes: pastesFinalizados,
+      matricula: operarioMatricula
     }, {
       headers: { 'Accept': 'application/json' }
     }).then(() => {

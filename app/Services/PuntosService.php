@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PuntosConfiguracion;
 use App\Models\PuntosEmpleado;
 use App\Models\ControlProduccion;
+use App\Models\Horneados;
 use App\Models\NotificacionPersonal;
 use App\Models\CheckInCheckOut;
 use App\Models\Venta;
@@ -219,6 +220,13 @@ class PuntosService
             ->groupBy('empleado_id')
             ->pluck('total', 'empleado_id');
 
+        // También contar desde tabla horneados por responsable_id como respaldo
+        $horneadosDirectos = Horneados::whereIn('responsable_id', $userIds)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->selectRaw('responsable_id, COUNT(*) as total')
+            ->groupBy('responsable_id')
+            ->pluck('total', 'responsable_id');
+
         $notifCounts = NotificacionPersonal::whereIn('user_id', $userIds)
             ->where('atendida', true)
             ->whereBetween('created_at', [$startDate, $endDate])
@@ -230,7 +238,10 @@ class PuntosService
         foreach ($userIds as $userId) {
             $checkIns = (int) ($checkInsCounts->get($userId, 0));
             $ventas = (int) ($ventasCounts->get($userId, 0));
-            $horneados = (int) ($horneadosCounts->get($userId, 0));
+            // Usar el mayor entre control_produccion y horneados directos
+            $horneadosCP = (int) ($horneadosCounts->get($userId, 0));
+            $horneadosDir = (int) ($horneadosDirectos->get($userId, 0));
+            $horneados = max($horneadosCP, $horneadosDir);
             $notificaciones = (int) ($notifCounts->get($userId, 0));
 
             $puntos = 0;
@@ -460,9 +471,16 @@ class PuntosService
             ->whereBetween('created_at', [$startDate, $endDate])
             ->count();
 
-        $horneados = ControlProduccion::where('empleado_id', $userId)
+        $horneadosCP = ControlProduccion::where('empleado_id', $userId)
             ->whereBetween('created_at', [$startDate, $endDate])
             ->count();
+
+        // También contar desde tabla horneados por responsable_id como respaldo
+        $horneadosDir = Horneados::where('responsable_id', $userId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
+
+        $horneados = max($horneadosCP, $horneadosDir);
 
         $notificacionesAtendidas = NotificacionPersonal::where('user_id', $userId)
             ->where('atendida', true)
