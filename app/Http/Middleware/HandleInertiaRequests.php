@@ -43,46 +43,14 @@ class HandleInertiaRequests extends Middleware
     {
         //si el usuario esta autenticado
         if ($request->user()) {
-            $sucursalId = $request->user()->sucursal_id;
-            
-            // Obtener inventario de la sucursal
-            $inventario = Inventario::select(['id', 'nombre', 'tipo', 'cantidad', 'sucursal_id'])
-                ->where('sucursal_id', $sucursalId)
-                ->get();
-            
-            // Obtener estimaciones del día actual
-            $estimacionesHoy = Estimaciones::select(['id', 'inventario_id', 'cantidad', 'hora', 'dia', 'sucursal_id'])
-                ->with(['inventario:id,nombre,tipo,cantidad'])
-                ->where('sucursal_id', $sucursalId)
-                ->where('dia', Carbon::now()->locale('es')->dayName)
-                ->get();
+            $user = $request->user();
+            $sucursalId = $user->sucursal_id;
 
-            // Obtener notificaciones faltantes
-            $notificacionesFaltantes = ControlProduccion::select([
-                    'id', 'paste_id', 'sucursal_id', 'estado', 'created_at',
-                    'cantidad', 'cantidad_horneada', 'cantidad_vendida',
-                    'tiempo_inicio_horneado', 'hora_ultima_venta',
-                    'hora_notificacion', 'dia_notificacion'
-                ])
-                ->with(['paste:id,nombre,tipo', 'sucursal:id,nombre'])
-                ->where('sucursal_id', $sucursalId)
-                ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
-                ->orderBy('created_at', 'desc')
-                ->limit(50)
-                ->get();
-
-            // Obtener notificaciones horneados
-            $notificacionesHorneados = ControlProduccion::select([
-                    'id', 'paste_id', 'sucursal_id', 'estado', 'created_at',
-                    'cantidad_horneada', 'tiempo_inicio_horneado',
-                    'hora_notificacion', 'dia_notificacion'
-                ])
-                ->with(['paste:id,nombre,tipo', 'sucursal:id,nombre'])
-                ->where('sucursal_id', $sucursalId)
-                ->whereIn('estado', ['horneando', 'en_espera', 'vendido'])
-                ->whereNotNull('tiempo_inicio_horneado')
-                ->orderBy('created_at', 'desc')
-                ->get();
+            // Cargar roles una sola vez
+            if (!$user->relationLoaded('roles')) {
+                $user->load('roles');
+            }
+            $rolesCollection = $user->roles;
 
             return array_merge(parent::share($request), [
                 // Flash messages para que back()->with() funcione con Inertia
@@ -92,25 +60,53 @@ class HandleInertiaRequests extends Middleware
                 ],
 
                 'auth' => [
-                    'user' => $request->user() ? [
-                        'id' => $request->user()->id,
-                        'name' => $request->user()->name,
-                        'email' => $request->user()->email,
-                        'sucursal_id' => $request->user()->sucursal_id,
-                        'es_almacen' => $request->user()->es_almacen,
-                        'roles' => $request->user()->roles->map(function($role) {
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'sucursal_id' => $user->sucursal_id,
+                        'es_almacen' => $user->es_almacen,
+                        'roles' => $rolesCollection->map(function($role) {
                             return ['name' => $role->name];
                         })
-                    ] : null,
+                    ],
                 ],
-                'user.roles' => $request->user() ? $request->user()->roles->pluck('name') : [],
-                'notificaciones' => [
-                    'faltantes' => $notificacionesFaltantes,
-                    'horneados' => $notificacionesHorneados
+                'user.roles' => $rolesCollection->pluck('name'),
+                'notificaciones' => fn () => [
+                    'faltantes' => ControlProduccion::select([
+                            'id', 'paste_id', 'sucursal_id', 'estado', 'created_at',
+                            'cantidad', 'cantidad_horneada', 'cantidad_vendida',
+                            'tiempo_inicio_horneado', 'hora_ultima_venta',
+                            'hora_notificacion', 'dia_notificacion'
+                        ])
+                        ->with(['paste:id,nombre,tipo', 'sucursal:id,nombre'])
+                        ->where('sucursal_id', $sucursalId)
+                        ->whereIn('estado', ['pendiente', 'horneando', 'en_espera', 'vendido'])
+                        ->orderBy('created_at', 'desc')
+                        ->limit(50)
+                        ->get(),
+                    'horneados' => ControlProduccion::select([
+                            'id', 'paste_id', 'sucursal_id', 'estado', 'created_at',
+                            'cantidad_horneada', 'tiempo_inicio_horneado',
+                            'hora_notificacion', 'dia_notificacion'
+                        ])
+                        ->with(['paste:id,nombre,tipo', 'sucursal:id,nombre'])
+                        ->where('sucursal_id', $sucursalId)
+                        ->whereIn('estado', ['horneando', 'en_espera', 'vendido'])
+                        ->whereNotNull('tiempo_inicio_horneado')
+                        ->orderBy('created_at', 'desc')
+                        ->limit(100)
+                        ->get(),
                 ],
-                
-                'inventario' => $inventario,
-                'estimacionesHoy' => $estimacionesHoy
+
+                'inventario' => fn () => Inventario::select(['id', 'nombre', 'tipo', 'cantidad', 'sucursal_id'])
+                    ->where('sucursal_id', $sucursalId)
+                    ->get(),
+                'estimacionesHoy' => fn () => Estimaciones::select(['id', 'inventario_id', 'cantidad', 'hora', 'dia', 'sucursal_id'])
+                    ->with(['inventario:id,nombre,tipo,cantidad'])
+                    ->where('sucursal_id', $sucursalId)
+                    ->where('dia', Carbon::now()->locale('es')->dayName)
+                    ->get(),
             ]);
         }
 

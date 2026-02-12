@@ -71,7 +71,8 @@ class HornoController extends Controller
             'pastes_horneando' => 'required|array',
             'tiempo_inicio' => 'required|numeric',
             'tiempo_fin' => 'required|numeric',
-            'estado' => 'required|boolean'
+            'estado' => 'required|boolean',
+            'matricula' => 'nullable|string'
         ]);
 
         $user = Auth::user();
@@ -81,6 +82,12 @@ class HornoController extends Controller
         $tiempo_inicio = date('Y-m-d H:i:s', $request->input('tiempo_inicio') / 1000);
         $tiempo_fin = date('Y-m-d H:i:s', $request->input('tiempo_fin') / 1000);
         $estado = $request->input('estado');
+
+        // Obtener empleado por matrícula (email)
+        $empleado = null;
+        if ($request->matricula) {
+            $empleado = \App\Models\User::where('email', $request->matricula)->first();
+        }
 
         $horno = Hornos::where('id', $hornoId)
             ->where('sucursal_id', $sucursalId)
@@ -123,11 +130,16 @@ class HornoController extends Controller
             
             if ($control) {
                 $control->estado = 'horneando';
-                
+
+                // Asignar empleado si se proporcionó matrícula y no está asignado
+                if ($empleado && !$control->empleado_id) {
+                    $control->empleado_id = $empleado->id;
+                }
+
                 // Obtener valores actuales
                 $cantidadActual = is_numeric($control->cantidad_horneada) ? (int)$control->cantidad_horneada : 0;
                 $cantidadNueva = is_numeric($paste['cantidad']) ? (int)$paste['cantidad'] : 0;
-                
+
                 // Realizar la suma
                 $control->cantidad_horneada = $cantidadActual + $cantidadNueva;
                 
@@ -200,7 +212,7 @@ class HornoController extends Controller
         $hornoId = $request->input('horno_id');
 
         // Usar un bloqueo de base de datos para este horno específico
-        return DB::transaction(function () use ($hornoId, $sucursalId, $pastesHorneados, $user) {
+        return DB::transaction(function () use ($hornoId, $sucursalId, $pastesHorneados, $user, $request) {
             // Obtener el horno con bloqueo
             $horno = Hornos::where('id', $hornoId)
                 ->where('sucursal_id', $sucursalId)
@@ -209,6 +221,9 @@ class HornoController extends Controller
 
             // Verificar si el horno existe y está en estado de horneado
             if (!$horno || !$horno->estado) {
+                if ($request->wantsJson()) {
+                    return response()->json(['success' => true, 'message' => 'Horno ya procesado']);
+                }
                 return redirect()->route('hornear');
             }
 
@@ -223,6 +238,9 @@ class HornoController extends Controller
                 // Si ya existe un registro reciente, solo actualizar el estado del horno
                 $horno->estado = 0;
                 $horno->save();
+                if ($request->wantsJson()) {
+                    return response()->json(['success' => true]);
+                }
                 return redirect()->route('hornear');
             }
 
@@ -325,6 +343,9 @@ class HornoController extends Controller
             $horno->estado = 0;
             $horno->save();
 
+            if ($request->wantsJson()) {
+                return response()->json(['success' => true]);
+            }
             return redirect()->route('hornear');
         });
     }

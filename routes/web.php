@@ -147,6 +147,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::post('/api/notificaciones/registrar', [NotificacionUmbralController::class, 'registrarNotificacion'])->name('notificaciones.registrar');
     Route::post('/api/notificaciones/actualizar', [NotificacionUmbralController::class, 'actualizarNotificaciones'])->name('notificaciones.actualizar');
     Route::get('/api/notificaciones/obtener', [NotificacionUmbralController::class, 'obtenerNotificacionesFiltradas'])->name('notificaciones.obtener');
+    Route::post('/api/notificaciones/registrar-batch', [NotificacionUmbralController::class, 'registrarNotificacionesBatch'])->name('notificaciones.registrar-batch');
 
 
     Route::get('/gestor-ventas', [GestorVentasController::class, 'index'])->name('gestor-ventas')->middleware('role:gestor');

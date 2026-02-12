@@ -7,6 +7,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import Swal from 'sweetalert2';
 
 // Estado
@@ -296,84 +297,32 @@ onMounted(() => {
   // Función para mostrar notificaciones
   const mostrarNotificaciones = () => {
     const faltantesActuales = notificacionesFaltantes.value;
+    if (!faltantesActuales?.length) return;
 
-    if (faltantesActuales && faltantesActuales.length > 0) {
-      // Procesar cada notificación individualmente para actualización en BD
-      faltantesActuales.forEach(async (notif) => {
-        const notificacionId = `${notif.id}`;
-        const cantidad = notif.estimado - notif.existente;
+    // Un solo request batch en vez de N requests individuales
+    const notificacionesPayload = faltantesActuales.map(notif => ({
+        notificacion_id: String(notif.id),
+        cantidad: notif.estimado - notif.existente
+    }));
 
-        // Extraemos el ID del paste y la hora de la notificación actual
-        const pasteId = parseInt(notificacionId.toString().split('-')[0]);
-        const horaNotificacion = notif.hora;
+    axios.post(route('notificaciones.registrar-batch'), {
+        sucursal_id: usePage().props.auth.user.sucursal_id,
+        notificaciones: notificacionesPayload
+    }).catch(error => {
+        console.error('Error al registrar notificaciones batch:', error);
+    });
 
-        // Verificamos que tengamos notificaciones antes de buscar
-        if (!notificaciones_guardadas.value || notificaciones_guardadas.value.length === 0) {
-          router.post(route('notificaciones.registrar'), {
-            sucursal_id: usePage().props.auth.user.sucursal_id,
-            notificacion_id: notificacionId,
-            cantidad: cantidad
-          }, {
-            preserveScroll: true,
-            onSuccess: (response) => {
-              if (response.props.notificaciones?.faltantes) {
-                actualizarNotificaciones(response.props.notificaciones.faltantes);
-              }
-            }
-          });
-          return;
-        }
+    // Lógica de UI toast
+    const horneadosData = usePage().props.notificaciones?.horneados || [];
+    const notificacionesIntervaloUI = filterNotificationsForUI(faltantesActuales, horneadosData);
 
-        // Buscamos en todas las notificaciones guardadas usando Map optimizado
-        const key = `${pasteId}-${horaNotificacion}`;
-        const notificacionExistente = notificacionesMap.value.get(key);
-
-        if (notificacionExistente) {
-          // Si existe y la cantidad es diferente, actualizamos
-          if (notificacionExistente.cantidad !== cantidad) {
-            router.post(route('notificaciones.actualizar'), {
-              sucursal_id: usePage().props.auth.user.sucursal_id,
-              notificacion_id: notificacionId,
-              cantidad: cantidad
-            }, {
-              preserveScroll: true,
-              onSuccess: (response) => {
-                if (response.props.notificaciones?.faltantes) {
-                  actualizarNotificaciones(response.props.notificaciones.faltantes);
-                }
-              }
-            });
-          }
-        } else {
-          // Si no existe, creamos una nueva notificación
-          router.post(route('notificaciones.registrar'), {
-            sucursal_id: usePage().props.auth.user.sucursal_id,
-            notificacion_id: notificacionId,
-            cantidad: cantidad
-          }, {
-            preserveScroll: true,
-            onSuccess: (response) => {
-              if (response.props.notificaciones?.faltantes) {
-                actualizarNotificaciones(response.props.notificaciones.faltantes);
-              }
-            }
-          });
-        }
-      });
-
-      // Lógica para filtrar notificaciones a mostrar en UI considerando horneados
-      const horneadosData = usePage().props.notificaciones?.horneados || [];
-      const notificacionesIntervaloUI = filterNotificationsForUI(faltantesActuales, horneadosData);
-      
-      if (notificacionesIntervaloUI.length > 0) {
+    if (notificacionesIntervaloUI.length > 0) {
         reproducirSonido();
         showNotificationsWithDelay(notificacionesIntervaloUI.map(notif => ({
           tipo: 'warning',
           mensaje: `${notif.nombre} para las ${notif.hora}: ${Math.round(notif.porcentajeCubierto * 100)}% cubierto (inv. + horneando). Mínimo 70%.`
         })));
-        
         lastNotificationTime.value = Date.now();
-      }
     }
   };
 
@@ -396,53 +345,21 @@ onMounted(() => {
 
 // Watch para actualizar notificaciones cuando cambia el inventario (OPTIMIZADO)
 watch(() => props.inventario, (newInventario) => {
-  if (newInventario && newInventario.length > 0) {
-    // Usar setTimeout para evitar múltiples operaciones simultáneas
-    setTimeout(() => {
-      const notificarFaltantes = notificacionesFaltantes.value;
-      if (notificarFaltantes.length > 0) {
-        notificarFaltantes.forEach(async (notif) => {
-          const notificacionId = `${notif.id}`;
-          const cantidad = notif.estimado - notif.existente;
-          const pasteId = parseInt(notificacionId.split('-')[0]);
-          const horaNotificacion = notificacionId.split('-')[1];
+  if (!newInventario?.length) return;
 
-          // Actualizar o crear notificación sin mostrar toast
-          if (!notificaciones_guardadas.value || notificaciones_guardadas.value.length === 0) {
-            router.post(route('notificaciones.registrar'), {
-              sucursal_id: usePage().props.auth.user.sucursal_id,
-              notificacion_id: notificacionId,
-              cantidad: cantidad
-            }, {
-              preserveScroll: true,
-              onSuccess: (response) => {
-                if (response.props.notificaciones?.faltantes) {
-                  actualizarNotificaciones(response.props.notificaciones.faltantes);
-                }
-              }
-            });
-          } else {
-            const key = `${pasteId}-${horaNotificacion}`;
-            const notificacionExistente = notificacionesMap.value.get(key);
+  setTimeout(() => {
+    const faltantes = notificacionesFaltantes.value;
+    if (!faltantes?.length) return;
 
-            if (notificacionExistente && notificacionExistente.cantidad !== cantidad) {
-              router.post(route('notificaciones.actualizar'), {
-                sucursal_id: usePage().props.auth.user.sucursal_id,
-                notificacion_id: notificacionId,
-                cantidad: cantidad
-              }, {
-                preserveScroll: true,
-                onSuccess: (response) => {
-                  if (response.props.notificaciones?.faltantes) {
-                    actualizarNotificaciones(response.props.notificaciones.faltantes);
-                  }
-                }
-              });
-            }
-          }
-        });
-      }
-    }, 1000); // Delay de 1 segundo para evitar operaciones múltiples
-  }
+    axios.post(route('notificaciones.registrar-batch'), {
+        sucursal_id: usePage().props.auth.user.sucursal_id,
+        notificaciones: faltantes.map(notif => ({
+            notificacion_id: String(notif.id),
+            cantidad: notif.estimado - notif.existente
+        }))
+    }).catch(error => {
+        console.error('Error al registrar notificaciones batch:', error);
+    });
+  }, 1000);
 }, { deep: true });
 </script> 

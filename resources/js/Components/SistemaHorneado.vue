@@ -54,8 +54,22 @@
   </div>
 
   <!-- Sección de Horneado -->
-  <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div v-for="(horno, index) in hornosActivos" :key="horno.id" class="bg-white shadow rounded-lg p-6">
+  <div class="mt-8">
+    <div class="bg-white shadow rounded-lg p-6 mb-4">
+      <h2 class="text-xl font-semibold mb-4">Información del Operario</h2>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Matrícula</label>
+        <input
+          v-model="matricula"
+          type="text"
+          placeholder="Ingresa tu matrícula"
+          class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div v-for="(horno, index) in hornosActivos" :key="horno.id" class="bg-white shadow rounded-lg p-6">
       <div class="flex justify-between">
         <h2 class="text-xl font-semibold mb-4">Horno {{ index + 1 }}</h2>
         <button @click="deleteHorno(horno.id)" v-if="!horno.horneando && hornos.length > 1" 
@@ -66,6 +80,12 @@
       </div>
 
       <div v-if="horno.horneando">
+        <div v-if="horno.operario" class="mb-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+          <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span class="text-sm text-blue-800">Operario: <strong>{{ horno.operario }}</strong></span>
+        </div>
         <p class="text-lg mb-2">Horneando grupo de pastes:</p>
         <ul>
           <li v-for="paste in horno.pastesHorneando" :key="paste.nombre">
@@ -92,6 +112,7 @@
         class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
         Crear Nuevo Horno
       </button>
+    </div>
     </div>
   </div>
   
@@ -125,6 +146,7 @@ import { Trash, Trash2 } from 'lucide-vue-next';
 const { props } = usePage();
 const inventario = props.inventario || [];
 const hornos = ref(props.hornos || []);
+const matricula = ref('');
 
 // Inicialización del estado de los hornos
 const hornosActivos = ref(hornos.value.map(horno => ({
@@ -142,6 +164,7 @@ const hornosActivos = ref(hornos.value.map(horno => ({
 //900000 == 15 min
 const tiempoTotal = ref(900000); 
 const pastesPorHornear = ref([]);
+const isMounted = ref(true);
 
 // Función para iniciar el horneado
 const iniciarHorneado = () => {
@@ -155,6 +178,7 @@ const iniciarHorneado = () => {
     // Usar el horno disponible
     hornoDisponible.horneando = true;
     hornoDisponible.pastesHorneando = [...pastesPorHornear.value];
+    hornoDisponible.operario = matricula.value || null;
     pastesPorHornear.value = [];
 
     hornoDisponible.tiempoInicio = Date.now();
@@ -167,12 +191,14 @@ const iniciarHorneado = () => {
         tiempo_fin: hornoDisponible.tiempoFin,
         pastes_horneando: hornoDisponible.pastesHorneando,
         estado: true,
+        matricula: matricula.value,
       }).then(response => {
         console.log(response)
       }).catch(error => {
         console.error('Error al iniciar el horneado:', error);
       });
       
+      matricula.value = '';
       Swal.fire({ icon: 'success', title: 'Horneando', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
       iniciarTemporizador(hornoDisponible.id);
     } catch (error) {
@@ -214,6 +240,7 @@ const finalizarHorneado = async (hornoId) => {
     // Actualizar el estado del horno inmediatamente
     horno.horneando = false;
     horno.pastesHorneando = [];
+    horno.operario = null;
     horno.tiempoTranscurrido = 0;
     horno.labeltime = '00:00';
 
@@ -243,20 +270,20 @@ const finalizarHorneado = async (hornoId) => {
     }
 
     // Actualizar el estado del horno y registrar horneado
-    router.post('/hornear', { 
+    axios.post('/hornear', {
       horno_id: hornoId,
-      pastes: pastesFinalizados 
+      pastes: pastesFinalizados
     }, {
-      preserveScroll: true,
-      preserveState: false,
-      replace: true,
-      onSuccess: () => {
-        Toast.fire({ icon: 'success', title: 'Horneado finalizado' });
-      },
-      onError: (errors) => {
-        console.error(`Horno ${hornoId} - Error al registrar el horneado:`, errors);
-        Toast.fire({ icon: 'error', title: 'Error al registrar el horneado' });
-      },
+      headers: { 'Accept': 'application/json' }
+    }).then(() => {
+      Toast.fire({ icon: 'success', title: 'Horneado finalizado' });
+      // Refrescar datos solo si estamos en la página de hornear
+      if (usePage().url.startsWith('/hornear')) {
+        router.reload({ only: ['inventario', 'hornos', 'notificaciones'] });
+      }
+    }).catch((error) => {
+      console.error(`Horno ${hornoId} - Error al registrar el horneado:`, error);
+      Toast.fire({ icon: 'error', title: 'Error al registrar el horneado' });
     });
     
   } catch (error) {
@@ -439,6 +466,7 @@ const cancelarPaste = (id) => {
 
 // Función auxiliar para finalizar horneado desde temporizadores
 const finalizarHorneadoDesdeTimer = (hornoId) => {
+  if (!isMounted.value) return;
   finalizarHorneado(hornoId).catch(error => {
     console.error(`Error al finalizar horneado desde timer: ${error}`);
   });
@@ -556,17 +584,15 @@ onMounted(() => {
   });
 });
 
-/*
 onUnmounted(() => {
-  console.log('Componente desmontado - Limpiando timers');
+  isMounted.value = false;
   hornosActivos.value.forEach(horno => {
     if (horno.timer) {
       clearInterval(horno.timer);
-      console.log(`Horno ${horno.id} - Timer limpiado en onUnmounted`);
     }
   });
 });
-*/
+
 const crearHorno = () => {
   router.post('/crear-horno', {
     estado: false,

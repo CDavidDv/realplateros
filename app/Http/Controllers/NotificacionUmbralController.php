@@ -27,30 +27,32 @@ class NotificacionUmbralController extends Controller
 
         $pasteId = explode('-', $validated['notificacion_id']);
         Log::info('Paste ID extraído:', ['pasteId' => $pasteId]);
-if($pasteId[0] == 1){
-    $controlProduccion = ControlProduccion::where('paste_id', $pasteId[0])
-    ->where('hora_notificacion', $pasteId[1])
-    ->where('estado', 'pendiente')
-    ->first();
 
-    if ($controlProduccion) {
-        $controlProduccion->cantidad = $validated['cantidad'];
-        $controlProduccion->save();
-        Log::info('Notificación actualizada:', $controlProduccion->toArray());
-    }
-}else{
-        $controlProduccion = new ControlProduccion();
-        $controlProduccion->paste_id = $pasteId[0];
-        $controlProduccion->sucursal_id = $validated['sucursal_id'];
-        $controlProduccion->cantidad = $validated['cantidad'];
-        $controlProduccion->hora_notificacion = $pasteId[1];
-        $controlProduccion->dia_notificacion = Carbon::now()->locale('es')->dayName;
-        $controlProduccion->estado = 'pendiente';
-        $controlProduccion->save();
-}
+        $controlProduccion = ControlProduccion::where('paste_id', $pasteId[0])
+            ->where('hora_notificacion', $pasteId[1])
+            ->where('sucursal_id', $validated['sucursal_id'])
+            ->whereDate('created_at', Carbon::today())
+            ->where('estado', 'pendiente')
+            ->first();
+
+        if ($controlProduccion) {
+            $controlProduccion->cantidad = $validated['cantidad'];
+            $controlProduccion->save();
+            Log::info('Notificación actualizada:', $controlProduccion->toArray());
+        } else {
+            $controlProduccion = new ControlProduccion();
+            $controlProduccion->paste_id = $pasteId[0];
+            $controlProduccion->sucursal_id = $validated['sucursal_id'];
+            $controlProduccion->cantidad = $validated['cantidad'];
+            $controlProduccion->hora_notificacion = $pasteId[1];
+            $controlProduccion->dia_notificacion = Carbon::now()->locale('es')->dayName;
+            $controlProduccion->estado = 'pendiente';
+            $controlProduccion->save();
+
+            $this->crearNotificacionPersonal($controlProduccion);
+        }
+
         Log::info('Notificación guardada:', $controlProduccion->toArray());
-
-        $this->crearNotificacionPersonal($controlProduccion);
 
         return back()->with('notificaciones', $controlProduccion);
     }
@@ -109,6 +111,8 @@ if($pasteId[0] == 1){
         
         $controlProduccion = ControlProduccion::where('paste_id', $pasteId[0])
             ->where('hora_notificacion', $pasteId[1])
+            ->where('sucursal_id', $validated['sucursal_id'])
+            ->whereDate('created_at', Carbon::today())
             ->where('estado', 'pendiente')
             ->first();
 
@@ -119,6 +123,49 @@ if($pasteId[0] == 1){
         }
 
         return back()->with('success', 'Notificación actualizada correctamente');
+    }
+
+    public function registrarNotificacionesBatch(Request $request)
+    {
+        $validated = $request->validate([
+            'sucursal_id' => 'required|integer',
+            'notificaciones' => 'required|array',
+            'notificaciones.*.notificacion_id' => 'required|string',
+            'notificaciones.*.cantidad' => 'required|integer',
+        ]);
+
+        $resultados = [];
+        $today = Carbon::today();
+
+        foreach ($validated['notificaciones'] as $notifData) {
+            $pasteId = explode('-', $notifData['notificacion_id']);
+
+            $cp = ControlProduccion::where('paste_id', $pasteId[0])
+                ->where('hora_notificacion', $pasteId[1])
+                ->where('sucursal_id', $validated['sucursal_id'])
+                ->whereDate('created_at', $today)
+                ->where('estado', 'pendiente')
+                ->first();
+
+            if ($cp) {
+                $cp->cantidad = $notifData['cantidad'];
+                $cp->save();
+                $resultados[] = ['action' => 'updated', 'id' => $cp->id];
+            } else {
+                $cp = new ControlProduccion();
+                $cp->paste_id = $pasteId[0];
+                $cp->sucursal_id = $validated['sucursal_id'];
+                $cp->cantidad = $notifData['cantidad'];
+                $cp->hora_notificacion = $pasteId[1];
+                $cp->dia_notificacion = Carbon::now()->locale('es')->dayName;
+                $cp->estado = 'pendiente';
+                $cp->save();
+                $this->crearNotificacionPersonal($cp);
+                $resultados[] = ['action' => 'created', 'id' => $cp->id];
+            }
+        }
+
+        return response()->json(['success' => true, 'resultados' => $resultados]);
     }
 
     public function obtenerNotificacionesFiltradas(Request $request)

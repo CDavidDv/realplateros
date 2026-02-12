@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
 class PuntosService
 {
     /**
-     * Registrar puntos por una acción específica
+     * Registrar puntos por una accion especifica
      */
     public function registrar(
         int $userId,
@@ -106,7 +106,7 @@ class PuntosService
     }
 
     /**
-     * Obtener métricas detalladas de un empleado
+     * Obtener metricas detalladas de un empleado
      */
     public function obtenerMetricas(int $userId, string $fechaInicio, string $fechaFin): array
     {
@@ -157,12 +157,147 @@ class PuntosService
             ->whereNotNull('horas_trabajadas')
             ->sum('horas_trabajadas');
 
-        // horas_trabajadas está en minutos, convertir a horas
+        // horas_trabajadas esta en minutos, convertir a horas
         return round($minutosTrabajados / 60, 2);
     }
 
     /**
-     * Procesar notificaciones no atendidas al fin del día
+     * Calcular horas trabajadas en batch para multiples usuarios (1 query)
+     */
+    private function calcularHorasTrabajadasBatch(array $userIds, string $fechaInicio, string $fechaFin): array
+    {
+        if (empty($userIds)) {
+            return [];
+        }
+
+        $results = CheckInCheckOut::whereIn('user_id', $userIds)
+            ->whereDate('created_at', '>=', $fechaInicio)
+            ->whereDate('created_at', '<=', $fechaFin)
+            ->whereNotNull('horas_trabajadas')
+            ->selectRaw('user_id, SUM(horas_trabajadas) as total_minutos')
+            ->groupBy('user_id')
+            ->pluck('total_minutos', 'user_id');
+
+        $horas = [];
+        foreach ($userIds as $userId) {
+            $minutos = $results->get($userId, 0);
+            $horas[$userId] = round($minutos / 60, 2);
+        }
+
+        return $horas;
+    }
+
+    /**
+     * Calcular puntos en tiempo real en batch para multiples usuarios (4 queries)
+     */
+    private function calcularPuntosEnTiempoRealBatch(array $userIds, string $fechaInicio, string $fechaFin): array
+    {
+        if (empty($userIds)) {
+            return [];
+        }
+
+        $config = PuntosConfiguracion::activos()->get()->keyBy('concepto');
+
+        $startDate = Carbon::parse($fechaInicio)->startOfDay();
+        $endDate = Carbon::parse($fechaFin)->endOfDay();
+
+        $checkInsCounts = CheckInCheckOut::whereIn('user_id', $userIds)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->selectRaw('user_id, COUNT(*) as total')
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id');
+
+        $ventasCounts = Venta::whereIn('usuario_id', $userIds)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->selectRaw('usuario_id, COUNT(*) as total')
+            ->groupBy('usuario_id')
+            ->pluck('total', 'usuario_id');
+
+        $horneadosCounts = ControlProduccion::whereIn('empleado_id', $userIds)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->selectRaw('empleado_id, COUNT(*) as total')
+            ->groupBy('empleado_id')
+            ->pluck('total', 'empleado_id');
+
+        $notifCounts = NotificacionPersonal::whereIn('user_id', $userIds)
+            ->where('atendida', true)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->selectRaw('user_id, COUNT(*) as total')
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id');
+
+        $results = [];
+        foreach ($userIds as $userId) {
+            $checkIns = (int) ($checkInsCounts->get($userId, 0));
+            $ventas = (int) ($ventasCounts->get($userId, 0));
+            $horneados = (int) ($horneadosCounts->get($userId, 0));
+            $notificaciones = (int) ($notifCounts->get($userId, 0));
+
+            $puntos = 0;
+            $puntos += ($checkIns * ($config->get('check_in')?->puntos ?? 5));
+            $puntos += ($ventas * ($config->get('venta')?->puntos ?? 2));
+            $puntos += ($horneados * ($config->get('horneado')?->puntos ?? 3));
+            $puntos += ($notificaciones * ($config->get('notificacion_atendida')?->puntos ?? 10));
+
+            $results[$userId] = [
+                'total_puntos' => $puntos,
+                'check_ins' => $checkIns,
+                'ventas' => $ventas,
+                'horneados' => $horneados,
+                'notificaciones_atendidas' => $notificaciones,
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
+     * Obtener datos de evaluacion en batch (1 query PuntosEmpleado + batch fallback)
+     */
+    private function obtenerDatosEvaluacionBatch(array $userIds, string $fechaInicio, string $fechaFin): array
+    {
+        if (empty($userIds)) {
+            return [];
+        }
+
+        // 1 query: obtener todos los registros de puntos para todos los usuarios
+        $allPuntos = PuntosEmpleado::whereIn('user_id', $userIds)
+            ->entreFechas($fechaInicio, $fechaFin)
+            ->get()
+            ->groupBy('user_id');
+
+        $results = [];
+        $usersWithoutPuntos = [];
+
+        foreach ($userIds as $userId) {
+            $puntos = $allPuntos->get($userId);
+
+            if ($puntos && $puntos->isNotEmpty()) {
+                $results[$userId] = [
+                    'total_puntos' => $puntos->sum('puntos'),
+                    'check_ins' => $puntos->where('concepto', 'check_in')->count(),
+                    'ventas' => $puntos->where('concepto', 'venta')->count(),
+                    'horneados' => $puntos->where('concepto', 'horneado')->count(),
+                    'notificaciones_atendidas' => $puntos->where('concepto', 'notificacion_atendida')->count(),
+                ];
+            } else {
+                $usersWithoutPuntos[] = $userId;
+            }
+        }
+
+        // Batch fallback para usuarios sin registros de puntos
+        if (!empty($usersWithoutPuntos)) {
+            $batchResults = $this->calcularPuntosEnTiempoRealBatch($usersWithoutPuntos, $fechaInicio, $fechaFin);
+            foreach ($batchResults as $userId => $datos) {
+                $results[$userId] = $datos;
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Procesar notificaciones no atendidas al fin del dia
      */
     public function procesarNotificacionesNoAtendidas(string $fecha, ?int $sucursalId = null): int
     {
@@ -212,7 +347,7 @@ class PuntosService
     }
 
     /**
-     * Obtener mejor empleado por categoría
+     * Obtener mejor empleado por categoria
      */
     public function obtenerMejoresPorCategoria(string $fechaInicio, string $fechaFin, ?int $sucursalId = null): array
     {
@@ -226,13 +361,13 @@ class PuntosService
             ];
         }
 
-        // Mejor general (más puntos)
+        // Mejor general (mas puntos)
         $mejorGeneral = $ranking[0] ?? null;
 
-        // Más ventas
+        // Mas ventas
         $masVentas = collect($ranking)->sortByDesc('total_ventas')->first();
 
-        // Más horneados
+        // Mas horneados
         $masHorneados = collect($ranking)->sortByDesc('total_horneados')->first();
 
         return [
@@ -243,7 +378,7 @@ class PuntosService
     }
 
     /**
-     * Obtener estadísticas generales
+     * Obtener estadisticas generales
      */
     public function obtenerEstadisticasGenerales(string $fechaInicio, string $fechaFin, ?int $sucursalId = null): array
     {
@@ -332,7 +467,7 @@ class PuntosService
     }
 
     /**
-     * Obtener datos de evaluación (con fallback a tiempo real si no hay registros)
+     * Obtener datos de evaluacion (con fallback a tiempo real si no hay registros)
      */
     private function obtenerDatosEvaluacion(int $userId, string $fechaInicio, string $fechaFin): array
     {
@@ -357,11 +492,11 @@ class PuntosService
     }
 
     /**
-     * Obtener ranking con cálculo en tiempo real como fallback
+     * Obtener ranking con calculo en tiempo real como fallback (optimizado con batch)
      */
     public function obtenerRankingConTiempoReal(string $fechaInicio, string $fechaFin, ?int $sucursalId = null): array
     {
-        // Obtener todos los usuarios activos, excluyendo roles específicos
+        // Obtener todos los usuarios activos, excluyendo roles especificos
         $rolesExcluir = ['sucursal', 'almacen', 'gestor.ventas'];
 
         $usuarios = User::where('active', true)
@@ -379,13 +514,25 @@ class PuntosService
                 return true;
             });
 
+        $userIds = $usuarios->pluck('id')->toArray();
+
+        // Batch: obtener datos de evaluacion y horas para todos los usuarios
+        $allDatos = $this->obtenerDatosEvaluacionBatch($userIds, $fechaInicio, $fechaFin);
+        $allHoras = $this->calcularHorasTrabajadasBatch($userIds, $fechaInicio, $fechaFin);
+
         $ranking = [];
 
         foreach ($usuarios as $user) {
-            $datos = $this->obtenerDatosEvaluacion($user->id, $fechaInicio, $fechaFin);
-            $horasTrabajadas = $this->calcularHorasTrabajadas($user->id, $fechaInicio, $fechaFin);
+            $datos = $allDatos[$user->id] ?? [
+                'total_puntos' => 0,
+                'check_ins' => 0,
+                'ventas' => 0,
+                'horneados' => 0,
+                'notificaciones_atendidas' => 0,
+            ];
+            $horasTrabajadas = $allHoras[$user->id] ?? 0;
 
-            // Filtrar empleados sin actividades en el período
+            // Filtrar empleados sin actividades en el periodo
             $tieneActividad = $datos['total_puntos'] > 0 ||
                              $datos['check_ins'] > 0 ||
                              $datos['ventas'] > 0 ||
@@ -397,7 +544,7 @@ class PuntosService
             }
 
             $ranking[] = [
-                'posicion' => 0, // Se asignará después
+                'posicion' => 0,
                 'user_id' => $user->id,
                 'nombre' => $user->name,
                 'email' => $user->email,
@@ -415,22 +562,19 @@ class PuntosService
         // Ordenar por puntos y asignar posiciones
         usort($ranking, fn($a, $b) => $b['total_puntos'] <=> $a['total_puntos']);
 
+        $posicion = 1;
         foreach ($ranking as &$item) {
-            static $posicion = 1;
             $item['posicion'] = $posicion++;
         }
-        unset($posicion);
 
         return $ranking;
     }
 
     /**
-     * Obtener mejores empleados con cálculo en tiempo real
+     * Obtener mejores empleados desde ranking pre-calculado (0 queries)
      */
-    public function obtenerMejoresPorCategoriaConTiempoReal(string $fechaInicio, string $fechaFin, ?int $sucursalId = null): array
+    public function obtenerMejoresPorCategoriaDesdeRanking(array $ranking): array
     {
-        $ranking = $this->obtenerRankingConTiempoReal($fechaInicio, $fechaFin, $sucursalId);
-
         if (empty($ranking)) {
             return [
                 'mejor_general' => null,
@@ -439,29 +583,18 @@ class PuntosService
             ];
         }
 
-        // Mejor general
-        $mejorGeneral = $ranking[0] ?? null;
-
-        // Más ventas
-        $masVentas = collect($ranking)->sortByDesc('total_ventas')->first();
-
-        // Más horneados
-        $masHorneados = collect($ranking)->sortByDesc('total_horneados')->first();
-
         return [
-            'mejor_general' => $mejorGeneral,
-            'mas_ventas' => $masVentas,
-            'mas_horneados' => $masHorneados,
+            'mejor_general' => $ranking[0] ?? null,
+            'mas_ventas' => collect($ranking)->sortByDesc('total_ventas')->first(),
+            'mas_horneados' => collect($ranking)->sortByDesc('total_horneados')->first(),
         ];
     }
 
     /**
-     * Obtener estadísticas generales con cálculo en tiempo real
+     * Obtener estadisticas desde ranking pre-calculado (0 queries)
      */
-    public function obtenerEstadisticasGeneralesConTiempoReal(string $fechaInicio, string $fechaFin, ?int $sucursalId = null): array
+    public function obtenerEstadisticasDesdeRanking(array $ranking): array
     {
-        $ranking = $this->obtenerRankingConTiempoReal($fechaInicio, $fechaFin, $sucursalId);
-
         if (empty($ranking)) {
             return [
                 'total_puntos' => 0,
@@ -482,5 +615,23 @@ class PuntosService
             'promedio_puntos' => $promedioPuntos,
             'promedio_horas_trabajadas' => $promedioHoras,
         ];
+    }
+
+    /**
+     * Obtener mejores empleados con calculo en tiempo real (wrapper para backward compatibility)
+     */
+    public function obtenerMejoresPorCategoriaConTiempoReal(string $fechaInicio, string $fechaFin, ?int $sucursalId = null): array
+    {
+        $ranking = $this->obtenerRankingConTiempoReal($fechaInicio, $fechaFin, $sucursalId);
+        return $this->obtenerMejoresPorCategoriaDesdeRanking($ranking);
+    }
+
+    /**
+     * Obtener estadisticas generales con calculo en tiempo real (wrapper para backward compatibility)
+     */
+    public function obtenerEstadisticasGeneralesConTiempoReal(string $fechaInicio, string $fechaFin, ?int $sucursalId = null): array
+    {
+        $ranking = $this->obtenerRankingConTiempoReal($fechaInicio, $fechaFin, $sucursalId);
+        return $this->obtenerEstadisticasDesdeRanking($ranking);
     }
 }

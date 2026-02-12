@@ -69,10 +69,11 @@ class ActividadPersonalController extends Controller
             $puntosService = new PuntosService();
             $fechaInicioMes = Carbon::today()->startOfMonth()->toDateString();
 
+            $ranking = $puntosService->obtenerRankingConTiempoReal($fechaInicioMes, $fechaHoy);
             $evaluacionData = [
-                'ranking' => $puntosService->obtenerRankingConTiempoReal($fechaInicioMes, $fechaHoy),
-                'mejores' => $puntosService->obtenerMejoresPorCategoriaConTiempoReal($fechaInicioMes, $fechaHoy),
-                'estadisticas' => $puntosService->obtenerEstadisticasGeneralesConTiempoReal($fechaInicioMes, $fechaHoy),
+                'ranking' => $ranking,
+                'mejores' => $puntosService->obtenerMejoresPorCategoriaDesdeRanking($ranking),
+                'estadisticas' => $puntosService->obtenerEstadisticasDesdeRanking($ranking),
                 'configuracion' => PuntosConfiguracion::activos()->get(),
             ];
         }
@@ -432,11 +433,12 @@ class ActividadPersonalController extends Controller
         $sucursalId = $request->input('sucursal_id');
 
         $puntosService = new PuntosService();
+        $ranking = $puntosService->obtenerRankingConTiempoReal($fechaInicio, $fechaFin, $sucursalId);
 
         return response()->json([
-            'ranking' => $puntosService->obtenerRankingConTiempoReal($fechaInicio, $fechaFin, $sucursalId),
-            'mejores' => $puntosService->obtenerMejoresPorCategoriaConTiempoReal($fechaInicio, $fechaFin, $sucursalId),
-            'estadisticas' => $puntosService->obtenerEstadisticasGeneralesConTiempoReal($fechaInicio, $fechaFin, $sucursalId),
+            'ranking' => $ranking,
+            'mejores' => $puntosService->obtenerMejoresPorCategoriaDesdeRanking($ranking),
+            'estadisticas' => $puntosService->obtenerEstadisticasDesdeRanking($ranking),
         ]);
     }
 

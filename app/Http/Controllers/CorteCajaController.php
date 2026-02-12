@@ -322,64 +322,54 @@ class CorteCajaController extends Controller
             return response()->json(['error' => 'Filtro no válido.'], 400);
         }
 
-        // Filtrar ventas según el rango de fechas
+        // Ventas: 1 query, derivar efectivo/tarjeta del collection
         $ventas = Venta::where('sucursal_id', $sucursalId)
             ->with(['detalles.producto', 'usuario'])
             ->whereBetween('created_at', [$startDate, $endDate])
-            ->where('estado', '!=', 'eliminada') 
+            ->where('estado', '!=', 'eliminada')
             ->where('visible', true)
             ->orderBy('created_at', 'asc')
             ->get();
 
-        // Cálculos adicionales
         $cashPayments = $ventas->where('metodo_pago', 'efectivo')->sum('total');
-        
         $cardPayments = $ventas->where('metodo_pago', 'tarjeta')->sum('total');
-    
-        // Productos vendidos
-        $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
-            ->whereHas('venta', function ($query) use ($sucursalId, $startDate, $endDate) {
-                $query->where('sucursal_id', $sucursalId)
-                    ->whereBetween('created_at', [$startDate, $endDate])
-                    ->where('estado', '!=', 'eliminada') 
-                    ->where('visible', true);
-            })
-            ->groupBy('producto_id')
-            ->with('producto')
-            ->get();
-        
 
-        // Caja inicial y final
-        $initialCash = CorteCaja::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', $startDate)
-            ->value('dinero_inicio');
-
-
-        $finalCash = CorteCaja::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', $endDate)
-            ->value('dinero_final');
-
-
-        // Inventario
-        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
-
-        // Ventas de productos
+        // VentaProducto: 1 query en vez de 3
         $ventaProductos = VentaProducto::with('producto')
             ->whereHas('venta', function ($query) use ($sucursalId, $startDate, $endDate) {
                 $query->where('sucursal_id', $sucursalId)
                     ->whereBetween('created_at', [$startDate, $endDate])
-                    ->where('estado', '!=', 'eliminada') 
+                    ->where('estado', '!=', 'eliminada')
                     ->where('visible', true);
             })
             ->get();
 
-    
+        // Derivar productosVendidos del mismo dataset
+        $productosVendidos = $ventaProductos->groupBy('producto_id')->map(function ($group) {
+            return (object) [
+                'producto_id' => $group->first()->producto_id,
+                'total_vendido' => $group->sum('cantidad'),
+                'producto' => $group->first()->producto,
+            ];
+        })->values();
 
+        // CorteCaja: 1 query, derivar count e initial/final
         $cortes = CorteCaja::where('sucursal_id', $sucursalId)
             ->whereBetween('created_at', [$startDate, $endDate])
             ->get();
-       
+
         $cantidadCortes = $cortes->count();
+        $cantidadDeCortes = $cantidadCortes;
+        $initialCash = $cortes->sortBy('created_at')->first()?->dinero_inicio;
+        $finalCash = $cortes->sortByDesc('created_at')->first()?->dinero_final;
+
+        // Inventario: 1 query, derivar categorias
+        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
+        $categoriasInventario = $inventario->pluck('tipo')->unique()->map(fn($t) => (object)['tipo' => $t])->values();
+
+        $sobrantesInventario = Inventario::where('sucursal_id', $sucursalId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
 
         // Registros de inventario
         $registrosInventario = EntradasInventario::where('sucursal_id', $sucursalId)
@@ -387,47 +377,18 @@ class CorteCajaController extends Controller
             ->whereBetween('created_at', [$startDate, $endDate])
             ->get();
 
-       
-
         $gastos = Gastos::where('sucursal_id', $sucursalId)
             ->with('trabajador')
             ->whereBetween('created_at', [$startDate, $endDate])
             ->get();
 
         $totalGastos = $gastos->sum('costo');
-        
 
         $sobrantes = Sobrantes::where('sucursal_id', $sucursalId)
             ->whereBetween('created_at', [$startDate, $endDate])
-            ->whereHas('inventario') // Solo sobrantes con inventario existente
-            ->with('inventario')
-            ->with('corteCaja')
+            ->whereHas('inventario')
+            ->with(['inventario', 'corteCaja'])
             ->get();
-
-        $sobrantesInventario = Inventario::where('sucursal_id', $sucursalId)
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->get();
-            
-        $cantidadDeCortes = CorteCaja::where('sucursal_id', $sucursalId)
-            ->whereBetween('created_at', [$startDate, $endDate])  
-            ->count();
-
-        //obtener las categorias de los inventarios en su columna tipo
-        $categoriasInventario = Inventario::where('sucursal_id', $sucursalId)
-            ->select('tipo')
-            ->distinct()
-            ->get();
-
-        //ventaProdcutos
-        $ventaProductos = VentaProducto::with('producto')
-            ->whereHas('venta', function ($query) use ($sucursalId, $startDate, $endDate) {
-                $query->where('sucursal_id', $sucursalId)
-                    ->whereBetween('created_at', [$startDate, $endDate])
-                    ->where('estado', '!=', 'eliminada') 
-                    ->where('visible', true);
-            })
-            ->get();
-            
 
         return Inertia::render('Corte/index', [
             'cashPayments' => $cashPayments,
@@ -452,121 +413,71 @@ class CorteCajaController extends Controller
 
 
     public function corte()
-    {   
+    {
         // Obtener usuario autenticado
         $user = Auth::user();
         $sucursalId = $user->sucursal_id;
 
-        // Obtener todas las ventas de la sucursal
+        // Ventas: 1 query en vez de 3
         $ventas = Venta::where('sucursal_id', $sucursalId)
             ->with(['detalles.producto', 'usuario'])
             ->whereDate('created_at', Carbon::today())
-            ->where('estado', '!=', 'eliminada') 
+            ->where('estado', '!=', 'eliminada')
             ->where('visible', true)
             ->orderBy('created_at', 'asc')
             ->get();
 
-        
-        $ventasEfectivo = Venta::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', Carbon::today())
-            ->where('metodo_pago', 'efectivo')
-            ->where('visible', true)
-            ->get();
+        $ventasEfectivo = $ventas->where('metodo_pago', 'efectivo');
+        $ventasTarjeta = $ventas->where('metodo_pago', 'tarjeta');
 
-      
-        $ventasTarjeta = Venta::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', Carbon::today())
-            ->where('metodo_pago', 'tarjeta')
-            ->where('visible', true)
-            ->get();
-
-
-        // Obtener los productos vendidos de la sucursal, sumando las cantidades por producto
-        $productosVendidos = VentaProducto::select('producto_id', DB::raw('SUM(cantidad) as total_vendido'))
-            ->whereHas('venta', function ($query) use ($sucursalId) {
-                $query->where('sucursal_id', $sucursalId);
-            })
-            ->groupBy('producto_id')
-            ->with('producto')
-            ->whereDate('created_at', Carbon::today()) // Cambiar el nombre del modelo relacionado si es necesario
-            
-            ->get();  
-
-      
-        // Obtener inventario de la sucursal
-        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
-        //obtener el ultimo corte de caja de la sucursal
-        
-        $corte = CorteCaja::where('sucursal_id', $sucursalId)
-           ->whereDate('created_at', Carbon::today())
-           ->latest('created_at')
-           ->first();
- 
-        //contar los cortes de caja de la sucursal
-        $cantidadDeCortes = CorteCaja::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', Carbon::today())  
-            ->count();
-        
-        //obtener todos los cortes de caja de la sucursal de hoy
-        $cortes = CorteCaja::where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', Carbon::today())
-            ->get();
-
-       
-
-        $estimaciones = Estimaciones::where('sucursal_id', $sucursalId)
-           ->with('inventario') // Carga la relación Inventario
-           ->get();
-
-           
+        // VentaProducto: 1 query en vez de 2
         $ventaProductos = VentaProducto::with('producto')
             ->where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
             ->get();
 
-       
-           
-        $registrosInventario = EntradasInventario::where('sucursal_id', $sucursalId)
-            ->with(['inventario', 'trabajador' ])
-            ->whereDate('created_at', Carbon::today())
-            ->get(); 
+        // Derivar productosVendidos del mismo dataset
+        $productosVendidos = $ventaProductos->groupBy('producto_id')->map(function ($group) {
+            return (object) [
+                'producto_id' => $group->first()->producto_id,
+                'total_vendido' => $group->sum('cantidad'),
+                'producto' => $group->first()->producto,
+            ];
+        })->values();
 
-       
+        // Inventario: 1 query en vez de 3
+        $inventario = Inventario::where('sucursal_id', $sucursalId)->get();
+        $sobrantesInventario = $inventario;
+        $categoriasInventario = $inventario->pluck('tipo')->unique()->map(fn($t) => (object)['tipo' => $t])->values();
+
+        // CorteCaja: 1 query en vez de 2
+        $cortes = CorteCaja::where('sucursal_id', $sucursalId)
+            ->whereDate('created_at', Carbon::today())
+            ->get();
+        $cantidadDeCortes = $cortes->count();
+        $corte = $cortes->sortByDesc('created_at')->first();
+
+        $estimaciones = Estimaciones::where('sucursal_id', $sucursalId)
+           ->with('inventario')
+           ->get();
+
+        $registrosInventario = EntradasInventario::where('sucursal_id', $sucursalId)
+            ->with(['inventario', 'trabajador'])
+            ->whereDate('created_at', Carbon::today())
+            ->get();
 
         $gastos = Gastos::where('sucursal_id', $sucursalId)
             ->with('trabajador')
             ->whereDate('created_at', Carbon::today())
             ->get();
 
-        
         $totalGastos = $gastos->sum('costo');
-    
-        $sobrantesInventario = Inventario::where('sucursal_id', $sucursalId)
-            ->get();
 
         $sobrantes = Sobrantes::where('sucursal_id', $sucursalId)
             ->whereDate('created_at', Carbon::today())
-            ->whereHas('inventario') // Solo sobrantes con inventario existente
-            ->with('inventario')
-            ->with('corteCaja')
+            ->whereHas('inventario')
+            ->with(['inventario', 'corteCaja'])
             ->get();
-
-        //obtener las categorias de los inventarios en su columna tipo
-        $categoriasInventario = Inventario::where('sucursal_id', $sucursalId)
-            ->select('tipo')
-            ->distinct()
-            ->get();
-
-            //ventaProdcutos
-        $ventaProductos = VentaProducto::with('producto')
-            ->where('sucursal_id', $sucursalId)
-            ->whereDate('created_at', Carbon::today())
-            ->get();
-        
-
-        // Calculate system totals for display
-        $totalEfectivo = $ventasEfectivo->sum('total');
-        $totalTarjeta = $ventasTarjeta->sum('total');
 
         return Inertia::render('Corte/index', [
             'inventario' => $inventario,
@@ -575,8 +486,8 @@ class CorteCajaController extends Controller
             'corte' => $corte,
             'estimaciones' => $estimaciones,
             'ventasProductos' => $ventaProductos,
-            'ventasEfectivo' => $ventasEfectivo,
-            'ventasTarjeta' => $ventasTarjeta,
+            'ventasEfectivo' => $ventasEfectivo->values(),
+            'ventasTarjeta' => $ventasTarjeta->values(),
             'registrosInventario' => $registrosInventario,
             'gastos' => $gastos,
             'totalGastos' => $totalGastos,

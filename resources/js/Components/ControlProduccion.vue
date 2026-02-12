@@ -795,56 +795,36 @@ const notificacionesFaltantesCalculadas = computed(() => {
 });
 
 // Watch para registrar notificaciones cuando hay menos del 70%
+const isRegistering = ref(false);
+let registrationTimeout = null;
+
+const registrarNotificacionesBatch = async (notificaciones) => {
+    if (isRegistering.value || !notificaciones?.length) return;
+    isRegistering.value = true;
+
+    try {
+        await axios.post(route('notificaciones.registrar-batch'), {
+            sucursal_id: props.auth?.user?.sucursal_id,
+            notificaciones: notificaciones.map(notif => ({
+                notificacion_id: String(notif.id),
+                cantidad: notif.cantidad
+            }))
+        });
+    } catch (error) {
+        console.error('Error al registrar notificaciones en batch:', error);
+    } finally {
+        isRegistering.value = false;
+    }
+};
+
 watch(() => notificacionesFaltantesCalculadas.value, (nuevasNotificaciones) => {
-  if (nuevasNotificaciones && nuevasNotificaciones.length > 0) {
-    // Registrar cada notificación faltante en la base de datos
-    nuevasNotificaciones.forEach(async (notif) => {
-      const notificacionId = `${notif.id}`;
-      const cantidad = notif.cantidad;
-      
-      // Verificar si ya existe la notificación
-      const notificacionExistente = props.notificaciones?.faltantes?.find(
-        n => {
-          // Verificar que notif.id sea una cadena antes de usar split
-          const notifId = typeof notif.id === 'string' ? notif.id : String(notif.id);
-          const pasteId = parseInt(notifId.split('-')[0]);
-          return n.paste_id === pasteId && n.hora_notificacion === notif.hora_notificacion;
+    if (registrationTimeout) clearTimeout(registrationTimeout);
+
+    registrationTimeout = setTimeout(() => {
+        if (nuevasNotificaciones?.length > 0) {
+            registrarNotificacionesBatch(nuevasNotificaciones);
         }
-      );
-      
-      if (!notificacionExistente) {
-        // Crear nueva notificación
-        router.post(route('notificaciones.registrar'), {
-          sucursal_id: props.auth?.user?.sucursal_id,
-          notificacion_id: notificacionId,
-          cantidad: cantidad
-        }, {
-          preserveScroll: true,
-          onSuccess: (response) => {
-            
-          },
-          onError: (error) => {
-            console.error('Error al registrar notificación:', error);
-          }
-        });
-      } else if (notificacionExistente.cantidad !== cantidad) {
-        // Actualizar notificación existente si la cantidad cambió
-        router.post(route('notificaciones.actualizar'), {
-          sucursal_id: props.auth?.user?.sucursal_id,
-          notificacion_id: notificacionId,
-          cantidad: cantidad
-        }, {
-          preserveScroll: true,
-          onSuccess: (response) => {
-            
-          },
-          onError: (error) => {
-            console.error('Error al actualizar notificación:', error);
-          }
-        });
-      }
-    });
-  }
+    }, 2000);
 }, { deep: true });
 
 // Función para iniciar horneado
