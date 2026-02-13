@@ -311,29 +311,48 @@ class PuntosService
         $controles = $query->get();
         $procesados = 0;
 
+        if ($controles->isEmpty()) {
+            return 0;
+        }
+
+        // Pre-cargar IDs de controles que ya fueron atendidos (1 query en batch)
+        $controlesAtendidos = NotificacionPersonal::whereIn('control_produccion_id', $controles->pluck('id'))
+            ->where('atendida', true)
+            ->pluck('control_produccion_id')
+            ->toArray();
+
+        // Pre-cargar empleados por sucursal (1 query)
+        $rolesExcluir = ['sucursal', 'almacen', 'gestor.ventas'];
+        $sucursalIds = $controles->pluck('sucursal_id')->unique()->toArray();
+
+        $empleadosPorSucursal = User::whereIn('sucursal_id', $sucursalIds)
+            ->where('active', true)
+            ->with('roles')
+            ->get()
+            ->filter(function ($user) use ($rolesExcluir) {
+                return !$user->roles->pluck('name')->intersect($rolesExcluir)->isNotEmpty();
+            })
+            ->groupBy('sucursal_id');
+
         foreach ($controles as $control) {
-            // Verificar si ya fue atendida
-            $atendida = NotificacionPersonal::where('control_produccion_id', $control->id)
-                ->where('atendida', true)
-                ->exists();
+            // Saltar si ya fue atendida
+            if (in_array($control->id, $controlesAtendidos)) {
+                continue;
+            }
 
-            if (!$atendida) {
-                // Buscar el trabajador de turno
-                $turno = CheckInCheckOut::where('sucursal_id', $control->sucursal_id)
-                    ->whereDate('check_in', $fecha)
-                    ->first();
+            // Obtener empleados de la sucursal del control
+            $empleados = $empleadosPorSucursal->get($control->sucursal_id, collect());
 
-                if ($turno && $turno->user_id) {
-                    $this->registrar(
-                        $turno->user_id,
-                        $control->sucursal_id,
-                        'notificacion_no_atendida',
-                        $control->id,
-                        'control_produccion',
-                        'Notificacion no atendida: ' . ($control->paste?->nombre ?? 'Producto')
-                    );
-                    $procesados++;
-                }
+            foreach ($empleados as $empleado) {
+                $this->registrar(
+                    $empleado->id,
+                    $control->sucursal_id,
+                    'notificacion_no_atendida',
+                    $control->id,
+                    'control_produccion',
+                    'Notificacion no atendida: ' . ($control->paste?->nombre ?? 'Producto')
+                );
+                $procesados++;
             }
         }
 
