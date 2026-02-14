@@ -269,9 +269,9 @@ class HornoController extends Controller
                         ->where('estado', 'horneando')
                         ->first();
 
-                    // Determinar responsable: matrícula > control_produccion.empleado_id > usuario logueado
+                    // Determinar responsable: control_produccion.empleado_id > matrícula > usuario logueado
                     $responsableId = $responsable->id;
-                    if (!$request->matricula && $control && $control->empleado_id) {
+                    if ($control && $control->empleado_id) {
                         $responsableId = $control->empleado_id;
                     }
 
