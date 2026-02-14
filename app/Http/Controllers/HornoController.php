@@ -263,26 +263,30 @@ class HornoController extends Controller
                     ->exists();
 
                 if (!$pasteHorneadoExistente) {
-                    Horneados::create([
-                        'sucursal_id' => $sucursalId,
-                        'relleno' => $paste['nombre'],
-                        'created_at' => Carbon::now(),
-                        'responsable_id' => $responsable->id,
-                        'piezas' => $paste['cantidad']
-                    ]);
-
                     $control = ControlProduccion::where('sucursal_id', $sucursalId)
                         ->where('paste_id', $paste['paste_id'])
                         ->orderBy('created_at', 'desc')
                         ->where('estado', 'horneando')
                         ->first();
 
+                    // Determinar responsable: matrícula > control_produccion.empleado_id > usuario logueado
+                    $responsableId = $responsable->id;
+                    if (!$request->matricula && $control && $control->empleado_id) {
+                        $responsableId = $control->empleado_id;
+                    }
+
+                    Horneados::create([
+                        'sucursal_id' => $sucursalId,
+                        'relleno' => $paste['nombre'],
+                        'created_at' => Carbon::now(),
+                        'responsable_id' => $responsableId,
+                        'piezas' => $paste['cantidad']
+                    ]);
+
                     if ($control) {
                         $control->estado = 'en_espera';
-                        // Asignar el responsable del horneo como empleado_id
-                        // para que sume en la producción de horneados aunque no tenga check-in
                         if (!$control->empleado_id) {
-                            $control->empleado_id = $responsable->id;
+                            $control->empleado_id = $responsableId;
                         }
                         $control->save();
                     }
