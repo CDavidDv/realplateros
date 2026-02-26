@@ -18,7 +18,7 @@
         <!-- Texto del contador -->
         <div>
           <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            Hornos en Produccion
+            Hornos en Producción
             <!-- Indicador de actualización -->
             <span v-if="actualizando" class="inline-block">
               <svg class="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">

@@ -6,7 +6,7 @@
         <h1 class="text-2xl font-bold mb-4" v-else>Tablero de Ventas</h1>
       </div>
       <EstadoPastes class="flex-1"
-              v-if="$page.props.contadorEstados"
+              v-if="$page.props.contadorEstados && !isAlmacen"
               :contadores="$page.props.contadorEstados"
           />
     </div>
@@ -36,7 +36,7 @@
             <tbody>
               <tr v-for="item in filteredInventory(category)" :key="item.id">
                 <td class="flex flex-col w-full">
-                  <div class="flex items-center gap-2" v-if="!isAlmacen">
+                  <div class="flex items-center gap-2" >
                     <p>{{ item.nombre }}</p>
                     <!-- Indicador de horneado -->
                     <span
