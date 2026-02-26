@@ -49,10 +49,6 @@ class DashboardController extends Controller
             return redirect()->route('gestor-ventas');
         }
 
-        if ($user->esAlmacen()) {
-            return redirect()->route('almacen');
-        }
-
         // Obtener fecha seleccionada o usar fecha actual
         $fechaSeleccionada = $request->input('fecha', null);
         $fechaActual = Carbon::now()->setTimezone('America/Mexico_City');
