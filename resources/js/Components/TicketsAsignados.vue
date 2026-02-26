@@ -5,7 +5,10 @@
       <h1 class="text-2xl font-bold text-gray-800">Tarjetas Recientes</h1>
       <form @submit.prevent="handleSearch" class="flex flex-col md:flex-row gap-4 mt-4 md:mt-0">
         <div class="flex flex-col">
-          <label for="fecha" class="text-sm font-medium text-gray-700 mb-1">Buscar por fecha</label>
+          <label for="fecha" class="text-sm font-medium text-gray-700 mb-1 inline-flex items-center gap-1">
+            Buscar por fecha
+            <span title="Busca tickets creados en este día (usa horario México)" class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-gray-400 rounded-full cursor-help">?</span>
+          </label>
           <input
             type="date"
             id="fecha"
@@ -15,7 +18,10 @@
           />
         </div>
         <div class="flex flex-col">
-          <label for="sucursal" class="text-sm font-medium text-gray-700 mb-1">Buscar por sucursal</label>
+          <label for="sucursal" class="text-sm font-medium text-gray-700 mb-1 inline-flex items-center gap-1">
+            Buscar por sucursal
+            <span title="Filtra por la sucursal de destino del ticket" class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-gray-400 rounded-full cursor-help">?</span>
+          </label>
           <select
             id="sucursal"
             v-model="sucursal"

@@ -14,7 +14,10 @@
       </div>
       <div class="flex items-center space-x-4">
         <div class="flex items-center space-x-2">
-          <label for="fecha" class="text-sm font-medium text-gray-700">Seleccionar día:</label>
+          <label for="fecha" class="text-sm font-medium text-gray-700 inline-flex items-center gap-1">
+            Seleccionar día:
+            <span title="Filtra el Control de Producción y los pastes horneados por esta fecha" class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-gray-400 rounded-full cursor-help">?</span>
+          </label>
           <input
             type="date"
             id="fecha"
@@ -432,9 +435,15 @@ const totalNotificacionesLocales = computed(() => {
 
 // Función para cambiar fecha
 const cambiarFecha = async () => {
-  
+
   if (fechaSeleccionada.value) {
     await cargarNotificacionesPorFecha(fechaSeleccionada.value);
+    // Actualizar pastesHorneados y fechaFiltro sin recargar toda la página
+    router.get('/hornear', { fecha: fechaSeleccionada.value }, {
+      only: ['pastesHorneados', 'fechaFiltro'],
+      preserveState: true,
+      preserveScroll: true,
+    });
   }
 };
 

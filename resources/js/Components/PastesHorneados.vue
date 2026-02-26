@@ -1,6 +1,9 @@
 <template>
   <div>
-    <h1 class="pb-4 pt-10 font-semibold text-xl">Pastes/Empanadas horneados de hoy</h1>
+    <h1 class="pb-4 pt-10 font-semibold text-xl inline-flex items-center gap-2">
+      Pastes/Empanadas horneados del {{ props.fechaFiltro || 'hoy' }}
+      <span title="Muestra los pastes y empanadas registrados como horneados en la fecha seleccionada desde el Control de Producción" class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-gray-400 rounded-full cursor-help">?</span>
+    </h1>
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">

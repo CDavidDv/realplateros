@@ -129,7 +129,10 @@ watch(() => props.graficas, (val) => {
                     <div class="bg-gray-50 p-4 rounded-lg mb-6">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1 inline-flex items-center gap-1">
+                                    Fecha Inicio
+                                    <span title="Rango de fechas para ver movimientos de inventario" class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-gray-400 rounded-full cursor-help">?</span>
+                                </label>
                                 <input type="date" v-model="filtros.fecha_inicio"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" />
                             </div>
@@ -139,7 +142,10 @@ watch(() => props.graficas, (val) => {
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Sucursal</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1 inline-flex items-center gap-1">
+                                    Sucursal (salidas)
+                                    <span title="Filtra las salidas por sucursal de destino. Los ingresos siempre muestran los del almacén" class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-gray-400 rounded-full cursor-help">?</span>
+                                </label>
                                 <select v-model="filtros.sucursal_id"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
                                     <option value="">Todas las sucursales</option>

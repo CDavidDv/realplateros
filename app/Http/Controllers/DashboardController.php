@@ -47,7 +47,11 @@ class DashboardController extends Controller
 
         if (Auth::user()->hasRole('gestor')) {
             return redirect()->route('gestor-ventas');
-        } 
+        }
+
+        if ($user->esAlmacen()) {
+            return redirect()->route('almacen');
+        }
 
         // Obtener fecha seleccionada o usar fecha actual
         $fechaSeleccionada = $request->input('fecha', null);

@@ -281,6 +281,9 @@ class AlmacenController extends Controller
         $fechaFin = $request->input('fecha_fin', now()->toDateString());
         $sucursalId = $request->input('sucursal_id');
 
+        // Los ingresos siempre se filtran por la sucursal del usuario autenticado (almacén)
+        $sucursalIdIngresos = Auth::user()->sucursal_id;
+
         $sucursales = Sucursal::orderBy('nombre')->get(['id', 'nombre']);
 
         $ingresos = EntradasInventario::select(
@@ -295,7 +298,7 @@ class AlmacenController extends Controller
         ->join('inventarios', 'entradas_inventario.inventario_id', '=', 'inventarios.id')
         ->whereDate('entradas_inventario.created_at', '>=', $fechaInicio)
         ->whereDate('entradas_inventario.created_at', '<=', $fechaFin)
-        ->when($sucursalId, fn($q) => $q->where('entradas_inventario.sucursal_id', $sucursalId))
+        ->where('entradas_inventario.sucursal_id', $sucursalIdIngresos)
         ->get()
         ->map(function ($row) {
             $trabajador = User::find($row->trabajador_id);
@@ -389,6 +392,9 @@ class AlmacenController extends Controller
         $fechaFin = $request->input('fecha_fin', now()->toDateString());
         $sucursalId = $request->input('sucursal_id');
 
+        // Los ingresos siempre se filtran por la sucursal del usuario autenticado (almacén)
+        $sucursalIdIngresos = Auth::user()->sucursal_id;
+
         $ingresos = EntradasInventario::select(
             DB::raw('DATE(entradas_inventario.created_at) as fecha'),
             'inventarios.nombre as producto',
@@ -399,7 +405,7 @@ class AlmacenController extends Controller
         ->join('inventarios', 'entradas_inventario.inventario_id', '=', 'inventarios.id')
         ->whereDate('entradas_inventario.created_at', '>=', $fechaInicio)
         ->whereDate('entradas_inventario.created_at', '<=', $fechaFin)
-        ->when($sucursalId, fn($q) => $q->where('entradas_inventario.sucursal_id', $sucursalId))
+        ->where('entradas_inventario.sucursal_id', $sucursalIdIngresos)
         ->get()
         ->map(fn($row) => [
             $row->fecha, 'Ingreso', $row->producto, $row->cantidad,

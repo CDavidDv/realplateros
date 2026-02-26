@@ -138,28 +138,32 @@ class InventarioController extends Controller
         $fecha = $request->input('fecha');
         $sucursalId = $request->input('sucursal');
 
+        // Rango de fechas con timezone México para evitar desfases UTC
+        $fechaInicio = Carbon::parse($fecha, 'America/Mexico_City')->startOfDay()->utc();
+        $fechaFin    = Carbon::parse($fecha, 'America/Mexico_City')->endOfDay()->utc();
+
         if($request->input('sucursal') != 'todas'){
             $ticketsAsignados = TicketAsignacion::where('estado', 'asignado')
             ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
                 ->limit(20)
-                ->whereDate('created_at', $fecha)
+                ->whereBetween('created_at', [$fechaInicio, $fechaFin])
                 ->where('sucursal_id', $sucursalId)
                 ->orderBy('created_at', 'desc')
                 ->get();
-    
+
             $ticketsCancelados = TicketAsignacion::where('estado', 'cancelado')
                 ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
                 ->limit(20)
-                ->whereDate('created_at', $fecha)
+                ->whereBetween('created_at', [$fechaInicio, $fechaFin])
                 ->where('sucursal_id', $sucursalId)
                 ->orderBy('created_at', 'desc')
                 ->get();
-    
+
                 //limitar a 20 tickets
             $ticketsCerrados = TicketAsignacion::where('estado', 'cerrado')
                 ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
                 ->limit(20)
-                ->whereDate('created_at', $fecha)
+                ->whereBetween('created_at', [$fechaInicio, $fechaFin])
                 ->where('sucursal_id', $sucursalId)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -167,14 +171,14 @@ class InventarioController extends Controller
             $ticketsAsignados = TicketAsignacion::where('estado', 'asignado')
             ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
                 ->limit(20)
-                ->whereDate('created_at', $fecha)
+                ->whereBetween('created_at', [$fechaInicio, $fechaFin])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
             $ticketsCancelados = TicketAsignacion::where('estado', 'cancelado')
                 ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
                 ->limit(20)
-                ->whereDate('created_at', $fecha)
+                ->whereBetween('created_at', [$fechaInicio, $fechaFin])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -182,7 +186,7 @@ class InventarioController extends Controller
             $ticketsCerrados = TicketAsignacion::where('estado', 'cerrado')
                 ->with(['ticket_productos_asignacion.producto', 'usuario', 'sucursal'])
                 ->limit(20)
-                ->whereDate('created_at', $fecha)
+                ->whereBetween('created_at', [$fechaInicio, $fechaFin])
                 ->orderBy('created_at', 'desc')
                 ->get();
         }
