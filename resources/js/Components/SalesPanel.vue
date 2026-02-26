@@ -36,7 +36,7 @@
             <tbody>
               <tr v-for="item in filteredInventory(category)" :key="item.id">
                 <td class="flex flex-col w-full">
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2" v-if="!isAlmacen">
                     <p>{{ item.nombre }}</p>
                     <!-- Indicador de horneado -->
                     <span
