@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1 class="pb-4 pt-10 font-semibold text-xl inline-flex items-center gap-2">
-      Pastes/Empanadas horneados del {{ props.fechaFiltro || 'hoy' }}
+      Pastes/Empanadas horneados del {{ page.props.fechaFiltro || 'hoy' }}
       <span title="Muestra los pastes y empanadas registrados como horneados en la fecha seleccionada desde el Control de Producción" class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-gray-400 rounded-full cursor-help">?</span>
     </h1>
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
@@ -44,17 +44,15 @@
 
 <script setup>
 import { usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
 import { computed } from 'vue'
 
-const { props } = usePage();
-const pastesHorneados = ref(props.pastesHorneados);
+const page = usePage();
 // Group items by relleno and add a total field for each type
 const bakedGoodsWithTotals = computed(() => {
   const grouped = {}
-  
+
   // Group by relleno and sum piezas for each type
-  props.pastesHorneados.forEach(item => {
+  ;(page.props.pastesHorneados ?? []).forEach(item => {
     if (!grouped[item.relleno]) {
       grouped[item.relleno] = { totalPiezas: 0, items: [] }
     }
